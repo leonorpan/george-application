@@ -2,7 +2,7 @@
 
 (defn -main [args]
   (println "Clojure: example.app/-main: Hello World!")
-  (println "Java called Clojure function with args:"
+  (println "   args from Java:"
       (apply str (interpose " " args))))
 
 (defn hello []

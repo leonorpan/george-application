@@ -36,6 +36,6 @@ gradle example  # (builds) and runs a trivial example app (with args hardcoded i
 gradle cp       # writes the necessary classpath to a temp-file.
 
 bin/rep
-bin\repl.bat    # starts an interactive repl using the classpath form the command above
+bin\\repl.bat    # starts an interactive repl using the classpath form the command above
 ```
 

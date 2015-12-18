@@ -11,12 +11,9 @@ group = 'no.andante.george'
 apply plugin: 'java'
 sourceCompatibility = '1.8'
 
-
 apply plugin: 'idea'
 
-
 // https://github.com/cosmin/IClojure
-
 
 buildscript {
     repositories {
@@ -28,7 +25,6 @@ buildscript {
     dependencies {
         classpath "clojuresque:clojuresque:1.7.0"
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.2'
-  //      classpath 'com.github.jengelman.gradle.plugins:gradle-processes:0.3.0'
   //      classpath 'com.offbytwo.iclojure:iclojure:1.2.0'
         classpath 'jline:jline:0.9.94'
 
@@ -60,13 +56,13 @@ repositories {
     maven { url 'http://clojars.org/repo' }
     mavenCentral()
     jcenter()
-
     //  flatDir dirs: project.file("lib/runtime")  // what does this do?
 }
 
 dependencies {
     compile 'org.clojure:clojure:1.8.0-RC3'
     compile 'jline:jline:0.9.94'
+    compile 'org.fxmisc.richtext:richtextfx:0.6.10'
 }
 
 
