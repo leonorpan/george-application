@@ -27,6 +27,7 @@ buildscript {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.2'
   //      classpath 'com.offbytwo.iclojure:iclojure:1.2.0'
         classpath 'jline:jline:0.9.94'
+        classpath 'org.clojure:tools.reader:1.0.0-alpha1'
 
     }
 }
@@ -63,8 +64,8 @@ dependencies {
     compile 'org.clojure:clojure:1.8.0-RC3'
     compile 'jline:jline:0.9.94'
     compile 'org.fxmisc.richtext:richtextfx:0.6.10'
+    compile 'org.clojure:tools.reader:1.0.0-alpha1'
 }
-
 
 
 

@@ -1,0 +1,26 @@
+@font-face {
+    font-family: 'Source Code Pro Regular';
+    src: url('../fonts/SourceCodePro-Regular.ttf');
+}
+@font-face {
+    font-family: 'Source Code Pro Medium';
+    src: url('../fonts/SourceCodePro-Medium.ttf');
+}
+@font-face {
+    font-family: 'Source Code Pro Bold';
+    src: url('../fonts/SourceCodePro-Bold.ttf');
+}
+
+.normal {-fx-font: 14 'Source Code Pro Regular';}
+.medium {-fx-font: 14 'Source Code Pro Medium';}
+.bold   {-fx-font: 16 'Source Code Pro Bold';}
+
+.red    {-fx-fill: red;}
+.black  {-fx-fill: black;}
+.blue    {-fx-fill: blue;}
+.teal    {-fx-fill: teal;}
+.green    {-fx-fill: green;}
+.orange    {-fx-fill: orange;}
+.pink {-fx-fill: pink;}
+
+.underline {-fx-underline: true}

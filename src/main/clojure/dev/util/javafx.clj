@@ -94,3 +94,10 @@ and the body is called on 'handle'"
                           (BorderWidths. width)
                           ))))
     )
+
+
+(defn add-stylesheets [^Scene scene ^String & sheetpaths]
+    (-> scene .getStylesheets (.addAll (into-array String sheetpaths))))
+
+(defn add-stylesheet [^Scene scene ^String sheetpath]
+    (-> scene .getStylesheets (.add sheetpath)))

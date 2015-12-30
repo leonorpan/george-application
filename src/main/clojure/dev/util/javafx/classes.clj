@@ -12,6 +12,9 @@
         '[javafx.application
           Platform]
 
+        '[javafx.beans.value
+          ChangeListener]
+
         '[javafx.collections
           FXCollections]
 
