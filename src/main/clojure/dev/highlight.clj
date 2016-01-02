@@ -16,6 +16,7 @@
         )
     (:import
         [java.util Collections]
+        ;[dev.reader SyntaxError]
         [org.fxmisc.richtext CodeArea LineNumberFactory StyleClassedTextArea StyleSpansBuilder]
         )
 
@@ -44,38 +45,8 @@
 
 
 
-
-
 (defn- read-sample-code[]
     (slurp (cio/resource "dev/highlight/sample_code.clj")))
-
-
-
-(defn- handle-exception [code-area exception]
-    (let [ m (.getMessage exception)
-           d (.getData exception)
-           l (:line d)
-           c (:column d)
-           pos0 (.position code-area 1 1)
-            pos (.position code-area l c)
-            offset (.toOffset pos)
-             ]
-        ;(.append code-area (.subView code-area pos0 pos)
-        (prn "message:" m)
-        (prn "   data:" d)
-        (prn "    pos:" pos)
-        (prn " offset:" offset)
-
-        )
-    )
-
-
-;(def LR (clojure.lang.LispReader.))
-;(-> LR class (.getDeclaredField "macros") (doto (.setAccessible true)) (.get LR) (get (int \;)) println)
-;(-> LR class (.getDeclaredMethod "readNumber" (j/vargs-1 Class java.io.PushbackReader Character/TYPE)) (doto (.setAccessible true)) println)
-
-;(-> LR class (.getDeclaredMethod "readNumber" (j/vargs-1 Class java.io.PushbackReader Character/TYPE)) (doto (.setAccessible true))
-;    (.invoke nil (j/vargs-1 Object (java.io.PushbackReader.(java.io.StringReader. "2")) \a)))
 
 
 
@@ -83,8 +54,10 @@
 (defn- style-class [area  length css-class ranges]
     (doseq [[from to] ranges]
         (let [
-
-                 to (if (> to length) length to)]
+                ;; ensure bounds
+                 from (if (< from 0) 0 from)
+                 to (if (> to length) length to)
+             ]
             (println "style-class:" css-class from to)
             (.setStyleClass area from to css-class))))
 
@@ -98,22 +71,36 @@
 
 (defn- type->css-class [typ]
     (println "type->css-class")
-    (println "  ## typ:" typ)
+    ;(println "  ## typ:" typ)
     (cond
         (isa? typ java.lang.Number)  "teal"
         (#{String Character} typ) "green"
         (isa? typ java.lang.Iterable)   "blue"
         (= typ clojure.lang.Keyword)  "pink"
         (#{clojure.lang.Symbol}  typ) "black"
+        (= typ :syntax-error) "syntax-error"
+        (= typ :reader-exception) "error"
         :else "orange"
     ))
 
 
 (defn- highlight-it [token code-area length]
     (println "highlight-it")
-    (println "  ## token:" token)
+;    (println "  ## token:" token)
+
+    (when (my/ex-info? token)
+        (let [
+                 d (.getData token)
+                 {from :starting-index to :ending-index typ :type error :error} d
+                 c (type->css-class typ)
+             ]
+            (println  "  #### ExceptionInfo  type:" type " error:" error " data:" d)
+            (when (not= :EOF error)
+                (style-class code-area length c (ranges typ from to )))
+        ))
+
     (when-let [m (meta token)]
-        (println "  ## m:" m)
+        (println "  ## meta:" m)
         (let [
                  {from :starting-index to :ending-index typ :type} m
                  typ (if typ typ (type token))
@@ -125,7 +112,7 @@
 
 (defn- highlight-them [tokens code-area length]
     (println "highlight-them")
-    (println "  ## tokens:" tokens)
+    ;(println "  ## tokens:" tokens)
     (highlight-it tokens code-area length)
     (when (coll? tokens)
         (doseq [token tokens]
@@ -134,33 +121,36 @@
 
 
 (defn- highlight-code-2 [code-area old-code code]
-    "a second attempt at a real reader/higlighter"
+    "a second attempt at a reader/parser/higlighter"
     (if (not= old-code code)
         (let [
-                 rdr (my/create-indexing-linenumbering-pushback-reader code)
                  length (. code length)
-                 ]
+                 rdr (my/create-indexing-linenumbering-pushback-reader code)
+             ]
+            (. code-area clearStyle 0 length)
             (loop [res nil]
                 (when (not= res :eof)
+                    (if res (highlight-them res code-area length))
                     (let [
                              res (try
                                      (my/read-code rdr)
 
-                                     (catch Exception ex
-                                         ;(handle-exception code-area ex)
-                                         (println "ex:" ex)
-                                         (t/read-char rdr)  ;; TODO: fix this hack!
-
-                                         ))
+                                     (catch Exception e
+                                         ;(t/read-char rdr)  ;; TODO: fix this hack!
+                                         (if (my/syntax-error? e)
+                                             (do
+                                                 (println "  ## syntax-error: " (.getData e))
+                                                 ;; try step past cause of error to keep reading
+                                                 (println "  ## stepping forwards ...")
+                                                 (try (.read rdr)
+                                                     (catch Exception e (println "      ... failed")))
+                                                 e)
+                                             ;; else
+                                             (throw e))))
                              ]
-                        ; (prn "res:" res "  meta:" (meta res))
-                        (highlight-them res code-area length)
-
-                        ;(println res "  type:" (type res) "  seq?:" (seq? res) "  line:" (t/get-line-number reader) "  column:" (t/get-column-number reader))
-                        ;(println res "  type:" (type res) "  seq?:" (seq? res) "  line:" (.getLineNumber reader) "  column:" (.getColumnNumber reader)  "  index:" (.getIndex reader))
-                        ;(when (seq? res)(doseq [r res] (println r "  type:" (type r))))
 
                         (recur res)))))))
+
 
 (defn- code-area-change-listener [code-area]
     (reify ChangeListener

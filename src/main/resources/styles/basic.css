@@ -15,12 +15,15 @@
 .medium {-fx-font: 14 'Source Code Pro Medium';}
 .bold   {-fx-font: 16 'Source Code Pro Bold';}
 
-.red    {-fx-fill: red;}
+.red {-fx-fill: red;}
 .black  {-fx-fill: black;}
 .blue    {-fx-fill: blue;}
-.teal    {-fx-fill: teal;}
-.green    {-fx-fill: green;}
-.orange    {-fx-fill: orange;}
-.pink {-fx-fill: pink;}
+.teal    {-fx-fill: #005d69;}
+.green    {-fx-fill: #005500;}
+.orange    {-fx-fill: #ff5400;}
+.pink {-fx-fill: #9918ff;}
 
 .underline {-fx-underline: true}
+
+.syntax-error {-fx-fill: #ff5400; -fx-underline: true}
+.error {-fx-fill: red; -fx-underline: true}
