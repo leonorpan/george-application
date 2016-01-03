@@ -86,7 +86,7 @@
 
 (defn- highlight-it [token code-area length]
     (println "highlight-it")
-;    (println "  ## token:" token)
+    ;(println "  ## token:" token)
 
     (when (my/ex-info? token)
         (let [
@@ -94,7 +94,7 @@
                  {from :starting-index to :ending-index typ :type error :error} d
                  c (type->css-class typ)
              ]
-            (println  "  #### ExceptionInfo  type:" type " error:" error " data:" d)
+            (println  "  #### ExceptionInfo  type:" type " message:" (.getMessage token) " error:" error " data:" d)
             (when (not= :EOF error)
                 (style-class code-area length c (ranges typ from to )))
         ))
@@ -125,12 +125,13 @@
     (if (not= old-code code)
         (let [
                  length (. code length)
-                 rdr (my/create-indexing-linenumbering-pushback-reader code)
+                 rdr (my/indexing-pushback-stringreader code)
              ]
             (. code-area clearStyle 0 length)
             (loop [res nil]
                 (when (not= res :eof)
                     (if res (highlight-them res code-area length))
+                    (Thread/sleep 10)
                     (let [
                              res (try
                                      (my/read-code rdr)
@@ -139,11 +140,18 @@
                                          ;(t/read-char rdr)  ;; TODO: fix this hack!
                                          (if (my/syntax-error? e)
                                              (do
-                                                 (println "  ## syntax-error: " (.getData e))
+                                                 (println "  ## syntax-error: " (my/data e))
+                                                 (println " next rdr index:" (.getIndex rdr))
                                                  ;; try step past cause of error to keep reading
-                                                 (println "  ## stepping forwards ...")
-                                                 (try (.read rdr)
-                                                     (catch Exception e (println "      ... failed")))
+                                                 (if (= (-> e my/data :error) my/UNMATCHED_START)
+                                                     (do
+                                                        (println "  ## stepping back ...")
+                                                        (.unreadTo rdr (-> e my/data :ending-index)))
+                                                     (do
+                                                         (println "  ## stepping forwards ...")
+                                                         ;(println "  ## stepping forwards ... NOT")
+                                                         (.read rdr)
+                                                         ))
                                                  e)
                                              ;; else
                                              (throw e))))

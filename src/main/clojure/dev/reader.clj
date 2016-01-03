@@ -50,26 +50,30 @@
 
 (defn- starting-location [rdr]
     {
-        :starting-column (dec (.getColumnNumber rdr))
-        :starting-line (.getLineNumber rdr)
+;        :starting-column (dec (.getColumnNumber rdr))
+;        :starting-line (.getLineNumber rdr)
         :starting-index (dec (.getIndex rdr))
         })
 
 (defn- ending-location [rdr]
     {
-        :ending-column (dec (.getColumnNumber rdr))
-        :ending-line (.getLineNumber rdr)
+;        :ending-column (dec (.getColumnNumber rdr))
+;        :ending-line (.getLineNumber rdr)
         :ending-index (.getIndex rdr)
         })
 
 
 (defn- step-start [location stp]
     "adds 'stp' from starting-column and starting-index"
-    (update (update location :starting-column + stp) :starting-index + stp))
+    ;(update (update location :starting-column + stp) :starting-index + stp)
+    (update location :starting-index + stp)
+    )
 
 (defn- step-end [location stp]
     "adds 'stp' from ending-column and ending-index"
-    (update (update location :ending-column + stp) :ending-index + stp))
+    ;(update (update location :ending-column + stp) :ending-index + stp)
+    (update location :ending-index + stp)
+    )
 
 
 
@@ -130,13 +134,24 @@
 ;(defn syntax-error [error message & data-maps]
 ;    (SyntaxError. error message (merge {} data-maps)))
 
+(defn syntax-error*
+    "creates an ExceptionInfo with the given message, and optional maps merged into data-map"
+    [error msg maps]
+    (ex-info
+        msg
+        (apply merge {:type :syntax-error :error error} maps)))
+
+
 (defn syntax-error
+    "creates an ExceptionInfo with the given message, and optional maps merged into data-map"
+    [error msg & maps]
+    (syntax-error* error msg maps))
+
+(defn throw-syntax-error
     "Throws an ExceptionInfo with the given message, and optional maps merged into data-map"
     [error msg & maps]
     (throw
-        (ex-info
-               msg
-               (apply merge {:type :syntax-error :error error} maps))))
+        (syntax-error* error msg maps)))
 
 
 (defn throwing-reader
@@ -149,11 +164,12 @@
 (defn ex-info? [e]
     (instance? clojure.lang.ExceptionInfo e))
 
+(defn data [e]
+    (when (ex-info? e) (.getData e)))
+
 
 (defn syntax-error? [e]
-    (and (ex-info? e)
-        (when-let [d (.getData e)]
-            (= :syntax-error (:type d)))))
+    (and (ex-info? e) (= (-> e data :type) :syntax-error)))
 
 
 (definterface IValue (getValue []))
@@ -204,9 +220,9 @@
     [rdr initch]
     ;; This really isn't an error.  It is simply the end of the file!
     ;(if-not initch (reader-error (str rdr "EOF while reading"))
-    (pdebug "EOF while reading token")
     (if-not initch
-        (syntax-error EOF "EOF while reading token")
+        ;(throw-syntax-error EOF "EOF while reading token")
+        ""
         (loop [sb (StringBuilder.) ch initch]
             (if (or (whitespace? ch)
                     (macro-terminating? ch)
@@ -228,7 +244,7 @@
             (dm rdr ch opts pending-forms)
             (read-tagged (doto rdr (unread ch)) ch opts pending-forms)) ;; ctor reader is implemented as a tagged literal
 ;        (reader-error "EOF while reading character")
-        (syntax-error
+        (throw-syntax-error
             EOF
             "EOF while reading character (at 'read-dispatch')"
             (step-start (starting-location rdr) -1)
@@ -242,13 +258,21 @@
             (step-start (starting-location rdr) -1)
             (ending-location rdr))))
 
-(defn- read-unmatched-delimiter
+
+(defn- read-unmatched-start-delimiter
     [rdr ch opts pending-forms]
-    (syntax-error
-        UNMATCHED_END
-        (str "Unmatched delimiter " ch)
+    (throw-syntax-error
+        UNMATCHED_START
+        (str "Unmatched start delimiter " ch)
         (merge (starting-location rdr) (ending-location rdr))))
 
+
+(defn- read-unmatched-end-delimiter
+    [rdr ch opts pending-forms]
+    (throw-syntax-error
+        UNMATCHED_END
+        (str "Unmatched end delimiter " ch)
+        (merge (starting-location rdr) (ending-location rdr))))
 
 
 
@@ -270,7 +294,7 @@
             (if (identical? \" ch)
                 (Pattern/compile (str sb))
                 (if (nil? ch)
-                    (syntax-error EOF
+                    (throw-syntax-error EOF
                         "EOF while reading regex"
                     )
                     (do
@@ -278,7 +302,7 @@
                         (when (identical? \\ ch)
                             (let [ch (read-char rdr)]
                                 (if (nil? ch)
-                                    (syntax-error EOF
+                                    (throw-syntax-error EOF
                                         "EOF while reading regex")
                                 )
                                 (.append sb ch)))
@@ -350,23 +374,23 @@
                                 (if (and (> ic upper-limit)
                                         (< ic lower-limit))
                                     ;; TODO: unify these errors and add start and end
-                                    (syntax-error INVALID_CHAR
+                                    (throw-syntax-error INVALID_CHAR
                                         "Invalid character constant: \\u" (Integer/toString ic 16)) c))
 
                             (.startsWith token "o")
                             (let [len (dec token-len)]
                                 (if (> len 3)
-                                    (syntax-error INVALID_CHAR
+                                    (throw-syntax-error INVALID_CHAR
                                         "Invalid octal escape sequence length: " len)
                                     (let [uc (read-unicode-char token 1 len 8)]
                                         (if (> (int uc) 0377)
-                                            (syntax-error INVALID_CHAR
+                                            (throw-syntax-error INVALID_CHAR
                                                 "Octal escape sequence must be in range [0, 377]")
                                             uc))))
 
-                            :else (syntax-error INVALID_CHAR
+                            :else (throw-syntax-error INVALID_CHAR
                                       "Unsupported character: \\" token)))
-                    (syntax-error EOF
+                    (throw-syntax-error EOF
                         "EOF while reading character")))
                 (merge start-location (ending-location rdr))
             )))
@@ -388,24 +412,40 @@
     [delim rdr opts pending-forms]
     (let [
             start-location (starting-location rdr)
+            ch (peek-char rdr)
              ;; get it now, in case EOF due to unmatched ...
             end-location (ending-location rdr)
             delim (char delim)
          ]
+        (pdebug "start:" start-location)
+        (pdebug "end:" end-location)
+        (pdebug "ch:" ch)
         (binding [*read-delim* true]
             (loop [a (transient [])]
 
                 (let [form (read* rdr false READ_EOF delim opts pending-forms)]
+;                    (cond
+;                        (identical? form READ_FINISHED)
+;                        (persistent! a)
+;
+;                        (identical? form READ_EOF)
+;                        (throw-syntax-error UNMATCHED_START
+;                            (str "EOF while reading, starting at: " start-location)
+;                            start-location end-location)
+;
+;                         :else
+;                        (recur (conj! a form))
                     (if (identical? form READ_FINISHED)
                         (persistent! a)
 
                         (if (identical? form READ_EOF)
-
-                            (syntax-error UNMATCHED_START
+                            (throw-syntax-error UNMATCHED_START
                                 (str "EOF while reading, starting at: " start-location)
                                 start-location end-location)
 
-                            (recur (conj! a form)))))))))
+                          (recur (conj! a form)))
+
+                    ))))))
 
 
 
@@ -453,7 +493,7 @@
             cnt (count the-map)
         ]
         (when (odd? cnt)
-            (syntax-error UNMATCHED_KEY_VALUE_PAIR
+            (throw-syntax-error UNMATCHED_KEY_VALUE_PAIR
                 "Map literal must contain an even number of forms"))  ;; TODO: add start and end
         (with-meta
             (if (zero? cnt) {} (RT/map (into-array Object the-map)))
@@ -482,7 +522,7 @@
                         (pdebug "ex-info!  data:" d " start-location:" start-location)
 
                         (throw
-                            (syntax-error (:error d)
+                            (throw-syntax-error (:error d)
                                 (.getMessage e)
                                 (merge d start-location end-location0))))
 
@@ -510,7 +550,7 @@
 ;                            (str "Invalid number format [" s "]")
 ;                            (merge {:sub-type :invalid-number}
 ;                                start-location (ending-location rdr)))
-                        (syntax-error  ; TODO: this is broken?!?
+                        (throw-syntax-error  ; TODO: this is broken?!?
                             INVALID_NUMBER
                             (str "Invalid number format [" s "]")
                             start-location (ending-location rdr))
@@ -535,16 +575,16 @@
             \u (let [ch (read-char rdr)]
                    (if (== -1 (Character/digit (int ch) 16))
                        ; TODO: perhaps unify these errors and add start and end
-                       (syntax-error INVALID_ESCAPE
+                       (throw-syntax-error INVALID_ESCAPE
                            "Invalid unicode escape: \\u" ch)
                        (read-unicode-char rdr ch 16 4 true)))
             (if (numeric? ch)
                 (let [ch (read-unicode-char rdr ch 8 3 false)]
                     (if (> (int ch) 0337)
-                        (syntax-error INVALID_ESCAPE
+                        (throw-syntax-error INVALID_ESCAPE
                             "Octal escape sequence must be in range [0, 377]")
                         ch))
-                (syntax-error INVALID_ESCAPE
+                (throw-syntax-error INVALID_ESCAPE
                     "Unsupported escape character: \\" ch)))))
 
 
@@ -559,8 +599,13 @@
         (loop [sb (StringBuilder.)
                ch (read-char rdr)]
             (case ch
-                nil (syntax-error EOF ; TODO: add start and end?
-                        "EOF while reading string (got 'nil')")
+;                nil (throw-syntax-error EOF
+;                       "EOF while reading string (got 'nil')"
+;                       start-location (ending-location rdr))
+                nil (with-meta
+                    (meta-value (str sb))
+                    (merge start-location (ending-location rdr)))
+
                 \\ (recur (doto sb (.append (escape-char sb rdr)))
                        (read-char rdr))
                 \" (with-meta
@@ -591,7 +636,7 @@
                         (with-meta (symbol (p 0) (p 1))
                             (merge start-location (ending-location rdr)))
 
-                        (syntax-error INVALID_TOKEN
+                        (throw-syntax-error INVALID_TOKEN
                             (str "Invalid token: " token " (at 'read-token')")
                              start-location (ending-location rdr))
                     )
@@ -628,16 +673,19 @@
             (if (whitespace? ch)
                 ;; then
                 ;; TODO: unify these errors?
-                (syntax-error INVALID_TOKEN
+                (throw-syntax-error INVALID_TOKEN
                     "Whitespace not allowed in keyword"
                     {:at :read-keyword  :e 1} start-location (ending-location rdr))
                 ;; else
                 (let [token (read-token rdr ch) s (parse-symbol token)]
                     (if-not s
                         ;; then
-                        (syntax-error INVALID_TOKEN
-                            (str "Invalid token: ':" token "' (parse-symbol returned 'nil')")
-                            {:at :read-keyword :e 2} start-location (ending-location rdr))
+;                        (throw-syntax-error INVALID_TOKEN
+;                            (str "Invalid token: ':" token "' (parse-symbol returned 'nil')")
+;                            {:at :read-keyword :e 2} start-location (ending-location rdr))
+                        ;; is EOF
+                        (wrap-keyword (keyword ":")
+                            start-location (ending-location rdr))
                         ;; else
                         (let [^String ns (s 0) ^String name (s 1)]
                             (if-not (identical? \: (nth token 0))
@@ -656,7 +704,7 @@
                                             start-location (ending-location rdr))
 
                                         ;; else
-                                        (syntax-error INVALID_TOKEN
+                                        (throw-syntax-error INVALID_TOKEN
                                             (str "Invalid token: ':" token "' (resolve-ns returned 'nil')")
                                             {:at :read-keyword :e 3} start-location (ending-location rdr))
                                     )))))))))
@@ -677,7 +725,7 @@
               m (desugar-meta (read* rdr true nil opts pending-forms))]
             (when-not (map? m)
                 ; TODO: add start and end, and perhaps unify these errors.
-                (syntax-error INVALID_META
+                (throw-syntax-error INVALID_META
                     "Metadata must be Symbol, Keyword, String or Map"))
             (let [o (read* rdr true nil opts pending-forms)]
                 (if (instance? IMeta o)
@@ -685,7 +733,7 @@
                         (if (instance? IObj o)
                             (with-meta o (merge (meta o) m))
                             (reset-meta! o m)))
-                    (syntax-error INVALID_META
+                    (throw-syntax-error INVALID_META
                          "Metadata can only be applied to IMetas")))))
 
 
@@ -718,14 +766,14 @@
     [form rdr first-line]
     (when (identical? form READ_EOF)
         (if (< first-line 0)
-            (syntax-error EOF "EOF while reading")
-            (syntax-error EOF "EOF while reading, starting at line " first-line))))
+            (throw-syntax-error EOF "EOF while reading")
+            (throw-syntax-error EOF "EOF while reading, starting at line " first-line))))
 
 
 (defn- check-reserved-features
     [rdr form]
     (when (get RESERVED_FEATURES form)
-        (syntax-error INVALID_FEATURE ; TODO: add start and end?
+        (throw-syntax-error INVALID_FEATURE ; TODO: add start and end?
             (str "Feature name " form " is reserved"))))
 
 
@@ -734,9 +782,9 @@
     (when (identical? form READ_FINISHED)
         (if (< first-line 0)
             ; TODO: add start and end, and perhaps unify
-            (syntax-error UNMATCHED_COND
+            (throw-syntax-error UNMATCHED_COND
                 "read-cond requires an even number of forms")
-            (syntax-error UNMATCHED_COND
+            (throw-syntax-error UNMATCHED_COND
                 (str "read-cond starting on line " first-line " requires an even number of forms")))))
 
 
@@ -801,7 +849,7 @@
                     (do
                         (.addAll ^List pending-forms 0 ^List result)
                         rdr)
-                    (syntax-error INVALID_SPLICE ; TODO: and start and end
+                    (throw-syntax-error INVALID_SPLICE ; TODO: and start and end
                         "Spliced form list in read-cond-splicing must implement java.util.List."))
                 result))))
 
@@ -815,7 +863,7 @@
               ch (if splicing (read-char rdr) ch)]
             (when splicing
                 (when-not *read-delim*
-                    (syntax-error INVALID_SPLICE ; TODO: add start and end
+                    (throw-syntax-error INVALID_SPLICE ; TODO: add start and end
                         "cond-splice not in list")))
             (if-let [ch (if (whitespace? ch) (read-past whitespace? rdr) ch)]
                 (if (not= ch \()
@@ -825,9 +873,9 @@
                             (reader-conditional (read-list rdr ch opts pending-forms) splicing)
                             (read-cond-delimited rdr splicing opts pending-forms))))
                 ; TODO: all these EOFs should perhaps be handled better
-                (syntax-error
+                (throw-syntax-error
                     EOF "EOF while reading character")))
-        (syntax-error
+        (throw-syntax-error
             EOF "EOF while reading character")))
 
 
@@ -974,7 +1022,9 @@
 
 (defn- add-meta [form ret]
     (if (and (instance? IObj form)
-            (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
+            ;(seq (dissoc (meta form) :line :column :end-line :end-column :file :source))
+            (seq (dissoc (meta form) :source))
+            )
         (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
         ret))
 
@@ -1072,11 +1122,11 @@
         \` read-syntax-quote ;;(wrapping-reader 'syntax-quote)
         \~ read-unquote
         \( read-list
-        \) read-unmatched-delimiter
+        \) read-unmatched-end-delimiter
         \[ read-vector
-        \] read-unmatched-delimiter
+        \] read-unmatched-end-delimiter
         \{ read-map
-        \} read-unmatched-delimiter
+        \} read-unmatched-end-delimiter
         \\ read-char*
         \% read-arg
         \# read-dispatch
@@ -1190,77 +1240,44 @@
 (definterface IIndex
     (^int getIndex []))
 
-(defn create-indexing-linenumbering-pushback-reader [s]
-    (let [
-             indx (atom 0)
-             pusback-reader (java.io.PushbackReader. (java.io.StringReader. s))
-             ]
-        (proxy [clojure.lang.LineNumberingPushbackReader IIndex] [pusback-reader]
+(definterface IUnread
+    ( unreadTo [i]))
+
+(defn indexing-pushback-stringreader [s]
+    (let [indx (atom 0)
+          s-len (. s length)
+          ]
+        (proxy [java.io.PushbackReader IIndex IUnread] [(java.io.StringReader. s) (if (== 0 s-len) 1 s-len)]
             (read []
-                (swap! indx inc)
-                (proxy-super read))
-            (unread [ch]
-                (swap! indx dec)
-                (proxy-super unread ch))
+                (if (< @indx s-len)
+                    (do
+                        (swap! indx inc)
+                        (proxy-super read))
+                    -1))
+            (unread
+                ([ch]
+                    (proxy-super unread (int ch))
+                    (swap! indx dec)
+                    nil)
+                ([^chars cbuf off len]
+                    (proxy-super unread cbuf off len)
+                    (reset! indx (- @indx (- len off) ))))
             (getIndex []
                 @indx)
-            )))
+           (unreadTo [i]
+                (let [
+                         i-prev (.getIndex this)
+                         _ (if (> i i-prev)
+                               (throw
+                                   (java.io.IOException.
+                                      (str "Cannot unread past current index  [" i ">" i-prev "]"))))
+                         len (- i-prev i)
+                         ss (.substring s i i-prev)
+                         ]
+                    (. this  unread
+                        (. ss toCharArray) 0 len))))))
 
 
-(defn ^:private read0*
-    ;; for initial call
-    ([rdr eof-error? sentinel opts pending-forms]
-        (read* rdr eof-error? sentinel nil opts pending-forms))
-    ;; for recursive calls
-    ([rdr eof-error? sentinel return-on opts pending-forms]
-        (let [start-location (starting-location rdr)]
-        (try
-            (loop []
-                (if (seq pending-forms)
-                    (.remove ^List pending-forms 0)
-                    (let [ch (read-char rdr)]
-                        ;(println "ch:" ch "return-on:" return-on)
-                        (cond
-                            (whitespace? ch) (recur)
-                            (nil? ch) (if eof-error? (reader-error "EOF") sentinel)
-                            (= ch return-on) READ_FINISHED
-                            (number-literal? rdr ch) (read-number rdr ch)
-                            :else (let [f (macros ch)]
-                                      (if f
-                                          (let [res (f rdr ch opts pending-forms)]
-                                              (if (identical? res rdr)
-                                                  (recur)
-                                                  res))
-                                          (read-symbol rdr ch)))))))
-            (catch Exception e
-                (if (ex-info? e)
-
-                    (let [d (ex-data e)]
-                        (if (= :reader-exception (:type d))
-                            (do
-                                (println "  ## caught :reader-exception")
-                                (throw e))
-                            (do
-                                (println "  ## caught ex-data")
-                                (throw
-                                    (ex-info
-                                        (.getMessage e)
-                                        (merge {:type :reader-exception :sub-type :ehh :e 53}
-                                            d)
-                                        e)))))
-                    (do
-                        (println "  ## caught Exception")
-                        (throw
-                            (ex-info
-                                (str (.getMessage e))
-                                (merge {:type :reader-exception :sub-type :general-exception :e 54}
-                                    start-location (ending-location rdr))
-                                e)))
-
-                )
-            ) ; end catch
-        )
-        )))
 
 (defn ^:private read*
     ;; for initial call
@@ -1323,7 +1340,7 @@
     "Reads and parses the string as Clojure source code, returning a sequence of objects tagged with start and end location.
 Does not do any form of evaluation."
     [rdr]
-    ;(read* (create-indexing-linenumbering-pushback-reader s) false :eof nil {} (LinkedList.))
+    ;(read* (indexing-pushback-stringreader s) false :eof nil {} (LinkedList.))
     (read* rdr false :eof nil {} (LinkedList.))
     ;(read* rdr true nil nil {} (LinkedList.))
     )
@@ -1359,10 +1376,17 @@ Does not do any form of evaluation."
                 (print-token t) )))
 
 
-(comment let [rdr (create-indexing-linenumbering-pushback-reader test-code)]
+(comment let [rdr (indexing-pushback-stringreader test-code)]
     (loop [res nil]
         (when (not= res :eof)
             (if res (print-tokens res))
             (recur (read-code rdr)))))
 
 
+(comment let [r (indexing-pushback-stringreader "abc")]
+    (println (.read r))
+    (println (.read r))
+    (println (.read r))
+    (println (.read r)) ; this one gets -1 and doesn't increment the index
+    (.unreadTo r 1)
+    (println  (.read r)))
