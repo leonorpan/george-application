@@ -1,4 +1,4 @@
-(ns dev.util.javafx.classes)
+(ns dev.andante.util.javafx.classes)
 
 
 (defn import! []

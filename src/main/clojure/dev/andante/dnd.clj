@@ -1,9 +1,9 @@
-(ns dev.dnd
+(ns dev.andante.dnd
     (:require
         [clojure.repl :refer [doc]]
-        [dev.util.java :as j] :reload
-        [dev.util.javafx :as fx] :reload
-        [dev.util.javafx.classes :as fxc] :reload
+        [dev.andante.util.java :as j] :reload
+        [dev.andante.util.javafx :as fx] :reload
+        [dev.andante.util.javafx.classes :as fxc] :reload
         )
     )
 

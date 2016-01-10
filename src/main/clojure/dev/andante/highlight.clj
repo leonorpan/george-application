@@ -1,4 +1,4 @@
-(ns dev.highlight
+(ns dev.andante.highlight
     (:require
         [clojure.repl :refer [doc]]
         [clojure.pprint :refer [pp pprint]]
@@ -7,11 +7,11 @@
         [clojure.tools.reader :as r]
         [clojure.tools.reader.reader-types :as t]
 
-        [dev.util.java :as j] :reload
-        [dev.util.javafx :as fx] :reload
-        [dev.util.javafx.classes :as fxc] :reload
+        [dev.andante.util.java :as j] :reload
+        [dev.andante.util.javafx :as fx] :reload
+        [dev.andante.util.javafx.classes :as fxc] :reload
 
-        [dev.reader :as my] :reload
+        [dev.andante.reader :as my] :reload
 
         )
     (:import
@@ -285,8 +285,8 @@
         (doto area
             (.setMouseOverTextDelay (java.time.Duration/ofMillis 100))
             (.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
-            (-> area .textProperty (.addListener (code-area-change-listener area token-index)))
-            (.replaceText area 0 0 sample-code)
+            (-> .textProperty (.addListener (code-area-change-listener area token-index)))
+            (.replaceText 0 0 sample-code)
         )
 
         scene ))

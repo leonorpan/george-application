@@ -1,7 +1,7 @@
-(ns dev.util.javafx
+(ns dev.andante.util.javafx
     (:require
-        [dev.util.java :as j] :reload
-        [dev.util.javafx.classes :as fxc] :reload
+        [dev.andante.util.java :as j] :reload
+        [dev.andante.util.javafx.classes :as fxc] :reload
         )
     (:import
     )
