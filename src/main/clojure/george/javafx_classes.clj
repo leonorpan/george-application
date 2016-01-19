@@ -1,7 +1,7 @@
-(ns dev.andante.util.javafx.classes)
+(ns george.javafx-classes)
 
 
-(defn import! []
+(defn import-classes []
 "imports a pile of JavaFX classes into calling namespace"
     (import
 
@@ -16,7 +16,7 @@
           ChangeListener]
 
         '[javafx.collections
-          FXCollections]
+          FXCollections ListChangeListener]
 
         '[javafx.embed.swing JFXPanel]
 
@@ -38,6 +38,7 @@
           Button ButtonType ButtonBar$ButtonData
           Label
           ListView RadioButton
+          ScrollPane
           TextField TextArea TextInputDialog]
 
         '[javafx.scene.effect
@@ -60,7 +61,7 @@
           Color]
 
         '[javafx.scene.text
-          Font FontWeight Text TextAlignment]
+          Font FontWeight Text TextAlignment TextFlow]
 
         '[javafx.scene.shape
           Rectangle Shape StrokeLineCap StrokeType]
