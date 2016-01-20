@@ -65,6 +65,7 @@ dependencies {
     compile 'jline:jline:0.9.94'
     compile 'org.fxmisc.richtext:richtextfx:0.6.10'
     compile 'org.clojure:tools.reader:1.0.0-alpha1'
+    compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
 }
 
 

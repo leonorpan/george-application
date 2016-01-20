@@ -98,6 +98,10 @@
             (reset! output-singleton nil)))
 
 
+(defn output-stage-showing? []
+    (boolean @output-singleton))
+
+
 (defn show-output-stage
     "Shows the output-stage. Creates (a new) one if neccessary, de-minimzes and brings to front if necessary. Only one output-stage exists."
     []
