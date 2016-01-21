@@ -50,7 +50,8 @@
         '[javafx.scene.input
           Clipboard ClipboardContent Dragboard
           TransferMode
-          MouseEvent]
+          MouseEvent
+          KeyEvent KeyCode]
 
         '[javafx.scene.layout
           BorderPane HBox Priority Region StackPane VBox

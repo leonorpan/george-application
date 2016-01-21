@@ -3,6 +3,7 @@
     (:require
         [clojure.repl :refer [doc]]
         [george.output-stage :as gos] :reload
+        [george.javafx :as fx] :reload
 
               )
 
@@ -42,10 +43,10 @@
         ]
         (System/setOut (PrintStream. (WriterOutputStream. ow) true))
         (System/setErr (PrintStream. (WriterOutputStream. ew) true))
-
         (alter-var-root #'*out* (constantly ow))
         (alter-var-root #'*err* (constantly ew))
-        (println "outs set to output outs" )))
+;        (println "outs set to output outs" )
+        ))
 
 
 
@@ -54,28 +55,40 @@
     (System/setErr standard-err)
     (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
     (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err)))
-    (println "outs set to standard outs"))
-
-
-
-
-(defn start-output-stage
-    []
-    (gos/show-output-stage)
-    (wrap-outs))
-
-
-(defn end-output-stage
-    []
-    (unwrap-outs)
-    (gos/close-output-stage))
+;    (println "outs set to standard outs")
+    )
 
 
 (defn output [typ txt] ;; type is one of :in :res :out :err
     (if (gos/output-stage-showing?)
         (gos/output typ txt)
-        (println txt)
-    ))
+        (println txt)))
 
+
+
+(defn start-output-stage []
+    (gos/show-output-stage)
+    (wrap-outs))
+
+
+(defn end-output-stage []
+    (unwrap-outs)
+    (gos/close-output-stage))
+
+
+
+(defn -main
+    "Launches output-stage as a stand-alone app."
+    [& args]
+    (println "george.output/-main")
+    (fx/dont-exit!)
+    (fx/thread (start-output-stage)))
+
+
+
+
+;;;; dev ;;;;
+
+(-main)
 
 nil

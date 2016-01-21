@@ -49,8 +49,9 @@
                 (doto (Stage.)
                       (. setScene scene)
                       (. sizeToScene)
-                      ;(.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2) (+ 200)))
-                      (. centerOnScreen)
+;                      (. centerOnScreen)
+                    (. setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2) (- 500)))
+                    (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) ))
                       (. setTitle "Output")
                       (. show)
                       (. toFront)
@@ -75,7 +76,6 @@
 (defn output [typ txt]
     (when-let [{text-flow :text-flow} @output-singleton]
         (let [
-;                 text (Text. (str "[" typ "] " txt))
                 text (Text. (str txt))
                 text (styled typ text)
              ]
@@ -83,20 +83,6 @@
 
 
 ;;;; API ;;;;
-
-
-;(defn out
-;    "Prints the object(s) to output-stage, if it is shown (also if it is minimized or hidden)."
-;    [& txts]
-;    (apply output :out txts))
-;
-;
-;(defn outln
-;    "Same as 'out', followed by 'newline'."
-;    [& txts]
-;    (apply out txts)
-;    (apply out "\n"))
-
 
 
 (defn close-output-stage
@@ -135,4 +121,4 @@
 
 ;;;; dev ;;;;
 
-(-main)
+;(-main)
