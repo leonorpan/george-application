@@ -1,6 +1,8 @@
 (ns george.output
 
-    (:require [george.output-stage :as gos] :reload
+    (:require
+        [clojure.repl :refer [doc]]
+        [george.output-stage :as gos] :reload
 
               )
 
@@ -16,12 +18,13 @@
 
 
 
-(defn output-string-writer [type] ;; type is one of :out :err
+(defn output-string-writer [typ] ;; type is one of :out :err
     (proxy [StringWriter] []
         (flush []
             ;; first print the content of StringWriter to output-stage
             (let [s (str this)]
-                (gos/out s))
+                ;(gos/out s)
+                (gos/output typ s))
             ;; then flush the buffer of the StringWriter
             (let [sb (. this getBuffer)]
                 (. sb delete 0 (. sb length))))))
@@ -66,6 +69,13 @@
     []
     (unwrap-outs)
     (gos/close-output-stage))
+
+
+(defn output [typ txt] ;; type is one of :in :res :out :err
+    (if (gos/output-stage-showing?)
+        (gos/output typ txt)
+        (println txt)
+    ))
 
 
 nil

@@ -61,31 +61,41 @@
 
 (defonce ^{:private true} output-singleton (atom nil))
 
+(defn- styled [typ ^Text text]
+    (doto text
+        (. setFill
+            (condp = typ
+                :in Color/BLUE
+                :res Color/GREEN
+                :err Color/RED
+                Color/BLACK
+        ))))
 
-(defn- output [style & txts]
+
+(defn output [typ txt]
     (when-let [{text-flow :text-flow} @output-singleton]
         (let [
-                 text (Text. (s/join " " txts))
-                ;; TODO: style/layout text for 'style' = :inn :out :err :response
-                 ]
+;                 text (Text. (str "[" typ "] " txt))
+                text (Text. (str txt))
+                text (styled typ text)
+             ]
             (fx/thread (-> text-flow .getChildren (. add text))))))
-
 
 
 ;;;; API ;;;;
 
 
-(defn out
-    "Prints the object(s) to output-stage, if it is shown (also if it is minimized or hidden)."
-    [& txts]
-    (apply output :out txts))
-
-
-(defn outln
-    "Same as 'out', followed by 'newline'."
-    [& txts]
-    (apply out txts)
-    (apply out "\n"))
+;(defn out
+;    "Prints the object(s) to output-stage, if it is shown (also if it is minimized or hidden)."
+;    [& txts]
+;    (apply output :out txts))
+;
+;
+;(defn outln
+;    "Same as 'out', followed by 'newline'."
+;    [& txts]
+;    (apply out txts)
+;    (apply out "\n"))
 
 
 
