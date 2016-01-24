@@ -140,7 +140,9 @@
 
 (defn output [typ obj]  ;; type is one of :in :ns :res :out :err
     (if-let [tf (get-text-flow)]
-        (fx/thread (-> tf .getChildren (. add (styled typ (Text. (str obj)))))))
+        (fx/thread
+            (-> tf .getChildren (. add (styled typ (Text. (str obj)))))))
+            ;; TODO: crop old lines from beginning - for speed.
     ;; else - make sure these always also appear in stout
     (if (#{:in :res :ns} typ)
         (. standard-out print (str obj))

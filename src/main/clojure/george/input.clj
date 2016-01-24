@@ -12,7 +12,7 @@
         )
     (:import
         [java.io StringReader]
-        [clojure.lang LineNumberingPushbackReader]
+        [clojure.lang LineNumberingPushbackReader ExceptionInfo]
 
         )
     )
@@ -31,25 +31,71 @@
             (str txt "\n"))))
 
 
+(defn- print-error
+
+    ([^ExceptionInfo ei]
+        (let [{:keys [after before]} (ex-data ei)]
+            (print-error after before
+                (. ei getMessage) (. ei getCause) ei)))
+
+        ([after before msg cause exception]
+            (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
+                (output/output :err  loc-str)
+                (. output/standard-err println loc-str)
+                (. (or cause exception) printStackTrace)))
+    )
+
 
 (defn- read-eval-print [code]
     (output/output :in (with-newline code))
-     (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
-        (loop []
-                (let [
-                         form (try (read rdr false :eof)
-                                  (catch Exception e
-                                      (Thread/sleep 50) ;; give output time to print :in before printing ;err
-                                      (output/output :err (with-newline e))
-                                      (. output/standard-err println e)
-                                      :ex))
-                                  ]
-                    (when-not (= form :eof)
-                        (if-not (= form :ex)
-                            ;; TODO: ensure eval-errors are connected to input, not application code!
-                            (output/output :res (with-newline (eval form))))
-                        (recur))))
-         (str *ns*)))
+    (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
+
+            ;; inspiration:
+            ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
+            ;;   https://github.com/pallet/ritz/blob/develop/repl-utils/src/ritz/repl_utils/compile.clj
+             (push-thread-bindings
+                 {clojure.lang.Compiler/LINE_BEFORE (Integer. (int 0))
+                  clojure.lang.Compiler/LINE_AFTER (Integer. (int 0))})
+             (try
+
+                (loop []
+                    (let [
+                             after [(. rdr getLineNumber) (. rdr getColumnNumber)]
+                             _ (.. clojure.lang.Compiler/LINE_BEFORE (set (Integer. (first after))))
+
+                             form
+                             (try
+                                  (read rdr false :eof)
+                                 ;; pass exception into form for later handdling
+                                  (catch Exception e e))
+
+                            before [(. rdr getLineNumber) (. rdr getColumnNumber)]
+                            _ (.. clojure.lang.Compiler/LINE_BEFORE (set (Integer. (first before))))
+
+                        ]
+
+                        (if (instance? Exception form)
+                            (print-error after before (. form getMessage) (. form getCause) form))
+
+                        (when-not (= form :eof)
+                            (when-not (instance? Exception form)
+                                (try
+                                    (output/output :res (with-newline (eval form)))
+                                    (catch Exception e
+                                        (throw
+                                            (ex-info
+                                                (. e getMessage)
+                                                {:after after :before before}
+                                                (. e getCause)))))
+                                (recur)))))
+                 (catch ExceptionInfo ei
+                     (print-error ei))
+
+                 (finally
+                     (pop-thread-bindings)
+                     ))
+
+                 (str *ns*)))
 
 
 (declare
@@ -160,7 +206,7 @@ _ (comment
 (defn read-eval-print-ns
     "returns new ns as string"
     [^String code ^String ns]
-    (binding [*ns* (create-ns (symbol ns))]
+    (binding [*ns* (create-ns (symbol ns)) *file* "'input'"]
     (read-eval-print code)))
 
 
@@ -180,9 +226,6 @@ _ (comment
                  (. toFront))
              ]
         nil))
-
-
-
 
 
 
