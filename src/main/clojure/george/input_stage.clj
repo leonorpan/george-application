@@ -22,7 +22,7 @@
 
 
 
-(defn- output-scene []
+(defn- input-scene []
     (let [
 
              code-area
@@ -62,10 +62,10 @@
 ;;;; API ;;;;
 
 
-(defn- show-new-input-stage []
+(defn show-new-input-stage []
     (let [
              scene
-                (output-scene)
+                (input-scene)
             stage
                 (doto (Stage.)
                       (. setScene scene)
@@ -94,4 +94,5 @@
 
 ;;;; dev ;;;;
 
-(-main)
+;(-main)
+nil

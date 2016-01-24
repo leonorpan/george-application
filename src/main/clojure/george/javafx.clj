@@ -101,3 +101,34 @@ and the body is called on 'handle'"
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
+
+
+
+
+
+
+;; http://code.makery.ch/blog/javafx-dialogs-official/
+(defn show-actions-dialog [title header message options include-cancel-button]
+    "returns index of selected option, else -1
+
+    ex: (show-actions-dialog \"Title\" nil \"Message\" [\"A\" \"B\"] true)
+    "
+    (let [
+             buttons
+             (mapv
+                 #(ButtonType. %)
+                 options)
+             buttons
+             (if include-cancel-button
+                 (conj buttons (ButtonType. "Cancel" ButtonBar$ButtonData/CANCEL_CLOSE))
+                 buttons)
+             result
+             (.showAndWait
+                 (doto (Alert. Alert$AlertType/CONFIRMATION)
+                     (.setTitle title)
+                     (.setHeaderText header)
+                     (.setContentText message)
+                     (-> .getButtonTypes (.setAll (into-array ButtonType buttons)))
+                     ))
+             ]
+        (.indexOf options (-> result .get .getText))))
