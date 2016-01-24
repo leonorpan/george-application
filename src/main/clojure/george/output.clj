@@ -30,7 +30,6 @@
     )
 
 
-
 (defn- output-string-writer [typ] ;; type is one of :out :err
     (proxy [StringWriter] []
         (flush []
@@ -43,7 +42,6 @@
             ;; then flush the buffer of the StringWriter
             (let [sb (. this getBuffer)]
                 (. sb delete 0 (. sb length))))))
-
 
 
 (defn wrap-outs []
@@ -68,8 +66,6 @@
 
 
 
-
-
 (defn- styled [typ ^Text text]
     (doto text
         (. setFill
@@ -91,9 +87,16 @@
 
 (defn- output-scene []
     (let [
-             text-flow (TextFlow.)
+             text-flow
+             (doto
+                 (TextFlow.)
+                 (. setStyle "
+                     -fx-font: 14 'Source Code Pro Regular';
+                     -fx-padding: 5 5;
+
+                 "))
              scroll-pane (ScrollPane. text-flow)
-             scene (Scene. (StackPane. (j/vargs scroll-pane)) 300 300)
+             scene (Scene. (StackPane. (j/vargs scroll-pane)) 600 300)
              ]
         (-> text-flow
             .getChildren
