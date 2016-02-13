@@ -19,13 +19,19 @@ NaN  -Infinity Infinty +Infinity
 #(println "name:" % %2)
 \uE001
 \o17
-#"regex"
-'a-symbol
+#"regex" {(}
+'a-symbol ([
 ~arg1
 '~arg2
 `syn-qt
 ~@assert
 "A\tdifficult\nstring\\"
 genarated-sym#
-
+ (
  ( %)  ( %2) %13 %& %x
+ )][
+(
+     ( () () )
+     []
+     { () [] }
+)

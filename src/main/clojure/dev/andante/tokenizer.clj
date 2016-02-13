@@ -109,10 +109,7 @@
     Object (toString [_] (str value)))
 
 
-(defn start-delim? [token]
-    (case (if (instance? DelimChar token) (:value token) token)
-        (\( \[ \{) true
-        false))
+
 
 
 
@@ -528,5 +525,83 @@
     (tokenize (indexing-pushback-stringreader clj-str)))
 
 
-(doseq  [token (tokenize-str (slurp (cio/resource "dev/highlight/sample_code.clj")))]
-    (println (str token)))
+(defn- sample-code []
+    (slurp (cio/resource "dev/highlight/sample_code.clj")))
+
+
+;(doseq  [token (tokenize-str (sample-code)))]
+;    (println (str token)))
+
+
+(defn delim-tokens [tokens]
+    (filter #(instance?  DelimChar (:value %)) tokens))
+;(doseq  [token (delim-tokens (tokenize-str (sample-code)))]
+;    (println (str token)))
+
+
+(defn- matching-end-delim-char [delim-ch]
+    (case delim-ch
+        \( \)
+        \[ \]
+        \{ \}
+        nil))
+
+
+(defn delim-char [token]
+    "returns delim-char if delim, else nil"
+    (if (instance? Token token)
+        (recur (:value token))
+        (when (instance? DelimChar token)
+            (:value token))))
+
+
+(defn start-delim? [token]
+    "returns true or false if delim, else nil"
+    (when-let [ch (delim-char token)]
+        (case ch
+            (\( \[ \{) true
+            false)))
+
+
+(defn- pair? [t1 t2]
+    (= (matching-end-delim-char (delim-char t1)) (delim-char t2)))
+
+
+(defn- pair [t1 t2]
+    "returns a pair, if pair? else nil"
+    (when (pair? t1 t2)
+        [t1 t2]))
+
+
+(defn- push-or-pair [start-stack t]
+    "returns start-stack and pair - pushing/poping stack, and pair or nil"
+    (if (empty? start-stack)
+        [(conj start-stack t) nil]
+        (if-let [p (pair (first start-stack) t)]
+            [(rest start-stack) p]
+            [(conj start-stack t) nil])))
+
+
+
+(defn paired-delims [delim-tokens]
+    "returns vectors in a vector -
+    the first containing pairs of delim-tokens, the second containing unpaired delim-tokens"
+    (loop [
+            start-stack (list)
+            paired []
+            unpaired []
+            lst delim-tokens
+        ]
+        (if-not lst
+            [paired (concat unpaired start-stack)]
+            (let [
+                    [start-stack a-pair] (push-or-pair start-stack (first lst))
+                    paired (if a-pair (conj paired a-pair) paired)
+                ]
+                (recur start-stack paired unpaired (next lst))))))
+
+
+;(let [[paired unpaired] (paired-delims (delim-tokens (tokenize-str (sample-code))))]
+;    (doseq [t paired]   (println "  paired:" (str t)))
+;    (doseq [t unpaired] (println "unpaired:" (str t)))
+;    )
