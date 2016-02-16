@@ -377,8 +377,8 @@
             (case ch
 
                 nil
-                (Token. start-index (. rdr getIndex) (TokenError. EOF "EOF while reading string"))
-
+                ;(Token. start-index (. rdr getIndex) (TokenError. EOF "EOF while reading string"))
+                (Token. start-index (. rdr getIndex) (str sb))
                 \\
                 (let [r (escape-char sb rdr)]
                     (if (instance? Token r)
