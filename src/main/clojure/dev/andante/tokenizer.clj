@@ -1,6 +1,8 @@
 (ns dev.andante.tokenizer
     (:require
 
+        [clojure.core.async :refer [go thread  chan >! >!! <! <!! go-loop]]
+
         [clojure.tools.reader.impl.commons :refer
             [number-literal? match-number parse-symbol read-past skip-line]]
 
@@ -200,7 +202,7 @@
 ;    (skip-line rdr))
 
 (defn read-comment [rdr initch]
-    (let [start-index (. rdr getIndex)]
+    (let [start-index (dec (. rdr getIndex))]
         (loop [sb (StringBuilder.) ch initch]
             (if (= ch \newline)
                 (Token. start-index (. rdr getIndex) (Comment. (str sb)))
@@ -248,7 +250,7 @@
 
 (defn- read-keyword [rdr _]
     (let [
-             start-index (. rdr getIndex)
+             start-index (dec (. rdr getIndex))
              ch (read-char rdr)
 
          res
@@ -305,7 +307,7 @@
     "Read in a character literal"
     [rdr _]
     (let [
-            start-index (. rdr getIndex)
+            start-index (dec (. rdr getIndex))
             ch (read-char rdr)
             value
                 (if (nil? ch)
@@ -368,7 +370,7 @@
 
 (defn- read-string* [rdr _]
     (let [
-             start-index (. rdr getIndex)
+             start-index (dec (. rdr getIndex))
 
              ]
         (loop [sb (StringBuilder.) ch (read-char rdr)]
@@ -393,7 +395,7 @@
 
 (defn- read-number
     [rdr initch]
-    (let [start-index (. rdr getIndex)]
+    (let [start-index (dec (. rdr getIndex))]
         (loop [sb (doto (StringBuilder.) (.append initch)) ch (read-char rdr)]
             (if (or (whitespace? ch) (macros ch) (nil? ch))
                 (let [s (str sb)]
@@ -409,18 +411,18 @@
 (defn-
     read-delim-char
     [rdr ch]
-    (Token. (. rdr getIndex) (. rdr getIndex) (DelimChar. ch)))
+    (Token. (dec (. rdr getIndex)) (. rdr getIndex) (DelimChar. ch)))
 
 
 (defn-
     read-macro-char
     [rdr ch]
-    (Token. (. rdr getIndex) (. rdr getIndex) (MacroChar. ch)))
+    (Token. (dec (. rdr getIndex)) (. rdr getIndex) (MacroChar. ch)))
 
 (defn-
     read-macro-dispatch-char
     [rdr ch]
-    (Token. (. rdr getIndex) (. rdr getIndex) (MacroDispatchChar. ch)))
+    (Token. (dec (. rdr getIndex)) (. rdr getIndex) (MacroDispatchChar. ch)))
 
 (defn- parse-integer [s]
     (try
@@ -428,14 +430,16 @@
         (catch NumberFormatException nfe nil)))
 
 (defn- read-arg [rdr pct]
-        (let [start-index (dec (. rdr getIndex)) sb (StringBuilder. (str pct))]
-            (Token. start-index (. rdr getIndex)
+        (let [
+                 start-index (dec (. rdr getIndex))
+                 sb (StringBuilder. (str pct))
+                token
                 (loop  [sb sb ch (read-char rdr)]
                     (cond
                         (or (whitespace? ch) (macro-terminating? ch) (nil? ch))
                         (do
-                            (unread-char rdr ch)
-                            (Arg. (str sb)))
+                          (unread-char rdr ch)
+                          (Arg. (str sb)))
 
                         (identical? ch \&)
                         (Arg. (str sb))
@@ -444,7 +448,9 @@
                         (TokenError. INVALID_ARG (str "Arg literal must be %, %& or %integer.  Found: " sb))
 
                         :else
-                        (recur (.append sb ch) (read-char rdr)))))))
+                        (recur (.append sb ch) (read-char rdr))))
+            ]
+            (Token. start-index (. rdr getIndex) token)))
 
 
 (defn- macros [ch]
@@ -463,12 +469,12 @@
 
 (defn- read-symbol
     [rdr initch]
-    (let [start-index (. rdr getIndex)]
+    (let [start-index (dec (. rdr getIndex))]
         (when-let [token (read-token rdr initch)]
             (Token. start-index (. rdr getIndex)
                 (case token
                     ;; special symbols
-                    "nil" nil
+                    "nil" :nil ;nil
                     "true" true
                     "false" false
                     "/" '/
@@ -525,18 +531,17 @@
     (tokenize (indexing-pushback-stringreader clj-str)))
 
 
-(defn- sample-code []
+(defn sample-code []
     (slurp (cio/resource "dev/highlight/sample_code.clj")))
 
 
-;(doseq  [token (tokenize-str (sample-code)))]
-;    (println (str token)))
 
 
 (defn delim-tokens [tokens]
     (filter #(instance?  DelimChar (:value %)) tokens))
-;(doseq  [token (delim-tokens (tokenize-str (sample-code)))]
-;    (println (str token)))
+
+(defn non-delim-tokens [tokens]
+    (filter #(not (instance?  DelimChar (:value %))) tokens))
 
 
 (defn- matching-end-delim-char [delim-ch]
@@ -601,7 +606,32 @@
                 (recur start-stack paired unpaired (next lst))))))
 
 
+;(doseq  [token (tokenize-str (sample-code))]
+;    (println (str token)))
+
+;(doseq  [token (delim-tokens (tokenize-str (sample-code)))]
+;    (println (str token)))
+
 ;(let [[paired unpaired] (paired-delims (delim-tokens (tokenize-str (sample-code))))]
 ;    (doseq [t paired]   (println "  paired:" (str t)))
-;    (doseq [t unpaired] (println "unpaired:" (str t)))
+;    (doseq [t unpaired] (println "unpaired:" (str t))))
+
+
+
+
+;(defn print-chan []
+;    (let[in (chan 1)]
+;        (go
+;            (while true
+;                (let [s (<! in)]
+;                    (println "s:" s))))
+;    in ))
+;
+;(let [c (print-chan)]
+;    (>!! c "Hello")
+;    (>!! c "world.")
+;
+;    (>!! c "How")
+;    (>!! c "are")
+;    (>!! c "you?")
 ;    )

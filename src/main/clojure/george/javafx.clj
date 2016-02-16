@@ -1,10 +1,12 @@
 (ns george.javafx
     (:require
+        [clojure.java.io :as cio]
+        [clojure.string :as s]
+
         [george.java :as j] :reload
         [george.javafx-classes :as fxc] :reload
         )
-    (:import
-    )
+    (:import [sun.font FontScaler])
 
 )
 
@@ -96,14 +98,17 @@ and the body is called on 'handle'"
     )
 
 
-(defn add-stylesheets [^Scene scene ^String & sheetpaths]
-    (-> scene .getStylesheets (.addAll (into-array String sheetpaths))))
+(defn add-stylesheets [^Scene scene & sheetpaths]
+    (-> scene .getStylesheets (.addAll (into-array  sheetpaths))))
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
 
 
+(defn set-Modena []
+    (Application/setUserAgentStylesheet Application/STYLESHEET_MODENA)
 
+    )
 
 
 
@@ -132,3 +137,18 @@ and the body is called on 'handle'"
                      ))
              ]
         (.indexOf options (-> result .get .getText))))
+
+
+
+
+;; This is a hack!
+;; loading fonts from CSS doesn't work now, if there is a space in the file path.
+;; So we pre-load them here, and they should then be available in css
+(let  [fonts [
+    "SourceCodePro-Regular.ttf"
+    "SourceCodePro-Medium.ttf"
+    "SourceCodePro-Bold.ttf"
+    "SourceCodePro-Semibold.ttf" ]]
+    (doseq [f fonts]
+        (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
+

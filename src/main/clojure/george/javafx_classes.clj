@@ -10,7 +10,7 @@
           Timeline KeyFrame KeyValue]
 
         '[javafx.application
-          Platform]
+          Application Platform]
 
         '[javafx.beans.value
           ChangeListener]
@@ -65,7 +65,7 @@
           Font FontWeight Text TextAlignment TextFlow]
 
         '[javafx.scene.shape
-          Rectangle Shape StrokeLineCap StrokeType]
+          Circle Rectangle Shape StrokeLineCap StrokeType]
 
         '[javafx.stage
           Screen Stage StageStyle Window]

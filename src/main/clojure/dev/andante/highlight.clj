@@ -4,15 +4,17 @@
         [clojure.pprint :refer [pp pprint]]
         [clojure.java.io :as cio]
 
-        [clojure.tools.reader :as r]
-        [clojure.tools.reader.reader-types :as t]
+        [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop sliding-buffer]]
 
-        [dev.andante.util.java :as j] :reload
-        [dev.andante.util.javafx :as fx] :reload
-        [dev.andante.util.javafx.classes :as fxc] :reload
+;        [clojure.tools.reader :as r]
+;        [clojure.tools.reader.reader-types :as t]
+
+        [george.java :as j] :reload
+        [george.javafx :as fx] :reload
+        [george.javafx-classes :as fxc] :reload
 
         [dev.andante.reader :as my] :reload
-
+        [dev.andante.tokenizer :as tok] :reload
         )
     (:import
         [java.util Collections]
@@ -22,7 +24,7 @@
 
 
 
-(fxc/import!)
+(fxc/import-classes)
 
 (defn- clamp
     "ensures val does not exceed min or max"
@@ -31,6 +33,7 @@
         (< val min) min
         (> val max) max
         :else val))
+
 
 
 (defn- read-sample-code[]
@@ -68,7 +71,8 @@
               (style-text-function))
         (.setStyle "
             -fx-font: 16 'Source Code Pro Medium';
-            -fx-padding: 10 5;")
+            -fx-padding: 10 5;
+            -fx-background-color: #E6E6E6;")
 
         (.setUseInitialStyleForInsertion true)
         (-> .getUndoManager .forgetHistory)
@@ -79,6 +83,7 @@
 
 
 (defn- set-style [text-area text-length ranges style is-hover]
+    (println "ranges:" ranges)
     (doseq [[from to] ranges]
         (let [
                  ;; ensure bounds
@@ -111,7 +116,7 @@
     ))
 
 
-(defn- type->style [typ]
+(comment defn- type->style [typ]
     (println "type->style")
     ;(println "  ## typ:" typ)
     (assoc
@@ -129,6 +134,76 @@
         nil
         false)
         :underline (#{:syntax-error :read-exception} typ)))
+
+
+(defn- unpaired-delim? [token]
+    (boolean (get-in token [:value :unpaired])))
+
+(defn- unpaired-delim [token]
+    (assoc-in token [:value :unpaired] true))
+
+
+(defn- type->style [typ]
+    (println "type->style typ:" typ)
+    (assoc
+        (->MyStyle
+            (cond
+
+            ;; cursor color? "#26A9E1"
+
+                (isa? typ Number)
+                "#524EAC";"#005d69";"#26A9E1";"#00ACEE";"#6897bb";"#262161";"#4a0042";"#336699"
+
+                (#{
+                     clojure.lang.Keyword
+                     dev.andante.tokenizer.Arg
+                      } typ)
+                "#9E1F64"
+
+                (#{
+                     Boolean
+                     :nil } typ)
+                "#4F7BDE";"#524EAC";"#1FAECE";"#00ACEE";"#31B2F4"
+                (#{
+                     String
+                     Character} typ)
+                "#008e00";"#008000"
+
+                (#{dev.andante.tokenizer.DelimChar} typ)
+                "#99999c";"#D1D2D4";"lightgray"
+                ; "#f2c100" ;; yellow
+                (#{
+                     clojure.lang.Symbol
+
+                 }  typ)
+                "#404042";"#01256e";"#333"
+
+                (#{dev.andante.tokenizer.Comment}  typ)
+                "#708080"
+
+                (#{
+                     dev.andante.tokenizer.MacroChar
+                     dev.andante.tokenizer.MacroDispatchChar
+
+                     }  typ)
+                "#cc7832";"#c35a00";"#A33EFE"
+
+                (or
+                    (#{
+                     dev.andante.tokenizer.TokenError
+                     }  typ)
+                    (unpaired-delim? typ))
+                "#ED1C24";"red";"#B3191F";
+
+                :else
+                "orange"
+            )
+            nil nil false)
+        :underline
+        (boolean (#{
+             dev.andante.tokenizer.TokenError
+             :unpaired-delim
+         } typ))))
 
 
 (defn- assoc-token
@@ -220,15 +295,139 @@
                         (recur res)))))))
 
 
+(defn- token-range [token]
+    [(:start token) (:end token)])
 
-(defn- code-area-change-listener [code-area token-index]
+
+(defn- token-ranges [thing]
+    "takes a pair of tokens in a vector or a single token and returns a vector of vectors [start end]"
+    ;(println "token-ranges thing:" thing)
+    (cond
+        (vector? thing)
+        [(token-range (first thing)) (token-range (second thing))]
+
+        :else
+        [(token-range thing)]))
+
+
+
+(defn- assoc-token!
+    "assocs a given token to every index it covers"
+    [rngs token index-vector!]
+    ;(println "rngs:" rngs "  token:" token)
+    (let [
+             indexes
+             (reduce
+                 (fn [acc rng] (concat acc (apply range rng)))
+                 [] rngs)
+        ]
+        ;(println "indexes:" indexes)
+        (loop [indv index-vector! inds indexes]
+            ;(println "inds:" inds)
+            (if (empty? inds)
+                indv
+                (recur (assoc! indv (first inds) token) (rest inds))))))
+
+
+
+(defn- token-index [tokens code-length]
+    (let [
+            delims (tok/delim-tokens tokens)
+            non-delims (tok/non-delim-tokens tokens)
+            all (concat non-delims delims)
+            [paired-delims unpaired-delims] (tok/paired-delims delims)
+        ]
+        (loop [
+                ;; create a transient vector populated with nils
+                index! (transient (mapv (constantly nil) (range code-length)))
+                lst all
+            ]
+            (if-not lst
+                (persistent! index!)
+                (recur
+                    (assoc-token!
+                        (token-ranges (first lst))
+                        (first lst)
+                        index!)
+                    (next lst))))))
+
+
+(defn- my-type [value]
+    (case value
+        :nil value
+        (type value)))
+
+
+(defn- token-style [token]
+    (type->style (my-type (:value token))))
+
+
+(defn- apply-token-styles [tokens codearea]
+    "applies styles of tokens to coderea"
+    (let [codearea-len (-> codearea .getText .length)]
+        (loop [[token & tokens] tokens]
+            (when token
+                (println)
+                (println token)
+                ;(println (token-style token))
+
+                (fx/thread
+                    (set-style
+                        codearea
+                        codearea-len
+                        [[(:start token) (:end token)]]
+                        (token-style token)
+                        false))
+
+                (recur tokens)))))
+
+
+(defn- index-channel [codearea token-index-atom]
+    "returns a channel which reset!-s token-index-atom to a new vector
+    whenever a new list of tokens is put on it"
+    (let [c (chan (sliding-buffer 1))]
+        (go
+            (while true
+                (let [
+                         code (<! c)
+                         code-length (. code length)
+                         tokens (tok/tokenize-str code)
+
+                     ]
+                    (doseq  [token tokens]
+                        (println (str token)))
+                    (apply-token-styles tokens codearea)
+                    (go
+                        (let [
+                                 [paired unpaired] (tok/paired-delims (tok/delim-tokens tokens))
+                                 replaced (map unpaired-delim unpaired)
+                             ]
+                            (apply-token-styles replaced codearea)
+                            ))
+
+
+
+;                    (go (reset! token-index-atom (token-index tokens code-length))
+;                    (println "token-index-atom reset!")
+                )))
+        c))
+
+
+
+(defn- codearea-changelistener [codearea token-index-atom]
+    (let [
+             i-chan (index-channel codearea token-index-atom)
+         ]
     (reify ChangeListener
         (changed [_ obs old-txt new-txt]
-            (highlight-code code-area old-txt new-txt token-index)
-            (doseq [i (range (count @token-index))]
-                (let [t (get @token-index i) m (meta t)]
-                    (println i ": " (type t) "" m )))
-        )))
+            (println "change detected ...")
+            (go (>! i-chan new-txt))
+
+;            (highlight-code code-area old-txt new-txt token-index)
+;            (doseq [i (range (count @token-index))]
+;                (let [t (get @token-index i) m (meta t)]
+;                    (println i ": " (type t) "" m )))
+        ))))
 
 
 (defn- token->ranges [token]
@@ -280,12 +479,12 @@
             hover-handler (mouse-over-handler area token-index)
 ]
         ; (fx/add-stylesheets scene "styles/basic.css" "dev/highlight/code.css" )
-        (fx/add-stylesheets scene "styles/basic.css" )
+        (fx/add-stylesheets scene "fonts/fonts.css")
 
         (doto area
             (.setMouseOverTextDelay (java.time.Duration/ofMillis 100))
-            (.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
-            (-> .textProperty (.addListener (code-area-change-listener area token-index)))
+            ;(.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
+            (-> .textProperty (.addListener (codearea-changelistener area token-index)))
             (.replaceText 0 0 sample-code)
         )
 

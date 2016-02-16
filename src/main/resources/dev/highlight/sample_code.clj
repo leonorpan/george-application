@@ -12,7 +12,7 @@
 
 true false nil
 /
-NaN  -Infinity Infinty +Infinity
+NaN  -Infinity Infinity +Infinity
 
 ;; something more complicated
 @an-atom
@@ -25,7 +25,9 @@ NaN  -Infinity Infinty +Infinity
 '~arg2
 `syn-qt
 ~@assert
-"A\tdifficult\nstring\\"
+"A\tdifficult\nstring\\
+over lines!"
+
 genarated-sym#
  (
  ( %)  ( %2) %13 %& %x

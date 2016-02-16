@@ -28,6 +28,7 @@ buildscript {
   //      classpath 'com.offbytwo.iclojure:iclojure:1.2.0'
         classpath 'jline:jline:0.9.94'
         classpath 'org.clojure:tools.reader:1.0.0-alpha1'
+        classpath 'org.clojure:core.async:0.2.374'
 
     }
 }
@@ -66,6 +67,8 @@ dependencies {
     compile 'org.fxmisc.richtext:richtextfx:0.6.10'
     compile 'org.clojure:tools.reader:1.0.0-alpha1'
     compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
+    compile 'org.clojure:core.async:0.2.374'
+
 }
 
 
