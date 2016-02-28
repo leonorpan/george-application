@@ -39,7 +39,10 @@
           Label
           ListView RadioButton
           ScrollPane
-          TextField TextArea TextInputDialog]
+          TextField TextArea TextInputDialog
+          Tab TabPane
+          Menu MenuBar MenuItem
+          ]
 
         '[javafx.scene.effect
           Lighting]
@@ -67,8 +70,11 @@
         '[javafx.scene.shape
           Circle Rectangle Shape StrokeLineCap StrokeType]
 
+        '[javafx.scene.web
+          WebEngine WebView]
+
         '[javafx.stage
-          Screen Stage StageStyle Window]
+          FileChooser Screen Stage StageStyle Window]
 
         '[javafx.util
           Duration]
