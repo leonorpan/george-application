@@ -1,41 +1,60 @@
 # George Client - jvm source
 
-This is main code is dirstibuted in George (the native client)
+This is the main application code that goes into George Client - native (Windows, Mac, Linux?)
+
+If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system. <br>
+Go here to [get George for Windows & Mac](http://www.george.andante.no).
 
 
-## Gradle
+## Download
 
-This project uses Gradle.
+You will soon be able to download the source as a ZIP-file.  <br>
+(I just need to implement some support for this. Remind me, if you see this message.)
 
-If you have Gradle installed, then excellent.
+However, if you would prefer to easily update the to the latest version, then use Mercurial and clone i stead, and/or use Atlassian's very useful tool 
+SourceTree. (See the top of the [Overview](https://bitbucket.org/andante-george/george-client-jvm/overview) page for links and instructions.)
 
-If you don't have Gradle installed, then first do [gradlew] or [gradlew.bat].  This will download what you need.
-After that, simply use 'gradlew' in stead of 'gradle' to run any gradle-commands.
+
+## Java
+
+To run this code you will need to have Java 8v40 or newer installed on your system.<br>
+(As of this writing I am on 8v74.)
+
+If you wish to build it, you will need to have a JDK installed and your paths set up.
+
+- [Download and install a *JDK*](http://www.oracle.com/technetwork/java/javase/downloads/)
+- [Set up your path(s)](http://docs.oracle.com/javase/tutorial/essential/environment/paths.html)
+
+## Boot
+
+This project is set up to use [Boot](http://boot-clj.com) to build and run the code.
+
+To get Boot on your system, simply run the "thin wrapper" by doing: `./boot/boot.sh` or `boot\boot.exe`. <br>
+This will download and install the latest version of Boot for your system.
+
+To update Boot, do `./boot/boot.sh -u` or `boot\boot.exe -u`.
+
+For help with Boot itself, do: `./boot/boot.sh -h` or `boot\boot.exe -h`.
+
+If you would rather use the short version of the boot-command, `boot`, you will have to add Boot to your path.<br>
+If you understand what that means, then you will also be able to do that based on the instruction you find on the Boot home and download pages.
 
 
 ## run/develop:
 
-1. Make sure you have Java runtime installed - version  1.8.x
-2. Downloaded source for this project - either as a ZIP or with [hg clone https://andante-george@bitbucket.org/andante-george/george-client-jvm].
-3. In a terminal/command-prompt, go to the root folder of the project.
-4. If you don't have Gradle installed already, do [gradlew] (Mac/*nix) or [gradlew.bat](Windows).
-5. To run it, do [gradle run]
-6. To start a REPL at the terminal (for interactive "play" and developement), first do [gradle cp], then do [bin/repl] or [bin/repl.bat]
+In the listing bellow I will simply write `<boot>` in place of either `./boot/boot.sh` or `boot\boot.exe`.
+
+The first time you run a <boot> command, Boot take a minute or two to update some repositories. <br>
+The next time it will be a lot faster, though.
+
+
+### The following commands are relevant for this project:
+
+`<boot> repl` To start an interactive REPL.
 
 
 
-The following are the most relevant Gradle commands for this project:
-```sh
-gradle clean    # cleans/removes the build-dir
+## Maven?
 
-gradle build    # compiles and produces a basic jar
-
-gradle run      # (builds) and runs the main app (with args hardcoded in build.gradle)
-gradle example  # (builds) and runs a trivial example app (with args hardcoded in build.gradle)
-
-gradle cp       # writes the necessary classpath to a temp-file.
-
-bin/rep
-bin\\repl.bat    # starts an interactive repl using the classpath form the command above
-```
-
+Yes, there is a "pom.xml" in the source. But that is simply to facilitate sharing dependency information with my IDE (IntelliJ). <br>
+Boot is able to read and write to this file, and the IDE can automatically update itself when it sees the changes.
