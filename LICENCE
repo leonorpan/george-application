@@ -1,14 +1,16 @@
-Don't know yet.
 
 
-I would like:
-- this software to be free to use in its originally distributed form (from me)
-- allow anyone to download the source code for the purpose of inspection, study,  modification for experimentation and contribution
-- not allow redistribution - either as a derivative or as part of their own software
-- only bundled in its original form pr agreement with me
+Copyright Terje Dahl 2016  terje@andante.no
 
-Comments?  Suggestions?
+This project and all its content is under copyright protection.
 
+Source code is made available here to allow anyone to study it
+for the purposes of learning, contribution, and security auditing.
+The same source code is also visible in the native builds.
 
-Terje Dahl
-terje@andante.no
+Anyone may download and run this software as is.
+Anyone may alter this software for personal experimentation and development.
+No one may distribute this software in any form, neither in its original form or as part of a derivative work.
+
+Please contact copyright holder with any questions.
+

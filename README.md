@@ -25,36 +25,43 @@ If you wish to build it, you will need to have a JDK installed and your paths se
 - [Download and install a *JDK*](http://www.oracle.com/technetwork/java/javase/downloads/)
 - [Set up your path(s)](http://docs.oracle.com/javase/tutorial/essential/environment/paths.html)
 
-## Boot
+## Leiningen
 
-This project is set up to use [Boot](http://boot-clj.com) to build and run the code.
+This project is set up to use [Leiningen](http://leiningen.org) to build and run the code.
 
-To get Boot on your system, simply run the "thin wrapper" by doing: `./boot/boot.sh` or `boot\boot.exe`. <br>
+To get Boot on your system, simply run the "thin wrapper" by doing: `./lein.sh` or `lein.bat`. <br>
 This will download and install the latest version of Boot for your system.
 
-To update Boot, do `./boot/boot.sh -u` or `boot\boot.exe -u`.
+To update Leiningen, do `./lein.sh upgrade` or `lein.bat upgrade`.
 
-For help with Boot itself, do: `./boot/boot.sh -h` or `boot\boot.exe -h`.
+For help with Leiningen itself, do: `./lein.sh -h` or `lein.bat -h`.
 
-If you would rather use the short version of the boot-command, `boot`, you will have to add Boot to your path.<br>
-If you understand what that means, then you will also be able to do that based on the instruction you find on the Boot home and download pages.
+If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.<br>
+If you understand what that means, then you will also be able to do that based on the instruction you find on the Leiningen home and download pages.
 
 
-## run/develop:
+## run/develop
 
-In the listing bellow I will simply write `<boot>` in place of either `./boot/boot.sh` or `boot\boot.exe`.
+In the listing bellow I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
 
-The first time you run a <boot> command, Boot take a minute or two to update some repositories. <br>
+The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. <br>
 The next time it will be a lot faster, though.
 
 
-### The following commands are relevant for this project:
+### The following commands are relevant for this project
 
-`<boot> repl` To start an interactive REPL.
+`<lein> deps` To preload and/or update all dependencies.
+
+`<lein> example` To run a simple example-script.<br>
+`<lein> examplej` To run a simple Java-class which in turn runs the same simple example-script.
+
+`<lein> repl` To start an interactive REPL.
 
 
+<br>
 
-## Maven?
+***
 
-Yes, there is a "pom.xml" in the source. But that is simply to facilitate sharing dependency information with my IDE (IntelliJ). <br>
-Boot is able to read and write to this file, and the IDE can automatically update itself when it sees the changes.
+Copyright Terje Dahl 2016<br>
+<br>
+
