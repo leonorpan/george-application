@@ -8,7 +8,7 @@
 ;        [george.javafx-classes :as fxc] :reload
         )
     (:import [sun.font FontScaler]
-             )
+             [com.sun.org.apache.xerces.internal.impl.dv DVFactoryException])
 
 )
 
@@ -22,7 +22,7 @@
           Application Platform]
 
         '[javafx.beans.value
-          ChangeListener]
+          ChangeListener WritableValue]
 
         '[javafx.collections
           FXCollections ListChangeListener]
@@ -297,7 +297,7 @@ and the body is called on 'handle'"
     [duration & keyvalues]
     (keyframe* duration keyvalues))
 
-
+javafx.animation.Timeline
 (defn timeline
     "creates a timeline of instances of KeyFrame"
     [onfinished-fn & KeyFrames]
@@ -315,6 +315,57 @@ and the body is called on 'handle'"
     (timeline onfinished-fn (keyframe* duration keyvalues)))
 
 
+(def NANO_PR_SEC
+    "number of nano-seconds pr second"
+    1000000000)
+
+(def NANO_PR_MILLI
+    "number of nano-seconds pr milli-second"
+    1000000)
+
+(def DEFAULT_TICKS_PR_SEC
+    "default number of 'ticks' pr second"
+    60)
+
+;(set! *unchecked-math* :warn-on-boxed)
+;(set! *warn-on-reflection* true)
+
+(defn synced-keyframe
+    "same as 'keyframe', but runs immediately in current thread"
+    [duration & keyvalues]
+    (when keyvalues
+        (let [
+              ;;  replace [prop end] with [prop start end]
+              keyvalues (map
+                 (fn [[prop end]] [prop (. ^WritableValue prop getValue) end])
+                 (filter some? keyvalues))
+
+              start-nano     ^long (System/nanoTime)
+              duration-nano  (* duration NANO_PR_MILLI)
+              end-nano       (+ start-nano duration-nano)
+              sleep-nano     ^long (/ NANO_PR_SEC DEFAULT_TICKS_PR_SEC) ;; 60 fps
+              ]
+            (loop [current-nano start-nano
+                   next-nano    (+ current-nano sleep-nano)]
+
+                (when (<= current-nano end-nano)
+                        (later (doseq [[^WritableValue prop start end] keyvalues]
+                                ;;  cDv (* (/ cDt Dt) Dv)
+                                ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
+                                (. prop  setValue
+                                   (+ start (*
+                                            (/ (- current-nano start-nano) duration-nano)
+                                            (- end start))))))
+
+                        (let [sleep-milli (int (/ (- next-nano current-nano) NANO_PR_MILLI))]
+                            (if (> sleep-milli 0)
+                                (Thread/sleep sleep-milli)))
+
+                        (recur next-nano (+ current-nano sleep-nano))))
+
+            ;; correct final value and "hold" until to ensure consistent state at end
+            (now (doseq [[^WritableValue p _ e] keyvalues]
+                       (. p setValue e))))))
 
 
 (defn add [^Parent p ^Node n]
