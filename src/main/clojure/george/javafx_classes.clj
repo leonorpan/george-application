@@ -1,7 +1,7 @@
 (ns george.javafx-classes)
 
 
-(defn import-classes []
+(defn ^:deprecated import-classes []
 "imports a pile of JavaFX classes into calling namespace"
     (import
 

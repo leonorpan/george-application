@@ -4,33 +4,148 @@
         [clojure.string :as s]
 
         [george.java :as j] :reload
-        [george.javafx-classes :as fxc] :reload
+        [george.util :as u] :reload
+;        [george.javafx-classes :as fxc] :reload
         )
-    (:import [sun.font FontScaler])
+    (:import [sun.font FontScaler]
+             )
 
 )
 
-(fxc/import-classes)
+
+(def classes [
+        '[javafx.animation
+          ScaleTransition SequentialTransition TranslateTransition
+          Timeline KeyFrame KeyValue]
+
+        '[javafx.application
+          Application Platform]
+
+        '[javafx.beans.value
+          ChangeListener]
+
+        '[javafx.collections
+          FXCollections ListChangeListener]
+
+        '[javafx.embed.swing JFXPanel]
+
+        '[javafx.event
+          EventHandler]
+
+        '[javafx.geometry
+          Insets Orientation Pos VPos]
+
+        '[javafx.scene
+          Cursor Group Node Parent Scene
+          SnapshotParameters]
+
+        '[javafx.scene.canvas
+          Canvas]
+
+        '[javafx.scene.control
+          Alert Alert$AlertType
+          Button ButtonType ButtonBar$ButtonData
+          Label
+          ListView RadioButton
+          ScrollPane
+          TextField TextArea TextInputDialog
+          Tab TabPane
+          Menu MenuBar MenuItem
+          ]
+
+        '[javafx.scene.effect
+          Lighting]
+
+        '[javafx.scene.image
+          Image]
+
+        '[javafx.scene.input
+          Clipboard ClipboardContent Dragboard
+          TransferMode
+          MouseEvent
+          KeyEvent KeyCode]
+
+        '[javafx.scene.layout
+          BorderPane HBox Priority Region StackPane VBox
+          Pane Border FlowPane
+          BorderStroke BorderStrokeStyle CornerRadii BorderWidths]
+
+        '[javafx.scene.paint
+          Color]
+
+        '[javafx.scene.text
+          Font FontWeight Text TextAlignment TextFlow]
+
+        '[javafx.scene.shape
+          Circle Line Rectangle Shape StrokeLineCap StrokeType Polygon]
+
+        '[javafx.scene.web
+          WebEngine WebView]
+
+        '[javafx.stage
+          FileChooser Screen Stage StageStyle Window]
+
+        '[javafx.util
+          Duration]
+        ])
+
+(defn import-classes! []
+    (j/import! classes))
+
+(import-classes!)
 
 
+;; A cool colors
+(def ANTHRECITE (Color/web "#2b292e"))
+(def WHITESMOKE Color/WHITESMOKE)
 
 
-(defn thread*
+(defn later*
     "Utility function for 'thread'."
-    [exp]
+    [expr]
     (if (Platform/isFxApplicationThread)
-        (exp)
-        (Platform/runLater exp)))
+        (expr)
+        (Platform/runLater expr)))
 
-(defmacro thread
-    "Ensure running body in JavaFX thread."
+(defmacro ^:deprecated thread
+    "Ensure running body in JavaFX thread: javafx.application.Platform/runLater"
     [& body]
-    `(thread* (fn [] ~@body)))
+    `(later* (fn [] ~@body)))
+
+
+(defmacro later
+    "Ensure running body in JavaFX thread: javafx.application.Platform/runLater"
+    [& body]
+    `(later* (fn [] ~@body)))
+
+
+(defn now*
+    "Ensure running body in JavaFX thread: javafx.application.Platform/runLater, but returns result. Prefer using 'later'"
+    [expr]
+    (if (Platform/isFxApplicationThread)
+        (expr)
+        (let [result (promise)]
+            (later
+                (deliver result (try (expr) (catch Throwable e e (println e))))
+                ;(deliver result (expr))
+                )
+            @result)))
+
+
+(defmacro now
+    "Ensure running body in JavaFX thread: javafx.application.Platform/runLater, but returns result. Prefer using 'later'."
+    [& body]
+    `(now* (fn [] ~@body)))
 
 
 
-(defn dont-exit! []
+(defn set-implicit-exit [b]
     (Platform/setImplicitExit false))
+
+(defn ^:deprecated dont-exit! []
+    (set-implicit-exit false))
+
+(set-implicit-exit false)
 
 
 (defn init []
@@ -38,6 +153,9 @@
 Needs only be called once in the applications life-cycle.
 Has to be called before the first call to/on FxApplicationThread (javafx/thread)"
     (JFXPanel.))
+
+
+(init)
 
 
 (defmacro event-handler
@@ -72,7 +190,7 @@ and the body is called on 'handle'"
 
 
 
-(defn XY[item]
+(defn XY [item]
     [(.getX item) (.getY item)])
 
 (defn WH [item]
@@ -141,14 +259,154 @@ and the body is called on 'handle'"
 
 
 
+
 ;; This is a hack!
 ;; loading fonts from CSS doesn't work now, if there is a space in the file path.
 ;; So we pre-load them here, and they should then be available in css
-(let  [fonts [
+(comment let  [fonts [
     "SourceCodePro-Regular.ttf"
     "SourceCodePro-Medium.ttf"
-    "SourceCodePro-Bold.ttf"
+    "SourceCodePro-Bold.ttf" ;; Bold seems to look just like Regular! (At least on my Mac)
     "SourceCodePro-Semibold.ttf" ]]
     (doseq [f fonts]
         (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
+
+
+(defn SourceCodePro [weight size]  ;; "Regular" / "Medium", etc
+    (-> (format "fonts/SourceCodePro-%s.ttf" weight) cio/resource str (s/replace "%20" " ") (Font/loadFont  size))
+    )
+
+
+
+
+
+
+
+(defn keyframe*
+    "creates an instance of Keyframe with duration (millis) and KeyValue-s from a seq of vectors of format [property value]"
+    [duration keyvalues]
+    (KeyFrame.
+        (Duration. duration)
+        (j/vargs*
+            (map (fn [[p v]](KeyValue. p v))
+                 (filter some? keyvalues)))))
+
+
+(defn keyframe
+    "creates an instance of Keyframe with duration (millis) and KeyValue-s from vectors of format [property value]"
+    [duration & keyvalues]
+    (keyframe* duration keyvalues))
+
+
+(defn timeline
+    "creates a timeline of instances of KeyFrame"
+    [onfinished-fn & KeyFrames]
+    (let [t (Timeline. (j/vargs* KeyFrames))]
+        (if onfinished-fn
+            (. t setOnFinished (event-handler (onfinished-fn))))
+        t))
+
+
+(defn simple-timeline
+    "creates a timeline containing a single keyframe with duration (in millis),
+    onfinished-fn (or nil),
+    and keyvalues as vectors as per function 'keyframe'"
+    [duration onfinished-fn & keyvalues]
+    (timeline onfinished-fn (keyframe* duration keyvalues)))
+
+
+
+
+(defn add [^Parent p ^Node n]
+    (-> p .getChildren (. add n)))
+
+
+
+
+(defn group* [nodes]
+    (Group. (j/vargs-t* Node nodes)))
+
+
+(defn group
+    ([& nodes]
+     (group* nodes)))
+
+(defn line [& {:keys [x1 y1 x2 y2 color width]
+               :or   { x1 0 y1 0
+                      x2 x1 y2 y1
+                      color Color/BLACK
+                      width 1
+                      }}]
+    (doto (Line. x1 y1 x2 y2)
+        (. setStroke color)
+        (. setStrokeWidth width)
+        ))
+
+
+(defn polygon
+    [& args]
+     (if (empty? args)
+         (Polygon.)
+         (let [
+               defaults {
+                         :fill Color/TRANSPARENT
+                         :stroke Color/BLACK
+                         :strokewidth 1.
+                         }
+               [points kwargs] (u/args-kwargs args)
+               kwargs (merge defaults kwargs)
+
+               ]
+         (doto (Polygon. (j/vargs-t* Double/TYPE points))
+             (. setFill (:fill kwargs))
+             (. setStroke (:stroke kwargs))
+             (. setStrokeWidth (:strokewidth kwargs))
+             ))))
+
+
+(defn rectangle [& {:keys [x y width height fill arc]
+                    :or   { x 0 y 0
+                           width 50
+                           height 50
+                           fill nil
+                           arc 0
+                           }}]
+
+    (doto (Rectangle. x y width height)
+        (. setFill fill)
+        (. setArcWidth arc)
+        (. setArcHeight arc)
+        ))
+
+
+(defn scene [root & {:keys [width height fill]
+                     :or   {width 600.
+                            height 400.
+                            fill  nil
+                            }}]
+    (Scene. root width height fill))
+
+
+(defn stage [& {:keys [style title scene x y width height show onclose]
+                :or   {style  StageStyle/DECORATED
+                       title  "Untitled stage"
+                       scene nil
+                       width  600
+                       height 600
+                       show true
+                       onclose #()
+                       }}]
+
+    (let [stg (doto (Stage. style)
+                  (. setTitle title)
+                  (. setWidth width)
+                  (. setHeight height)
+                  (. setScene scene)
+                  (. setOnCloseRequest (event-handler (onclose)))
+                  )
+          ]
+
+        (if show (. stg show))
+        stg))
+
 
