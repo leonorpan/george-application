@@ -198,14 +198,15 @@
         c))
 
 
-;(defn read-comment [rdr & _]
-;    (skip-line rdr))
+(defn read-comment [rdr & _]
+    (skip-line rdr))
 
-(defn read-comment [rdr initch]
+#_(defn read-comment [rdr initch]
     (let [start-index (dec (. rdr getIndex))]
         (loop [sb (StringBuilder.) ch initch]
             (if (= ch \newline)
                 (Token. start-index (. rdr getIndex) (Comment. (str sb)))
+                ;; TODO! fix Heap overflow
                 (recur (.append sb ch) (read-char rdr))))))
 
 

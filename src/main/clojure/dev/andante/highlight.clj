@@ -6,9 +6,6 @@
 
         [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop sliding-buffer]]
 
-;        [clojure.tools.reader :as r]
-;        [clojure.tools.reader.reader-types :as t]
-
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
         [george.javafx-classes :as fxc] :reload
@@ -34,24 +31,25 @@
         (> val max) max
         :else val))
 
+(declare type->color)
 
-(defrecord StyleSpec [color weight underline hover])
-
+(defrecord StyleSpec [color weight underline background])
 
 (defn- ^String style [^StyleSpec spec]
-    (let [{c :color w :weight u :underline h :hover b :background} spec]
+    (let [{c :color w :weight u :underline b :background} spec]
             (str
-                "-fx-fill: " (if h " gold" (if c c "black")) "; "
+                "-fx-fill: " (if c c (type->color :default)) "; "
                 "-fx-font-weight: " (if w w "normal") "; "
                 "-fx-underline: " (if u u "false") "; "
-                "-fx-effect: " (if h "dropshadow(one-pass-box, slategray, 5, 1, 0, 0)" "null") "; "
+                "-fx-background-fill: " (if b b "null") "; "
+                ;"-fx-effect: " (if h "dropshadow(one-pass-box, slategray, 5, 1, 0, 0)" "null") "; "
             )))
 
 
 
 
 (defn- apply-specs [^Text text specs]
-    (println "apply-spec  specs:" specs)
+    ;(println "apply-spec  specs:" specs)
     (if (instance? StyleSpec specs)
         (. text setStyle (style specs))
         (doseq [spec specs]
@@ -68,134 +66,122 @@
             (apply-specs text style))))
 
 
+(defn get-text [^StyledTextArea codearea]
+    (. codearea getText 0 (. codearea getLength)))
+
+(defn set-text [^StyledTextArea codearea text]
+    (. codearea replaceText text))
+
 
 (defn- code-textarea []
     (doto (StyledTextArea.
               (StyleSpec. nil nil nil nil)
               (style-biconsumer))
-        (.setStyle "
-            -fx-font: 16 'Source Code Pro Medium';
-            -fx-padding: 10 5;
-            -fx-background-color: #E6E6E6;"
+        (. setFont (fx/SourceCodePro "Medium" 18))
+        (. setStyle "
+            -fx-padding: 10;
+            -fx-background-color: WHITESMOKE;"
         )
 
-        (.setUseInitialStyleForInsertion true)
+        (. setUseInitialStyleForInsertion true)
         (-> .getUndoManager .forgetHistory)
         (-> .getUndoManager .mark)
-        (.selectRange 0 0)
+        (. selectRange 0 0)
     ))
 
 
+(defn- background-fill [hover?]
+    (if hover? "yellow" nil))
 
-(defn- set-style [text-area text-length ranges style is-hover]
-    (println "ranges:" ranges)
+
+(defn- set-style [codearea code-len ranges style hover?]
+    ;(println "set-style ranges:" ranges)
     (doseq [[from to] ranges]
+        ;_ (println "code-len:" code-len " from:" from " to:" to)
+        (when (and from to)  ;; skip [nil nil] ranges.  Fix!
         (let [
                  ;; ensure bounds
-                 new-style  (assoc style :hover is-hover)
+                 new-style  (assoc style :background (background-fill hover?))
                  from (max 0 from)
-                 to (min to text-length)
+                 to (min to code-len)
                  ]
             (println "new-style:" from to new-style)
-            (.setStyle text-area from to new-style)
+            (. codearea setStyle  from to new-style)
 
-            )))
-
-
-(comment defn- style-class [area  length css-class ranges]
-    (doseq [[from to] ranges]
-        (let [
-                ;; ensure bounds
-                 from (max 0 from)
-                 to (min to length)
-             ]
-            (println "style-class:" css-class from to)
-            (.setStyleClass area from to css-class))))
+            ))))
 
 
-(defn- ranges [typ from to]
-    (cond
-        (isa? typ clojure.lang.IPersistentSet) [[from (+ 2 from)] [(dec to) to]]
-        (isa? typ java.lang.Iterable) [[from (inc from)] [(dec to) to]]
-        :else [[from to]]
-    ))
+
+;(defn- ranges [typ from to]
+;    (cond
+;        (isa? typ clojure.lang.IPersistentSet) [[from (+ 2 from)] [(dec to) to]]
+;        (isa? typ java.lang.Iterable) [[from (inc from)] [(dec to) to]]
+;        :else [[from to]]
+;    ))
 
 
 
 (defn- unpaired-delim? [token]
-    (println "unpaired?" token)
+    ;(println "unpaired?" token)
     (boolean (get-in token [:value :unpaired])))
 
 (defn- unpaired-delim [token]
     (assoc-in token [:value :unpaired] true))
 
 
-(defn- color [token]
-    (let [
-             value (:value token)
-            typ (case value  :nil value (type value))
-         ]
-        (println "color typ:" typ)
+(defn- type->color [typ]
+        ;(println "color typ:" typ)
         (cond
-        ;; cursor color? "#26A9E1"
+            ;; cursor color? "#26A9E1"
 
-            (or
-                (#{
-                     dev.andante.tokenizer.TokenError
-                     }  typ)
-                (unpaired-delim? token))
+            (#{clojure.lang.Symbol :default}  typ)
+            "#404042";"#01256e";"#333"
+
+            (#{Boolean :nil} typ)
+            "#4F7BDE";"#524EAC";"#1FAECE";"#00ACEE";"#31B2F4"
+
+            (#{dev.andante.tokenizer.TokenError :unpaired} typ)
             "#ED1C24";"red";"#B3191F";
-
 
             (isa? typ Number)
             "#524EAC";"#005d69";"#26A9E1";"#00ACEE";"#6897bb";"#262161";"#4a0042";"#336699"
 
-            (#{
-                 clojure.lang.Keyword
-                 dev.andante.tokenizer.Arg
-                  } typ)
+            (#{clojure.lang.Keyword dev.andante.tokenizer.Arg} typ)
             "#9E1F64"
 
-            (#{
-                 Boolean
-                 :nil } typ)
-            "#4F7BDE";"#524EAC";"#1FAECE";"#00ACEE";"#31B2F4"
-            (#{
-                 String
-                 Character} typ)
+            (#{String Character} typ)
             "#008e00";"#008000"
 
             (#{dev.andante.tokenizer.DelimChar} typ)
             "#99999c";"#D1D2D4";"lightgray"
             ; "#f2c100" ;; yellow
-            (#{
-                 clojure.lang.Symbol
-
-             }  typ)
-            "#404042";"#01256e";"#333"
 
             (#{dev.andante.tokenizer.Comment}  typ)
             "#708080"
 
-            (#{
-                 dev.andante.tokenizer.MacroChar
-                 dev.andante.tokenizer.MacroDispatchChar
-
-                 }  typ)
+            (#{dev.andante.tokenizer.MacroChar dev.andante.tokenizer.MacroDispatchChar}  typ)
             "#cc7832";"#c35a00";"#A33EFE"
-
 
             :else
             "orange"
-        )))
+        ))
 
 
-;        :underline
-;        (boolean (#{
-;             dev.andante.tokenizer.TokenError
-;             :unpaired-delim
-;         } typ))
+(defn- color [token]
+    (let [
+             value (:value token)
+             typ
+                (cond
+                    (= :nil value)
+                    :nil
 
+                    (unpaired-delim? token)
+                    :unpaired
+
+                    :else
+                    (type value))
+         ]
+        (type->color typ)))
 
 
 (defn- assoc-token
@@ -226,6 +212,8 @@
     "assocs a given token to every index it covers"
     [rngs token index-vector!]
     ;(println "rngs:" rngs "  token:" token)
+    (if-not token  ;; avoid NullPointerExeptions.  Fix this!
+        index-vector!
     (let [
              indexes
              (reduce
@@ -238,6 +226,8 @@
             (if (empty? inds)
                 indv
                 (recur (assoc! indv (first inds) token) (rest inds))))))
+    )
+
 
 
 
@@ -263,9 +253,8 @@
                     (next lst))))))
 
 
-
-
 (defn- set-stylespans [tokens codearea]
+    (when-not (empty? tokens)
     (let [
              tokens-and-specs (map (fn [t] [t (StyleSpec. (color t) nil false false)]) tokens)
              ;_ (doseq  [[tk sp] tokens-and-specs] (println)(println tk) (println sp))
@@ -285,28 +274,42 @@
 
                 (recur end tokens-and-specs)))
 
-        (fx/thread (. codearea setStyleSpans 0 (. spans-builder create)))))
+            (fx/thread  ;; should this not go on a channel for speed?!
+                (try
+                    (. codearea setStyleSpans 0 (. spans-builder create))
+                    (catch Exception e (. e printStackTrace))  ;; handle end greater than length.  Fix!
+                )
+        ))))
 
 
 (defn- set-spec [codearea code-len ranges spec hover?]
-    (println "ranges:" ranges)
+    ;(println "ranges:" ranges)
     (doseq [[from to] ranges]
+        (when (and from to)  ;; avoid NullPointerException
         (let [
                  ;; ensure bounds
                  new-spec (assoc spec :hover hover?)
                  from (max 0 from)
                  to (min to code-len)
                  ]
-;            (println "new-spec:" from to new-spec)
-            (fx/thread (. codearea setStyle from to new-spec))
+                 ;(println "new-spec:" from to new-spec)
+                 ;(fx/thread (time (. codearea setStyle from to new-spec)))
+                 (fx/thread
+                     (try
+                         (. codearea setStyle from to new-spec)
+                         (catch IllegalArgumentException e (. e printStackTrace)) ;; handle end is greater than length. Fix!
+                         )
+                     )
 
-            )))
+            ))))
 
 
 (defn- color-and-index [codearea code codearea token-index-atom]
     (let [
             code-len (. code length)
-            tokens (tok/tokenize-str code)
+            ;_ (println "tokenize: ")
+            ;tokens (time (tok/tokenize-str code))
+          tokens (tok/tokenize-str code)
             _ (set-stylespans tokens codearea)
 
             [paired unpaired] (tok/paired-delims (tok/delim-tokens tokens))
@@ -318,8 +321,11 @@
                       [[(:start t) (:end t)]]
                       (StyleSpec. (color t) nil false false)
                       false))
+
         ]
+        (go (reset! token-index-atom (token-index tokens code-len)))
     ))
+
 
 (defn- codearea-changelistener [codearea token-index-atom]
     (let [
@@ -327,7 +333,7 @@
          ]
     (reify ChangeListener
         (changed [_ obs old-code new-code]
-            (println "change detected ...")
+            ; (println "change detected ...")
             ;(go (>! i-chan new-txt))
 
             (go (color-and-index codearea new-code codearea token-index-atom))
@@ -339,13 +345,18 @@
         ))))
 
 
-(defn- token->ranges [token]
-    (let [
-             m (meta token)
-             {from :starting-index to :ending-index typ :type} m
-             typ (if typ typ (type token))
-         ]
-         (ranges typ from to)))
+;(defn- token->ranges [token]
+;    (let [
+;             m (meta token)
+;             {from :starting-index to :ending-index typ :type} m
+;             typ (if typ typ (type token))
+;         ]
+;         (ranges typ from to)))
+
+
+(defn- tokens->ranges [tokens]
+    "returns a vector of [start end] - one pair for each token in tokens"
+    (mapv  (fn [{:keys [start end]}] [start end]) tokens))
 
 
 (defn- mouse-over-handler [text-area token-index ]
@@ -358,7 +369,7 @@
                         token (get @token-index i)
                     ]
                     (reset! last-hovered-index nil)
-                    (set-style text-area (. text-area getLength) (token->ranges token) old-style false)
+                    (set-style text-area (. text-area getLength) (tokens->ranges token) (first old-style) false)
 
                     ))
 
@@ -368,36 +379,30 @@
                     token (get @token-index i)
                 ]
                 (reset! last-hovered-index i)
-                (set-style text-area (. text-area getLength) (token->ranges token) old-style true)
+                ;(println "  ## token:" token " ranges:" (tokens->ranges token))
+                (set-style text-area (. text-area getLength) (tokens->ranges token) (first old-style) true)
 
             ))))
 
 
 
-(defn- build-scene []
+(defn ^StyledTextArea codearea []
     (let [
-            area (code-textarea)
-            _ (def area area)
-             linenumber-factory (LineNumberFactory/get area)
-             _ (.setParagraphGraphicFactory area linenumber-factory)
+          area (code-textarea)
+          ;_ (def area area)
 
-             code (tok/sample-code)
+          ;; http://stackoverflow.com/questions/28659716/show-breakpoint-at-line-number-in-richtextfx-codearea
+          linenumber-factory (LineNumberFactory/get area)
+          _ (.setParagraphGraphicFactory area linenumber-factory)
 
-             scene (Scene. (StackPane. (j/vargs area)) 600 400)
-             token-index (atom []) ;; this will contain references to parse-results by index - for lookups
-            hover-handler (mouse-over-handler area token-index)
+          token-index (atom []) ;; this will contain references to parse-results by index - for lookups
+          hover-handler (mouse-over-handler area token-index)
 ]
-        ; (fx/add-stylesheets scene "styles/basic.css" "dev/highlight/code.css" )
-        (fx/add-stylesheets scene "fonts/fonts.css")
-
         (doto area
             (.setMouseOverTextDelay (java.time.Duration/ofMillis 100))
-            ;(.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
+            (.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
             (-> .textProperty (.addListener (codearea-changelistener area token-index)))
-            (.replaceText 0 0 code)
-        )
-
-        scene ))
+            )))
 
 
 (defn -main [& args]
@@ -405,13 +410,25 @@
     (fx/dont-exit!)
     (fx/thread
         (doto (Stage.)
-            (.setScene (build-scene))
+            (.setScene
+
+                (doto
+                    (Scene.
+                        (StackPane.
+                            (j/vargs
+                                (doto
+                                    (codearea)
+                                    (.replaceText 0 0 (tok/sample-code)))
+                                ))
+                        600 400)
+                    ; (fx/add-stylesheets "styles/basic.css" "dev/highlight/code.css" )
+                    ; (fx/add-stylesheets  "fonts/fonts.css")
+                    (fx/add-stylesheets  "styles/codearea.css")
+                    )
+                )
             (.sizeToScene)
             (.setTitle "highlight")
             (.show))))
 
 
-(fx/init)
-
-
-(-main)
+;(-main)

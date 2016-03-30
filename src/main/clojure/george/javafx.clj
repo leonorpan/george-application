@@ -8,7 +8,8 @@
 ;        [george.javafx-classes :as fxc] :reload
         )
     (:import [sun.font FontScaler]
-             [com.sun.org.apache.xerces.internal.impl.dv DVFactoryException])
+             [com.sun.org.apache.xerces.internal.impl.dv DVFactoryException]
+             [javafx.beans.property StringProperty])
 
 )
 
@@ -21,7 +22,10 @@
         '[javafx.application
           Application Platform]
 
-        '[javafx.beans.value
+          '[javafx.beans.property
+            StringProperty]
+
+          '[javafx.beans.value
           ChangeListener WritableValue]
 
         '[javafx.collections
@@ -47,17 +51,19 @@
           Button ButtonType ButtonBar$ButtonData
           Label
           ListView RadioButton
-          ScrollPane
-          TextField TextArea TextInputDialog
-          Tab TabPane
           Menu MenuBar MenuItem
+          OverrunStyle
+          Tab TabPane
+          TextField TextArea TextInputDialog
+          Tooltip
+          ScrollPane
           ]
 
         '[javafx.scene.effect
           Lighting]
 
         '[javafx.scene.image
-          Image]
+          Image ImageView]
 
         '[javafx.scene.input
           Clipboard ClipboardContent Dragboard
@@ -83,7 +89,7 @@
           WebEngine WebView]
 
         '[javafx.stage
-          FileChooser Screen Stage StageStyle Window]
+           FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle Window]
 
         '[javafx.util
           Duration]
@@ -217,7 +223,7 @@ and the body is called on 'handle'"
 
 
 (defn add-stylesheets [^Scene scene & sheetpaths]
-    (-> scene .getStylesheets (.addAll (into-array  sheetpaths))))
+    (-> scene .getStylesheets (.addAll (into-array sheetpaths))))
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
@@ -273,7 +279,11 @@ and the body is called on 'handle'"
 
 
 (defn SourceCodePro [weight size]  ;; "Regular" / "Medium", etc
-    (-> (format "fonts/SourceCodePro-%s.ttf" weight) cio/resource str (s/replace "%20" " ") (Font/loadFont  size))
+    (-> (format "fonts/SourceCodePro-%s.ttf" weight)
+        cio/resource
+        str
+        (s/replace "%20" " ")
+        (javafx.scene.text.Font/loadFont (double size)))
     )
 
 
@@ -349,7 +359,7 @@ javafx.animation.Timeline
                    next-nano    (+ current-nano sleep-nano)]
 
                 (when (<= current-nano end-nano)
-                        (later (doseq [[^WritableValue prop start end] keyvalues]
+                    (later (doseq [[^WritableValue prop start end] keyvalues]
                                 ;;  cDv (* (/ cDt Dt) Dv)
                                 ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
                                 (. prop  setValue
@@ -362,7 +372,6 @@ javafx.animation.Timeline
                                 (Thread/sleep sleep-milli)))
 
                         (recur next-nano (+ current-nano sleep-nano))))
-
             ;; correct final value and "hold" until to ensure consistent state at end
             (now (doseq [[^WritableValue p _ e] keyvalues]
                        (. p setValue e))))))
@@ -394,25 +403,25 @@ javafx.animation.Timeline
         ))
 
 
+
 (defn polygon
     [& args]
-     (if (empty? args)
-         (Polygon.)
-         (let [
-               defaults {
-                         :fill Color/TRANSPARENT
-                         :stroke Color/BLACK
-                         :strokewidth 1.
-                         }
-               [points kwargs] (u/args-kwargs args)
-               kwargs (merge defaults kwargs)
 
-               ]
+    (let [
+          [points kwargs]
+          (u/partition-args
+              args
+              {:fill Color/TRANSPARENT
+               :stroke Color/BLACK
+               :strokewidth 1.
+               })
+          ]
          (doto (Polygon. (j/vargs-t* Double/TYPE points))
              (. setFill (:fill kwargs))
              (. setStroke (:stroke kwargs))
              (. setStrokeWidth (:strokewidth kwargs))
-             ))))
+             )))
+
 
 
 (defn rectangle [& {:keys [x y width height fill arc]
@@ -430,34 +439,125 @@ javafx.animation.Timeline
         ))
 
 
-(defn scene [root & {:keys [width height fill]
-                     :or   {width 600.
-                            height 400.
+
+(defn button [label & {:keys [onaction width minwidth tooltip]}]
+    (let [b (Button. label)]
+        (if width (. b setPrefWidth (double width)))
+        (if minwidth (. b setMinWidth (double minwidth)))
+        (if onaction (. b setOnAction (event-handler (onaction))))
+        (if tooltip (. b setTooltip (Tooltip. tooltip)))
+        b))
+
+
+(defn textarea
+    [& {:keys [text font]
+         :or {text ""}}]
+     (doto (TextArea. text)
+         (. setFont font)))
+
+
+(defn insets* [[top right bottom left]]
+    (Insets. top right bottom left))
+
+
+(defn insets
+    ([v]
+    (if (vector? v)
+        (insets* v)
+        (Insets. v)))
+    ([top right bottom left]
+     (insets* [top right bottom left])))
+
+
+(defn box [vertical? & args]
+    (let [
+          [nodes kwargs]
+          (u/partition-args
+              args {:spacing 0
+                    :insets 0
+                    :padding 0
+                    :alignment nil})
+    ]
+        (doto (if vertical?
+                  (VBox. (:spacing kwargs) (j/vargs-t* Node nodes))
+                  (HBox. (:spacing kwargs) (j/vargs-t* Node nodes)))
+            (BorderPane/setMargin (insets (:insets kwargs)))
+            (BorderPane/setAlignment (:alignment kwargs))
+            (. setStyle (format "-fx-padding: %s %s;" (:padding kwargs) (:padding kwargs)))
+            )
+        ))
+
+(defn hbox [& args]
+    (apply box (cons false args)))
+
+(defn vbox [& args]
+    (apply box (cons true args)))
+
+(defn borderpane
+    "args:  & :center :top :right :bottom :left :insets"
+    [ & {:keys [center top right bottom left] :as kwargs
+         :or   {insets 0}}]
+    (doto
+        (BorderPane. center top right bottom left)
+        (. setPadding (insets (:insets kwargs)))))
+
+
+
+(defn scene [root & {:keys [size fill]
+                     :or   {size [300 300]
                             fill  nil
                             }}]
-    (Scene. root width height fill))
+    (Scene. root (double (first size)) (double (second size)) fill))
 
 
-(defn stage [& {:keys [style title scene x y width height show onclose]
+
+(defn ensure-handler [f]
+    (if (instance? EventHandler f) f (event-handler (f))))
+
+
+(defn centering-point-on-primary
+    "returns [x y] for centering (stage) no primary screen"
+    [scene-or-stage]
+    (let [prim-bounds (. (Screen/getPrimary) getVisualBounds)]
+        [ (-> prim-bounds .getWidth (/ 2) (- (/ (. scene-or-stage getWidth) 2)))
+          (-> prim-bounds .getHeight (/ 2) (- (/ (. scene-or-stage getHeight) 2))) ]))
+
+(defn stage [& {:keys [style title scene
+                       sizetoscene location size
+                       show ontop resizable
+                       oncloserequest onhiding onhidden]
                 :or   {style  StageStyle/DECORATED
                        title  "Untitled stage"
                        scene nil
-                       width  600
-                       height 600
+                       sizetoscene false
+                       location [50 50]
+                       size [50 50]
                        show true
-                       onclose #()
+                       ontop false
+                       resizable true
+                       oncloserequest #()  ;; good for preventing closing (consume event)
+                       onhiding #()  ;; god for saving content
+                       onhidden #()  ;; god for removing references
                        }}]
 
     (let [stg (doto (Stage. style)
                   (. setTitle title)
-                  (. setWidth width)
-                  (. setHeight height)
+                  (. setX (first location))
+                  (. setY (second location))
+                  (. setWidth (first size))
+                  (. setHeight (second size))
                   (. setScene scene)
-                  (. setOnCloseRequest (event-handler (onclose)))
+                  (. setAlwaysOnTop ontop)
+                  (. setResizable resizable)
+                  (. setOnCloseRequest (ensure-handler oncloserequest))
+                  (. setOnHiding (ensure-handler onhiding))
+                  (. setOnHidden (ensure-handler onhidden))
                   )
           ]
 
+
         (if show (. stg show))
+        (if sizetoscene (. stg sizeToScene))
         stg))
 
 

@@ -3,7 +3,7 @@
 
 (defproject
   no.andante.george/george-client-jvm
-  "0.5.0-SNAPSHOT"
+  "0.5.0"
 
   :description "George Client (source/jvm)"
   :url "http://george.andante.no"
@@ -26,18 +26,23 @@
                ["jcenter" "https://jcenter.bintray.com"] ;; apache.commons.io
                ]
 
-        :source-paths ["src/main/clojure"]
-
+        :source-paths ["src/main/clojure" ]
         :java-source-paths ["src/main/java"]
         :javac-options     ["-target" "1.8" "-source" "1.8"]
 
         :test-paths ["src/test/clojure"]
-        :resource-paths ["src/main/resources"]
+        :resource-paths ["src/main/resources" ;"target/uberjar/classes"
+                         ]
 
         :target-path "target/%s"
+    ;:compile-path "%s/compile"
 
-        ;:main example.App
-        ;:aot [example.app]
+     ;   :main george.launcher
+     ;   :aot [george.launcher]
+    ;   :main george.launcher
+    ;   :aot [george.launcher]
+    ;:main example.App
+    ;:aot [example.App]
 
         :aliases {
                   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
@@ -47,7 +52,8 @@
 
                   }
 
-        :profiles {
-                   :dev {}
-                   }
+        :profiles {:uberjar {
+                             :main george.main
+                             :aot [george.main]
+                             }}
   )

@@ -1,0 +1,8 @@
+/* control the labels of the linenumber-factory fuction */
+.lineno {
+    -fx-font-size: 14 "Source Code Pro Regular";
+    -fx-text-fill: #aaa;
+    -fx-background-color: transparent;
+    -fx-padding: 0 30 0 15;
+}
+

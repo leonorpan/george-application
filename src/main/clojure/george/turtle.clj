@@ -1,5 +1,9 @@
 (ns george.turtle
-    (:require [george.javafx :as fx] :reload))
+    (:require
+        [george.java :as j] :reload
+        [george.javafx :as fx] :reload
+        [george.input :as input] :reload
+        ))
 
 (fx/import-classes!)
 
@@ -24,11 +28,10 @@
           root (fx/group)
           stage
                (fx/now (fx/stage
-                   :title "Turtle"
-                   :width 600
-                   :height 600
+                   :title "Turtle - Graphics"
+                   :size [600 600]
                    :scene (fx/scene root :fill fx/WHITESMOKE)
-                   :onclose #(reset! screen-singleton nil)))
+                   :onhidden #(reset! screen-singleton nil)))
           ]
         (doto root
             (-> .layoutXProperty (. bind (-> stage .widthProperty (. divide 2))))
@@ -65,7 +68,7 @@
 
 
 (defn color [pen color]
-    (swap! pen assoc :color color))
+    (swap! pen assoc :color color) pen)
 
 
 (defn down
@@ -80,7 +83,7 @@
     (down pen false))
 
 
-(defn left [pen degrees]
+(defn right [pen degrees]
     (let [new-angle (+ (angle pen) degrees)]
         (fx/synced-keyframe
             (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
@@ -89,8 +92,8 @@
         pen ))
 
 
-(defn right [pen degrees]
-    (left pen (- degrees)))
+(defn left [pen degrees]
+    (right pen (- degrees)))
 
 
 (defn forward
@@ -152,17 +155,53 @@
 ;;;; run ;;;;
 
 
-(let [p (pen)]
+(defn- load-via-tempfile-in-ns [code-str ns-str]
+    (binding [*ns* (create-ns (symbol ns-str))]
+    (let [temp-file (java.io.File/createTempFile "code_" ".clj")]
+        (spit temp-file code-str)
+        (prn temp-file)
+        (load-file (str temp-file))
+        )))
 
-    (color p "red")
 
-    (dotimes [_ 37]
-        (-> p (forward 100) (left 170)))
+(defn- run [code]
+    (load-via-tempfile-in-ns code "george.turtle"))
 
-    (-> p up (right 170) (right 90) (forward 200) down (color "blue"))
+(def sample-code
+"(doto (pen)
+  (forward 100)
+  (left 120)
+  (color \"red\")
+  (forward 100)
+  (left 120)
+  (color \"blue\")
+  (forward 100)
+  (left 120)
+  )")
 
-    (dotimes [_ 4]
-        (-> p (right 90) (forward 100)))
 
-    (pen)
-    )
+
+
+(defn new-code-stage []
+    (let [
+          textarea
+               (fx/textarea
+                   :text sample-code
+                   :font (fx/SourceCodePro "Medium" 16))
+
+          root (fx/borderpane
+                   :center textarea
+                   :bottom
+                   (fx/hbox
+                       (fx/button "Run" :action #(j/thread (run (. textarea getText))))
+                       :insets [10 0 0 0])
+                   :insets 10)
+          stage
+               (fx/now (fx/stage
+                           :title "Turtle - Code"
+                           :size [400 600]
+                           :scene (fx/scene root :fill fx/WHITESMOKE)))
+          ]
+        stage))
+
+(new-code-stage)

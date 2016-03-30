@@ -8,7 +8,8 @@
         [george.javafx :as fx] :reload
         [george.javafx-classes :as fxc] :reload
         [george.output :as output] :reload
-
+        [dev.andante.highlight :as dah]
+        :reload
         )
     (:import
         [java.io StringReader]
@@ -18,9 +19,12 @@
     )
 
 
-(fx/init)
 (fxc/import-classes)
 
+
+;; from Versions.java in george-client
+(def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
+(def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
 
 
 (defn- with-newline [obj]
@@ -99,15 +103,15 @@
 
 
 (declare
-    read-eval-print-ns)
+    read-eval-print-in-ns)
 
 
 (defn- run [code-area modified? ns-textfield]
-    (let [input (-> code-area .getText)]
+    (let [input (dah/get-text code-area)]
         (if (s/blank? input)
             (println)
             (j/thread
-                (let [new-ns (read-eval-print-ns input (. ns-textfield getText))]
+                (let [new-ns (read-eval-print-in-ns input (. ns-textfield getText))]
                     (fx/thread (. ns-textfield setText new-ns))
                     (output/output :ns (with-newline new-ns))
 
@@ -130,17 +134,18 @@
 
 
              code-area
-             (doto (TextArea.)
+             (doto (dah/codearea)
                  (BorderPane/setMargin (Insets. 5 0 0 0))
-                 ( .setStyle "
+                 #_( .setStyle "
                 -fx-font: 14 'Source Code Pro Medium';
                 -fx-padding: 5 5;
                 /* -fx-border-radius: 4; */
-                "))
+                ")
+                 )
 
 
 
-_ (comment
+#_(comment
             prev-button
             (doto (jfx/button (str  \u25B2) #(history-button-fn -1 false)) ;; small: \u25B4
                 (-> .getStyleClass (.add "default-button"))
@@ -156,9 +161,12 @@ _ (comment
                 )
 )
             run-button
-            (doto (Button. "Run")
-                (. setOnAction (fx/event-handler (run code-area false ns-label)))
+            (fx/button
+                "Eval"
+                :width 130
+                :onaction (run code-area false ns-label)
 ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+                :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY)
                 )
 
             button-box
@@ -175,10 +183,13 @@ _ (comment
             border-pane
              (doto
                  (BorderPane. code-area ns-label nil button-box nil)
-                 (. setPadding (Insets. 5)))
+                 (. setPadding (Insets. 10)))
 
             scene
-            (Scene. border-pane 300 300)
+             (doto
+                 (Scene. border-pane 300 300)
+                 (fx/add-stylesheets "styles/codearea.css")
+                 )
 
             key-handler
             (fx/event-handler-2 [_ ke]
@@ -202,15 +213,32 @@ _ (comment
 
 ;;;; API ;;;;
 
+(defn- read-eval-print-in-ns
+    "Evals expressions in str, prints each non-nil result using prn"
+    [code-str ns-sym]
+      ;; useful?
+      ;    (let [cl (.getContextClassLoader (Thread/currentThread))]
+      ;        (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl)))
 
-(defn read-eval-print-ns
+    (binding [*ns* ns-sym]
+        (let [eof (Object.)
+              reader (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. code-str))]
+            (loop [input (read reader false eof)]
+                (when-not (= input eof)
+                    (let [value (eval input)]
+                        (when-not (nil? value)
+                            (prn value))
+                        (recur (read reader false eof))))))))
+
+
+(defn read-eval-print-in-ns
     "returns new ns as string"
     [^String code ^String ns]
     (binding [*ns* (create-ns (symbol ns)) *file* "'input'"]
     (read-eval-print code)))
 
 
-(defn show-new-input-stage []
+(defn new-input-stage []
     (let [
              scene
              (input-scene)
@@ -229,9 +257,12 @@ _ (comment
 
 
 
+
+
+
 ;;;; dev ;;;;
 
-(defn -main
+#_(defn -main
     "Launches an input-stage as a stand-alone app."
     [& args]
     (println "george.input-stage/-main")
