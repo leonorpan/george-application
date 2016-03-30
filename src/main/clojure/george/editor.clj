@@ -15,9 +15,11 @@
 
 (defn load-from-file [file ns-str]
   (binding [*ns* (create-ns (symbol ns-str))]
-    (printf "(load-file \"%s\")\n" file)
-    (load-file (str file))
-    ))
+      (println)
+      (printf "(load-file \"%s\")\n" file)
+      (println)
+      (load-file (str file))
+      ))
 
 
 (defn load-via-tempfile [code-str ns-str]
@@ -71,7 +73,7 @@
 
 (defn- save-file [data file-meta file-label ^StringProperty chrome-title]
     (when-let [f (:file @file-meta)]
-        (println "saving data to file: " (str f))
+        ;(println "saving data to file: " (str f))
         (spit f data)
         (swap! file-meta assoc :changed false)
         (update-file-label file-meta file-label chrome-title)))
@@ -104,7 +106,10 @@
           #_(fx/textarea
               :text ""
               :font (fx/SourceCodePro "Medium" 16))
-          (dah/codearea)
+          (doto
+              (dah/codearea)
+              ;(. setFont (fx/SourceCodePro "Medium" 16))
+              )
 
               file-meta
           (atom {:file nil :changed false})
@@ -204,7 +209,7 @@
                   :scene scene
                   :title "<unsaved file>"
                   :location (fx/centering-point-on-primary scene)
-                  :sizetoscene true
+                  :size [600 600]
                   ;:oncloserequest #(println "closing ...")
                   ;:onhidden #(println "... closed")
                   ))
@@ -218,3 +223,4 @@
     stage))
 
 
+;(new-code-stage)

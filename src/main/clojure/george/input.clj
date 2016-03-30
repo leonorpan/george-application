@@ -51,6 +51,7 @@
 
 
 (defn- read-eval-print [code]
+    (println)
     (output/output :in (with-newline code))
     (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
 
@@ -164,7 +165,7 @@
             (fx/button
                 "Eval"
                 :width 130
-                :onaction (run code-area false ns-label)
+                :onaction #(run code-area false ns-label)
 ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
                 :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY)
                 )

@@ -46,14 +46,19 @@
             )))
 
 
-
+(def DEFAULT_SPEC (StyleSpec. "GRAY" "bold" "false" "null"))
+;this fills in white-space, comments, other
 
 (defn- apply-specs [^Text text specs]
     ;(println "apply-spec  specs:" specs)
     (if (instance? StyleSpec specs)
         (. text setStyle (style specs))
-        (doseq [spec specs]
-            (. text setStyle (style spec))))
+
+        (if (= java.util.Collections/EMPTY_LIST specs)
+            (. text setStyle (style DEFAULT_SPEC))
+
+            (doseq [spec specs]
+                (. text setStyle (style spec)))))
 
 
     ;(.setCursor (if h Cursor/DEFAULT nil))
@@ -75,7 +80,7 @@
 
 (defn- code-textarea []
     (doto (StyledTextArea.
-              (StyleSpec. nil nil nil nil)
+              DEFAULT_SPEC
               (style-biconsumer))
         (. setFont (fx/SourceCodePro "Medium" 18))
         (. setStyle "

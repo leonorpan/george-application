@@ -2,7 +2,6 @@
     (:require
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
-        [george.input :as input] :reload
         ))
 
 (fx/import-classes!)
@@ -204,4 +203,4 @@
           ]
         stage))
 
-(new-code-stage)
+;(new-code-stage)

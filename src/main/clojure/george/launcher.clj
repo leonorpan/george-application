@@ -43,7 +43,7 @@
               "Input"
               :width b-width
               :onaction #(do
-                            (. output-button fire)
+                            ;(. output-button fire)
                             (input/new-input-stage))
               :tooltip "Open a new input window / REPL"
               )
@@ -53,7 +53,7 @@
               "Code"
               :width b-width
               :onaction #(do
-                            (. output-button fire)
+                            ;(. output-button fire)
                             (editor/new-code-stage))
               :tooltip "Open a new code editing window. \n(Can be used to open and save files.)"
               )

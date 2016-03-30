@@ -428,7 +428,7 @@ javafx.animation.Timeline
                     :or   { x 0 y 0
                            width 50
                            height 50
-                           fill nil
+                           fill Color/BLACK
                            arc 0
                            }}]
 

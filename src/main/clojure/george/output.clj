@@ -143,7 +143,7 @@
             (-> tf .getChildren (. add (styled typ (Text. (str obj)))))))
             ;; TODO: crop old lines from beginning - for speed.
     ;; else - make sure these always also appear in stout
-    (if (#{:in :res :ns} typ)
+    (if (#{:in :res} typ)
         (. standard-out print (str obj))
 
         ))
