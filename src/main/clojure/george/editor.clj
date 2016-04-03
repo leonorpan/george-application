@@ -8,9 +8,9 @@
         [dev.andante.highlight :as dah]
         :reload
         )
-    )
-
-(fx/import-classes!)
+    (:import [javafx.beans.property StringProperty]
+             [javafx.scene.control OverrunStyle]
+             [javafx.beans.value ChangeListener]))
 
 
 (defn load-from-file [file ns-str]
@@ -40,11 +40,7 @@
 
 
 (def clj-filechooser
-    (doto (FileChooser.)
-        (-> .getExtensionFilters (.addAll (j/vargs
-              (FileChooser$ExtensionFilter. "Clojure Files" (j/vargs "*.clj"))
-              (FileChooser$ExtensionFilter. "All Files" (j/vargs "*.*"))
-              )))))
+    (fx/filechooser fx/FILESCHOOSER_FILTERS_CLJ))
 
 
 (defn- select-file
@@ -116,7 +112,7 @@
 
           file-label
           (doto
-              (Label. "<unsaved file>")
+              (fx/label "<unsaved file>")
               (. setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn
@@ -149,7 +145,7 @@
           file-pane
           (fx/hbox
               file-label
-              (doto (Region.) (HBox/setHgrow Priority/ALWAYS))
+              (doto (fx/region :hgrow :always))
               open-file-button
               (fx/button "Save as ..."
                          :minwidth 70
@@ -166,7 +162,7 @@
               :top file-pane
               :bottom
               (fx/hbox
-                  (doto (Region.) (HBox/setHgrow Priority/ALWAYS))
+                  (fx/region :hgrow :always)
                   (fx/button
                       "Load"
                       :minwidth 140
@@ -189,7 +185,7 @@
 
         (-> codearea
             .textProperty
-            (.addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
+            (. addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
 
         pane))
 

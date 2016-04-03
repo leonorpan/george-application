@@ -23,8 +23,6 @@
     (:gen-class)
     )
 
-(fx/import-classes!)
-
 
 (defn- launcher-scene []
     (let [
@@ -119,7 +117,9 @@
     "Launches George (launcher) as a stand-alone app."
     [& args]
     (println "george.launcher/-main"
-             (if-not (empty? args) (str " args: " args) ""))
+             (if (empty? args)
+                 ""
+                 (str " args: " (apply str (interpose " " args)))))
     (fx/now (show-launcher-stage)))
 
 

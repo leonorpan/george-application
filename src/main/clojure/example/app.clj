@@ -2,8 +2,12 @@
 
 (defn -main [& args]
     (println "Clojure: (example.app/-main ...): Hello World!")
-    (println "   args:" (apply str (interpose " " args)))
-    )
+    (println "   args:"
+             (if (empty? args)
+                 "NO ARGS"
+                 (apply str (interpose " " args))
+             )
+    ))
 
 (defn hello []
     "Hello from example.app/hello")

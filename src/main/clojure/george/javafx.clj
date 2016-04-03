@@ -2,108 +2,119 @@
     (:require
         [clojure.java.io :as cio]
         [clojure.string :as s]
-
         [george.java :as j] :reload
         [george.util :as u] :reload
-;        [george.javafx-classes :as fxc] :reload
         )
-    (:import [sun.font FontScaler]
-             [com.sun.org.apache.xerces.internal.impl.dv DVFactoryException]
-             [javafx.beans.property StringProperty])
+    (:import
+              [javafx.animation
+                ScaleTransition SequentialTransition TranslateTransition
+                Timeline KeyFrame KeyValue]
 
+              [javafx.application
+                Application Platform]
+
+              [javafx.beans.property
+                StringProperty]
+
+              [javafx.beans.value
+                ChangeListener WritableValue]
+
+              [javafx.collections
+                FXCollections ListChangeListener]
+
+              [javafx.embed.swing JFXPanel]
+
+              [javafx.event
+                EventHandler]
+
+              [javafx.geometry
+                Insets Orientation Pos VPos]
+
+              [javafx.scene
+                Cursor Group Node Parent Scene
+                SnapshotParameters]
+
+              [javafx.scene.canvas
+                Canvas]
+
+              [javafx.scene.control
+                Alert Alert$AlertType
+                Button ButtonType ButtonBar$ButtonData
+                Label
+                ListView RadioButton
+                Menu MenuBar MenuItem
+                OverrunStyle
+                Tab TabPane
+                TextField TextArea TextInputDialog
+                Tooltip
+                ScrollPane
+                ]
+
+              [javafx.scene.effect
+                Lighting]
+
+              [javafx.scene.image
+                Image ImageView]
+
+              [javafx.scene.input
+                Clipboard ClipboardContent Dragboard
+                TransferMode
+                MouseEvent
+                KeyEvent KeyCode]
+
+              [javafx.scene.layout
+                BorderPane HBox Priority Region StackPane VBox
+                Pane Border FlowPane
+                BorderStroke BorderStrokeStyle CornerRadii BorderWidths]
+
+              [javafx.scene.paint
+                Color]
+
+              [javafx.scene.text
+                Font FontWeight Text TextAlignment TextFlow]
+
+              [javafx.scene.shape
+                Circle Line Rectangle Shape StrokeLineCap StrokeType Polygon]
+
+              [javafx.scene.web
+                WebEngine WebView]
+
+              [javafx.stage
+                FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle Window]
+
+              [javafx.util
+                Duration]
+             )
 )
 
 
-(def classes [
-        '[javafx.animation
-          ScaleTransition SequentialTransition TranslateTransition
-          Timeline KeyFrame KeyValue]
 
-        '[javafx.application
-          Application Platform]
+(defn set-implicit-exit [b]
+    (Platform/setImplicitExit false))
 
-          '[javafx.beans.property
-            StringProperty]
+(defn ^:deprecated dont-exit! []
+    (set-implicit-exit false))
 
-          '[javafx.beans.value
-          ChangeListener WritableValue]
-
-        '[javafx.collections
-          FXCollections ListChangeListener]
-
-        '[javafx.embed.swing JFXPanel]
-
-        '[javafx.event
-          EventHandler]
-
-        '[javafx.geometry
-          Insets Orientation Pos VPos]
-
-        '[javafx.scene
-          Cursor Group Node Parent Scene
-          SnapshotParameters]
-
-        '[javafx.scene.canvas
-          Canvas]
-
-        '[javafx.scene.control
-          Alert Alert$AlertType
-          Button ButtonType ButtonBar$ButtonData
-          Label
-          ListView RadioButton
-          Menu MenuBar MenuItem
-          OverrunStyle
-          Tab TabPane
-          TextField TextArea TextInputDialog
-          Tooltip
-          ScrollPane
-          ]
-
-        '[javafx.scene.effect
-          Lighting]
-
-        '[javafx.scene.image
-          Image ImageView]
-
-        '[javafx.scene.input
-          Clipboard ClipboardContent Dragboard
-          TransferMode
-          MouseEvent
-          KeyEvent KeyCode]
-
-        '[javafx.scene.layout
-          BorderPane HBox Priority Region StackPane VBox
-          Pane Border FlowPane
-          BorderStroke BorderStrokeStyle CornerRadii BorderWidths]
-
-        '[javafx.scene.paint
-          Color]
-
-        '[javafx.scene.text
-          Font FontWeight Text TextAlignment TextFlow]
-
-        '[javafx.scene.shape
-          Circle Line Rectangle Shape StrokeLineCap StrokeType Polygon]
-
-        '[javafx.scene.web
-          WebEngine WebView]
-
-        '[javafx.stage
-           FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle Window]
-
-        '[javafx.util
-          Duration]
-        ])
-
-(defn import-classes! []
-    (j/import! classes))
-
-(import-classes!)
+(set-implicit-exit false)
 
 
-;; A cool colors
-(def ANTHRECITE (Color/web "#2b292e"))
-(def WHITESMOKE Color/WHITESMOKE)
+(defn init []
+    "An easy way to 'initalize [JavaFX] Toolkit'
+Needs only be called once in the applications life-cycle.
+Has to be called before the first call to/on FxApplicationThread (javafx/thread)"
+    (JFXPanel.))
+
+(init)
+
+
+
+
+;; A nice combo for black text on white background
+(def ANTHRECITE (Color/web "#2b292e")) ;; Almost black
+(def WHITESMOKE Color/WHITESMOKE)  ;; off-white
+
+
+
 
 
 (defn later*
@@ -144,24 +155,6 @@
     `(now* (fn [] ~@body)))
 
 
-
-(defn set-implicit-exit [b]
-    (Platform/setImplicitExit false))
-
-(defn ^:deprecated dont-exit! []
-    (set-implicit-exit false))
-
-(set-implicit-exit false)
-
-
-(defn init []
-    "An easy way to 'initalize [JavaFX] Toolkit'
-Needs only be called once in the applications life-cycle.
-Has to be called before the first call to/on FxApplicationThread (javafx/thread)"
-    (JFXPanel.))
-
-
-(init)
 
 
 (defmacro event-handler
@@ -381,6 +374,22 @@ javafx.animation.Timeline
     (-> p .getChildren (. add n)))
 
 
+(defn region
+"optional kwargs:
+    :hgrow :always/:never/:sometimes"
+
+    [& {:keys [hgrow]
+               :or   {
+                      }}]
+
+    (doto (Region.)
+        (HBox/setHgrow
+            ({
+              :always Priority/ALWAYS
+              :never Priority/NEVER
+              :sometimes Priority/SOMETIMES
+              } hgrow)
+            )))
 
 
 (defn group* [nodes]
@@ -390,6 +399,7 @@ javafx.animation.Timeline
 (defn group
     ([& nodes]
      (group* nodes)))
+
 
 (defn line [& {:keys [x1 y1 x2 y2 color width]
                :or   { x1 0 y1 0
@@ -438,7 +448,10 @@ javafx.animation.Timeline
         (. setArcHeight arc)
         ))
 
-
+(defn label
+    ([] (Label.))
+    ([text] (Label. text))
+    )
 
 (defn button [label & {:keys [onaction width minwidth tooltip]}]
     (let [b (Button. label)]
@@ -561,3 +574,21 @@ javafx.animation.Timeline
         stg))
 
 
+
+
+
+(defn filechooserfilter [description & extensions]
+    (FileChooser$ExtensionFilter. description (j/vargs* extensions)))
+
+
+(def FILESCHOOSER_FILTERS_CLJ [
+                               (filechooserfilter "Clojure Files" "*.clj")
+                               (filechooserfilter "All Files"   "*.*")
+                               ])
+
+
+(defn filechooser [& filters]
+    (doto (FileChooser.)
+        (-> .getExtensionFilters
+            (.addAll
+                (j/vargs* filters)))))
