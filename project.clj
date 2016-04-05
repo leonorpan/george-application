@@ -37,6 +37,7 @@
     :target-path "target/%s"
 
     :main ^:skip-aot george.Main
+    ;:main ^:skip-aot com.javafx.main.Main
 
     :aliases {
               ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/

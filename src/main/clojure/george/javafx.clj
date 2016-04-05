@@ -590,5 +590,5 @@ javafx.animation.Timeline
 (defn filechooser [& filters]
     (doto (FileChooser.)
         (-> .getExtensionFilters
-            (.addAll
+            (. addAll
                 (j/vargs* filters)))))
