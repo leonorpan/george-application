@@ -37,13 +37,23 @@
     :target-path "target/%s"
 
     :main ^:skip-aot george.Main
-    ;:main ^:skip-aot com.javafx.main.Main
+
+    ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
+    ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
 
     :aliases {
-              ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
-              ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
-              "example"  ["run" "-m" "example.app" "1 2 3"]
-              "examplej" ["run" "-m" "example.App" "4 5 6"]
+              ;; go straight to george.main
+              "main" ["run" "-m" "george.main"]
+
+              ;; Simple george.example of staring Clojure from Java
+              "example" ["run" "-m" "george.example.app" "4 5 6"]
+              "examplej" ["run" "-m" "george.example.App" "1 2 3"]
+
+              ;; Test of Clojure and JavaFX performance. See source.
+              "stars" ["run" "-m" "george.example.stars"]
+              ;; And here is the original Java-version - for (visual) comparison
+              "starsj" ["run" "-m" "george.example.Stars"]
+
               }
 
  ;   :manifest {"Main-Class" "george.Main"}

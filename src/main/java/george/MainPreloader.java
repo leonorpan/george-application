@@ -31,7 +31,7 @@ public class MainPreloader extends Preloader {
 
     private class MyOut extends StringWriter {
         boolean is_err;
-        int counter;
+        int counter = 1;
 
         MyOut(boolean is_err) {
             this.is_err = is_err;
