@@ -1,12 +1,10 @@
 (ns george.editor
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-        [george.java :as j]
-        :reload
-        [george.javafx :as fx]
-        :reload
-        [dev.andante.highlight :as dah]
-        :reload
+        [george.java :as j] :reload
+        [george.javafx :as fx] :reload
+        [george.code.highlight :as dah] :reload
+        [george.code.core :as gcode] :reload
         )
     (:import [javafx.beans.property StringProperty]
              [javafx.scene.control OverrunStyle]
@@ -103,7 +101,7 @@
               :text ""
               :font (fx/SourceCodePro "Medium" 16))
           (doto
-              (dah/codearea)
+              (gcode/codearea)
               ;(. setFont (fx/SourceCodePro "Medium" 16))
               )
 
@@ -145,7 +143,7 @@
           file-pane
           (fx/hbox
               file-label
-              (doto (fx/region :hgrow :always))
+              (fx/region :hgrow :always)
               open-file-button
               (fx/button "Save as ..."
                          :minwidth 70

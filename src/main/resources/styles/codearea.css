@@ -1,4 +1,4 @@
-/* control the labels of the linenumber-factory fuction */
+/* control the labels of the line number factory function */
 .lineno {
     -fx-font-size: 16 "Source Code Pro Medium";
     -fx-text-fill: #aaa;
@@ -6,3 +6,6 @@
     -fx-padding: 0 30 0 15;
 }
 
+.styled-text-area .caret {
+    -fx-stroke: BLUE;
+}

@@ -1,4 +1,4 @@
-(ns dev.andante.reader
+(ns george.code.reader
 
     (:require
               [clojure.tools.reader.impl.commons :refer [

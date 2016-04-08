@@ -6,20 +6,19 @@
 
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
-        [george.javafx-classes :as fxc] :reload
         [george.output :as output] :reload
-        [dev.andante.highlight :as dah]
-        :reload
+        [george.code.highlight :as dah] :reload
+        [george.code.core :as gcode] :reload
         )
     (:import
         [java.io StringReader]
         [clojure.lang LineNumberingPushbackReader ExceptionInfo]
 
-        )
+        [javafx.scene Node]
+        [javafx.geometry Pos]
+        [javafx.scene.input KeyEvent KeyCode]
+        [javafx.stage Screen])
     )
-
-
-(fxc/import-classes)
 
 
 ;; from Versions.java in george-client
@@ -127,7 +126,7 @@
 
              ns-label
              (doto
-                 (Label. "user")
+                 (fx/label "user")
                  ( .setStyle "
                     -fx-font: 12 'Source Code Pro Regular';
                     -fx-text-fill: gray;
@@ -135,8 +134,7 @@
 
 
              code-area
-             (doto (dah/codearea)
-                 (BorderPane/setMargin (Insets. 5 0 0 0))
+             (doto (gcode/codearea)
                  #_( .setStyle "
                 -fx-font: 14 'Source Code Pro Medium';
                 -fx-padding: 5 5;
@@ -171,24 +169,25 @@
                 )
 
             button-box
-            (doto
-                (HBox. 3.0
-                    (j/vargs-t Node
-                        ;                                                  prev-button
-                        ;                                                  next-button
-                        (doto (Region.) (HBox/setHgrow Priority/ALWAYS))
-                        run-button))
-                (.setAlignment Pos/TOP_RIGHT)
-                (BorderPane/setMargin (Insets. 5 0 0 0)))
+            (fx/hbox
+                ;prev-button
+                ;next-button
+                (fx/region :hgrow :always)
+                run-button
+                :spacing 3
+                :alignment Pos/TOP_RIGHT
+                :insets [5 0 0 0])
 
             border-pane
-             (doto
-                 (BorderPane. code-area ns-label nil button-box nil)
-                 (. setPadding (Insets. 10)))
+             (fx/borderpane
+                 :center code-area
+                 :top ns-label
+                 :bottom button-box
+                 :insets 10)
 
             scene
              (doto
-                 (Scene. border-pane 300 300)
+                 (fx/scene border-pane 300 300)
                  (fx/add-stylesheets "styles/codearea.css")
                  )
 
@@ -244,10 +243,10 @@
              scene
              (input-scene)
              stage
-             (doto (Stage.)
+             (doto (fx/stage)
                  (. setScene scene)
                  (. sizeToScene)
-                 ;                      (. centerOnScreen)
+                 ;(. centerOnScreen)
                  (. setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2) ))
                  (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300) ))
                  (. setTitle "Input")
@@ -263,18 +262,10 @@
 
 ;;;; dev ;;;;
 
-#_(defn -main
+(defn -main
     "Launches an input-stage as a stand-alone app."
     [& args]
     (println "george.input-stage/-main")
-    (fx/dont-exit!)
-    (fx/thread (show-new-input-stage)))
+    (fx/later (new-input-stage)))
 
 ;(-main)
-
-;(run "(println \"(+ 2 3)\"))\n(+ 4 (+ 2 3))")
-;(run "(println (+ 2 3)))\n((+ 4 5)")
-
-
-
-nil

@@ -6,17 +6,17 @@
 
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
-        [george.javafx-classes :as fxc] :reload
         )
     (:import [javafx.collections ListChangeListener]
 
              [java.io StringWriter OutputStreamWriter PrintStream]
              [org.apache.commons.io.output WriterOutputStream]
-             )
+             [javafx.scene.text Text TextFlow]
+             [javafx.scene.paint Color]
+             [javafx.scene.control ScrollPane]
+             [javafx.scene.layout StackPane]
+             [javafx.stage Screen])
     )
-
-(fx/init)
-(fxc/import-classes)
 
 
 (defonce standard-out System/out)
@@ -96,7 +96,7 @@
 
                  "))
              scroll-pane (ScrollPane. text-flow)
-             scene (Scene. (StackPane. (j/vargs scroll-pane)) 600 300)
+             scene (fx/scene (StackPane. (j/vargs scroll-pane)) 600 300)
              ]
         (-> text-flow
             .getChildren
@@ -119,7 +119,7 @@
              scene
              (output-scene)
              stage
-             (doto (Stage.)
+             (doto (fx/stage)
                  (. setScene scene)
                  (. sizeToScene)
                  (. setX 100)
@@ -156,7 +156,7 @@
     ;(unwrap-outs)  ;; not necessary
     (println "closing output-stage ...")
     (when-let [stage @stage-singleton]
-        (fx/thread
+        (fx/later
             (. stage close))
         (reset! stage-singleton nil)))
 
@@ -167,7 +167,7 @@
     "Shows the output-stage. Creates (a new) one if neccessary,
     de-minimzes and brings to front if necessary. Only one output-stage exists."
     []
-    (fx/thread
+    (fx/later
         (if-let [stage @stage-singleton]
             (doto stage (. setIconified false) (. toFront))
             ;; else

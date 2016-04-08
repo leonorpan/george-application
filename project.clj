@@ -11,7 +11,7 @@
 
   :plugins [
             [lein-tar "3.2.0"]
-            [lein-exec "0.3.6"] ;; https://github.com/kumarshantanu/lein-exec
+            ;[lein-exec "0.3.6"] ;; https://github.com/kumarshantanu/lein-exec
             ]
 
 :dependencies [
@@ -21,6 +21,8 @@
                [org.fxmisc.richtext/richtextfx "0.6.10"  :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                [org.clojure/core.async "0.2.374"]
                [org.apache.directory.studio/org.apache.commons.io "2.4"]
+               ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
+               [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
                ]
 
     :repositories [

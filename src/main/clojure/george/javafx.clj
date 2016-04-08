@@ -175,6 +175,18 @@ and the body is called on 'handle'"
     `(reify EventHandler (~'handle ~args-vec ~@body)))
 
 
+
+(defmacro changelistener
+    "Returns an instance of javafx.beans.value.ChangeListener,
+where args-vec is a vector of 4 elements  - naming the bindings for 'this', 'observable', 'old', 'new',
+and the body is called on 'changed'"
+    [args-vec & body]
+    (assert (vector? args-vec) "First argument must be a vector representing 4 args")
+    (assert (= 4 (count args-vec)) "args-vector must contain 4 elements - for binding 'this', 'observable', 'old', 'new'")
+    `(reify ChangeListener (~'changed ~args-vec
+                               ~@body)))
+
+
 ; (event-handler (println 1) (println 2)) ->
 ; (reify EventHandler (handle [_ _] (println 1) (println 2)))
 (comment macroexpand-1 '(event-handler
@@ -391,6 +403,12 @@ javafx.animation.Timeline
               } hgrow)
             )))
 
+(defn stackpane* [nodes]
+    (StackPane. (j/vargs-t* Node nodes)))
+
+(defn stackpane
+    ([& nodes]
+     (stackpane* nodes)))
 
 (defn group* [nodes]
     (Group. (j/vargs-t* Node nodes)))
@@ -576,7 +594,6 @@ javafx.animation.Timeline
 
 
 
-
 (defn filechooserfilter [description & extensions]
     (FileChooser$ExtensionFilter. description (j/vargs* extensions)))
 
@@ -591,4 +608,84 @@ javafx.animation.Timeline
     (doto (FileChooser.)
         (-> .getExtensionFilters
             (. addAll
-                (j/vargs* filters)))))
+               (j/vargs* filters)))))
+
+
+
+(def sample-codes-map {
+                       #{:S} #(println "S")
+                       #{:S :SHIFT} #(println "SHIFT-S")
+                       #{:S :CTRL} #(println "CTRL-S")
+                       #{:S :ALT} #(println "ALT-S")
+                       #{:S :SHIFT :CTRL} (event-handler (println "SHIFT-CTRL/CMD-S"))
+                       #{:CTRL :ENTER} (event-handler-2 [_ event] (println "CTRL/CMD-ENTER") (. event consume))
+                       })
+
+
+(def sample-chars-map {
+                       "a" #(println "a")
+                       "A" #(println "A")
+                       " " (event-handler-2 [_ e] (println "SPACE (consumed)") (. e consume))
+                       })
+
+
+
+
+(defn key-pressed-handler
+"Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
+
+The keywords int the set must be uppercase and correspond to the constants of javafx.scene.input.KeyCode.
+Use :SHIFT :CTRL :ALT for plattform-independent handling of these modifiers (CTRL maps to Command on Mac).
+If the value is a function, then it will be run, and then the event will be consumed.
+If the value is an EventHandler, then it will be called with the same args as this handler, and it must itself consume the event if required.
+
+Example of codes-map:
+{   #{:S}              #(println \"S\")  ;; event consumed
+    #{:S :SHIFT}       #(println \"SHIFT-S\")
+    #{:S :SHIFT :CTRL} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
+    #{:CTRL :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (. event consume))
+    }"
+    [codes-map]
+    (event-handler-2
+        [inst event]
+        ;(println "  ## inst:" inst "  source:" (. event getSource))
+        (let [
+              code (str (. event getCode))
+              shift (when (. event isShiftDown) "SHIFT")
+              shortcut (when (. event isShortcutDown) "CTRL")  ;; SHORTCUT CTRL/CMD  "C-"
+              alt (when (. event isAltDown) "ALT") ;;  "M-"
+              combo (set (map keyword (filter some? [code shift shortcut alt])))
+              ;_ (println "combo:" (str combo))
+              ]
+            (when-let [v (codes-map combo)]
+                (if (instance? EventHandler v)
+                    (. v handle event)
+                    (do ;; else
+                        (v)
+                        (. event consume)
+                        ))))))
+
+
+(defn char-typed-handler
+    "Similar to `key-pressed-handler`,
+    but takes a map where the key case-sensitive 1-character string and the value is a no-arg function to be run or an instance of EventHandler.
+
+    If the value is a function, then it will be run, but then the event will *not* be consumed. (You are probably typing text.)
+    If the value is an EventHandler, then it will be called with the same event as this handler, and it must itself consume the event if required.
+
+    Example of chars-map:
+    {   \"s\"    #(println \"s\")  ;; event not consumed
+        \"S\"    #(println \"S\")
+        \"{\"    (fx/event-handler (println \"{\"))  ;; event not consumed
+        \" \"    (fx/event-handler-2 [_ event] (println \"SPACE (consumed)\") (. event consume))
+        }"
+    [chars-map]
+
+    (event-handler-2
+        [inst event]
+        (let [ch-str (. event getCharacter)]
+            (when-let [v (chars-map ch-str)]
+                (if (instance? EventHandler v)
+                    (. v handle event)
+                    (v)
+                    )))))

@@ -1,4 +1,4 @@
-(ns dev.andante.tokenizer
+(ns george.code.tokenizer
     (:require
 
         [clojure.core.async :refer [go thread  chan >! >!! <! <!! go-loop]]
@@ -10,8 +10,6 @@
               [clojure.pprint :refer [pp pprint]]
               [clojure.java.io :as cio]
               )
-
-
 
     )
 

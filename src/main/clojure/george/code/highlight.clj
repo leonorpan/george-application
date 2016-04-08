@@ -1,4 +1,4 @@
-(ns dev.andante.highlight
+(ns george.code.highlight
     (:require
         [clojure.repl :refer [doc]]
         [clojure.pprint :refer [pp pprint]]
@@ -8,20 +8,19 @@
 
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
-        [george.javafx-classes :as fxc] :reload
 
-        [dev.andante.reader :as my] :reload
-        [dev.andante.tokenizer :as tok] :reload
+        [george.code.reader :as my] :reload
+        [george.code.tokenizer :as tok] :reload
         )
     (:import
         [java.util Collections]
-        [org.fxmisc.richtext  LineNumberFactory StyledTextArea  MouseOverTextEvent StyleSpansBuilder]
+        [clojure.lang Keyword Symbol]
+        [org.fxmisc.richtext LineNumberFactory StyledTextArea MouseOverTextEvent StyleSpansBuilder]
+        [george.code.tokenizer TokenError Arg DelimChar Comment MacroChar MacroDispatchChar]
 
+        [javafx.scene.text Text]
         ))
 
-
-
-(fxc/import-classes)
 
 (defn- clamp
     "ensures val does not exceed min or max"
@@ -84,7 +83,7 @@
               (style-biconsumer))
         (. setFont (fx/SourceCodePro "Medium" 18))
         (. setStyle "
-            -fx-padding: 10;
+            -fx-padding: 0;
             -fx-background-color: WHITESMOKE;"
         )
 
@@ -139,32 +138,32 @@
         (cond
             ;; cursor color? "#26A9E1"
 
-            (#{clojure.lang.Symbol :default}  typ)
+            (#{Symbol :default}  typ)
             "#404042";"#01256e";"#333"
 
             (#{Boolean :nil} typ)
             "#4F7BDE";"#524EAC";"#1FAECE";"#00ACEE";"#31B2F4"
 
-            (#{dev.andante.tokenizer.TokenError :unpaired} typ)
+            (#{TokenError :unpaired} typ)
             "#ED1C24";"red";"#B3191F";
 
             (isa? typ Number)
             "#524EAC";"#005d69";"#26A9E1";"#00ACEE";"#6897bb";"#262161";"#4a0042";"#336699"
 
-            (#{clojure.lang.Keyword dev.andante.tokenizer.Arg} typ)
+            (#{Keyword Arg} typ)
             "#9E1F64"
 
             (#{String Character} typ)
             "#008e00";"#008000"
 
-            (#{dev.andante.tokenizer.DelimChar} typ)
+            (#{DelimChar} typ)
             "#99999c";"#D1D2D4";"lightgray"
             ; "#f2c100" ;; yellow
 
-            (#{dev.andante.tokenizer.Comment}  typ)
+            (#{Comment}  typ)
             "#708080"
 
-            (#{dev.andante.tokenizer.MacroChar dev.andante.tokenizer.MacroDispatchChar}  typ)
+            (#{MacroChar MacroDispatchChar}  typ)
             "#cc7832";"#c35a00";"#A33EFE"
 
             :else
@@ -336,8 +335,7 @@
     (let [
              ;i-chan (index-channel codearea token-index-atom)
          ]
-    (reify ChangeListener
-        (changed [_ obs old-code new-code]
+    (fx/changelistener [_ obs old-code new-code]
             ; (println "change detected ...")
             ;(go (>! i-chan new-txt))
 
@@ -347,7 +345,7 @@
 ;            (doseq [i (range (count @token-index))]
 ;                (let [t (get @token-index i) m (meta t)]
 ;                    (println i ": " (type t) "" m )))
-        ))))
+        )))
 
 
 ;(defn- token->ranges [token]
@@ -412,28 +410,26 @@
 
 (defn -main [& args]
     (println "dev.highlight/-main")
-    (fx/dont-exit!)
-    (fx/thread
-        (doto (Stage.)
-            (.setScene
+    (fx/later
+        (doto (fx/stage
 
-                (doto
-                    (Scene.
-                        (StackPane.
-                            (j/vargs
-                                (doto
-                                    (codearea)
-                                    (.replaceText 0 0 (tok/sample-code)))
-                                ))
-                        600 400)
+
+            :scene
+            (doto
+                (fx/scene
+                    (fx/stackpane
+                        (doto
+                            (codearea)
+                            (.replaceText 0 0 (tok/sample-code))))
+                    :size [600 400])
                     ; (fx/add-stylesheets "styles/basic.css" "dev/highlight/code.css" )
                     ; (fx/add-stylesheets  "fonts/fonts.css")
                     (fx/add-stylesheets  "styles/codearea.css")
                     )
                 )
-            (.sizeToScene)
-            (.setTitle "highlight")
-            (.show))))
+            :sizetoscene true
+            :title "highlight"
+            )))
 
 
 ;(-main)
