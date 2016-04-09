@@ -8,4 +8,5 @@
 
 .styled-text-area .caret {
     -fx-stroke: BLUE;
+    -fx-stroke-width: 3;
 }

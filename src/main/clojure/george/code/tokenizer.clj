@@ -560,7 +560,7 @@
 
 
 (defn start-delim? [token]
-    "returns true or false if delim, else nil"
+    "true if start-delim, false if end-delim, else nil"
     (when-let [ch (delim-char token)]
         (case ch
             (\( \[ \{) true

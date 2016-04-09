@@ -38,7 +38,7 @@
 
 
 (def clj-filechooser
-    (fx/filechooser fx/FILESCHOOSER_FILTERS_CLJ))
+    (apply fx/filechooser fx/FILESCHOOSER_FILTERS_CLJ))
 
 
 (defn- select-file
@@ -217,4 +217,7 @@
     stage))
 
 
-;(new-code-stage)
+;;; DEV ;;;
+
+;(println "WARNING: Running george.editor/new-code-stage" (new-code-stage))
+

@@ -1,53 +1,31 @@
 (ns
   ^{:author "Terje Dahl" }
   george.code.paredit
-  (:use
-        [paredit.core]
-        [paredit.parser])
   (:require
-    [george.javafx :as fx] :reload
-    [george.code.highlight :as highlight]
-    :reload
-
+      [paredit.core :as pe]
+      [paredit.parser :as pep]
+      [george.javafx :as fx] :reload
+      [george.code.highlight :as highlight] :reload
     )
-  )
+    )
 
 (def ^:dynamic *debug* false)
 
 
-(comment defn exec-command [cmd widget]
-  (let [caretpos (.getCaretPosition widget)
-        t (. widget getText)
-        buffer (paredit.parser/edit-buffer nil 0 -1 t)
-        parse-tree (paredit.parser/buffer-parse-tree buffer :for-test)]
-    (paredit cmd
-             {:parse-tree parse-tree :buffer buffer}
-             {:text t, :offset (min (.getSelectionStart widget) (.getCaretPosition widget)), :length (- (.getSelectionEnd widget) (.getSelectionStart widget) )})))
+
 
 
 (defn exec-command [cmd codearea]
-    (let [caretpos (.getCaretPosition codearea)
-          t (highlight/get-text codearea)
-          buffer (paredit.parser/edit-buffer nil 0 -1 t)
-          parse-tree (paredit.parser/buffer-parse-tree buffer :for-test)]
-        (paredit cmd
+    (let [t (highlight/get-text codearea)
+          buffer (pep/edit-buffer nil 0 -1 t)
+          parse-tree (pep/buffer-parse-tree buffer :for-test)]
+        (pe/paredit cmd
                  {:parse-tree parse-tree :buffer buffer}
                  {:text t,
                   :offset (min (-> codearea .getSelection .getStart) (.getCaretPosition codearea)),
                   :length (- (-> codearea .getSelection .getEnd) (-> codearea .getSelection .getStart))
                   })))
 
-
-(comment defn insert-result [w pe]
-  (dorun (map #(if (= 0 (:length %))
-                (.insert w (:text %) (:offset %))
-                (.replaceRange w (:text %) (:offset %) (+ (:length %) (:offset %))))
-              (:modifs pe)))
-  (.setCaretPosition w (:offset pe))
-  (if (< 0 (:length pe))
-    (do
-      (.setSelectionStart w (:offset pe))
-      (.setSelectionEnd w (+ (:offset pe) (:length pe))))))
 
 
 
@@ -63,13 +41,16 @@
                               (:text %)))
             (:modifs pe)))
 
-;    (.positionCaret w (:offset pe))
+    ;; position the caret
     (.selectRange w (:offset pe) (:offset pe))
 
+    ;; Yes, this does shift the caret to the right of the selection,
+    ;; but that's OK for now.
     (when (< 0 (:length pe))
-        (comment .selectRange w
+        (.selectRange w
                       (:offset pe)
-                      (+ (:offset pe) (:length pe)))))
+                      (+ (:offset pe) (:length pe))
+                      )))
 
 
 (comment def os-x-charmap
@@ -85,43 +66,10 @@
    })
 
 
-(comment def keymap
-  {
-   [nil "(" ] :paredit-open-round
-   [nil ")" ] :paredit-close-round
-   [nil "[" ] :paredit-open-square
-   [nil "]" ] :paredit-close-square
-   [nil "{" ] :paredit-open-curly
-   [nil "}" ] :paredit-close-curly
-   [nil "\b"] :paredit-backward-delete
-   [nil  "\t"] :paredit-indent-line
-   ["M" ")"] :paredit-close-round-and-newline
-   [nil "\""] :paredit-doublequote
-   [nil "DEL"] :paredit-forward-delete
-   ; ["C" "K"] :paredit-kill not implemented in paredit.clj
-   ["M" "("] :paredit-wrap-round
-   ["M" "s"] :paredit-splice-sexp
-   ["M" "r"] :paredit-raise-sexp
-   ["C" "0"] :paredit-forward-slurp-sexp
-   ["C" "9"] :paredit-backward-slurp-sexp
-   ["C" "Close Bracket"] :paredit-forward-barf-sexp
-   ["C" "Open Bracket"] :paredit-backward-barf-sexp
-   [nil "\n"] :paredit-newline
-   ["M" "S"] :paredit-split-sexp
-   ["M" "J"] :paredit-join-sexps
-   ["M" "Right"] :paredit-expand-right
-   ["M" "Left"] :paredit-expand-left
-   })
 
 
-(comment defn exec-paredit [k w]
-    (let [cmd (keymap k)]
-        (when *debug* (println [cmd k]))
-        (when cmd
-            (let [result (exec-command cmd w)]
-                (if *debug* (println [cmd result]))
-                (insert-result w result)))
-        cmd))
+
+
 
 
 (defn exec-paredit [cmd codearea]
@@ -249,7 +197,7 @@
 
 
 
-(defn set-handlers! [a]
+(defn set-handlers [a]
     ;(. a setOnKeyPressed (key-pressed-handler a))
     ;(.addInputMethodListener a (input-method-event-handler a))
 

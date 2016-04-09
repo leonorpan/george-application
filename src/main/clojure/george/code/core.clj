@@ -10,7 +10,7 @@
 
 
 (defn ^StyledTextArea codearea []
-    (paredit/set-handlers! (highlight/codearea)))
+    (paredit/set-handlers (highlight/->codearea)))
 
 
 
@@ -20,13 +20,14 @@
           ca
           (doto
               (codearea)
-              (paredit/set-handlers!)
-              (highlight/set-text "(foo (bar 1))")
-              )
+              (highlight/set-text "(foo (bar 1))"))
 
           scene
-          (fx/scene(fx/borderpane :center ca :insets 1))
-          stage
+          (doto
+              (fx/scene (fx/borderpane :center ca :insets 1))
+              (fx/add-stylesheets  "styles/codearea.css"))
+
+              stage
           (fx/stage
               :title "george.code.core/-main (test)"
               :scene scene
@@ -38,4 +39,4 @@
 
 ;;; DEV ;;;
 
-;(-main)
+;(println "WARNING: Running george.code.core/-main" (-main))
