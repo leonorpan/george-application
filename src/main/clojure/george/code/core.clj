@@ -1,17 +1,36 @@
 (ns
   george.code.core
   (:require
-    [george.code.highlight :as highlight]
-    :reload
+      [george.code.highlight :as highlight]
+      :reload
+      [george.code.codearea :as ca]
+      :reload
     [george.code.paredit :as paredit]
     :reload
     [george.javafx :as fx])
   (:import [org.fxmisc.richtext StyledTextArea]))
 
 
-(defn ^StyledTextArea codearea []
-    (paredit/set-handlers (highlight/->codearea)))
 
+
+
+
+
+(defn ^StyledTextArea ->codearea []
+    (doto
+        (ca/->codearea)
+        (ca/set-linenumbers)
+        (paredit/set-handlers)
+        (highlight/set-handlers)
+        ))
+
+
+(defn text [codearea]
+    (ca/text codearea))
+
+
+(defn set-text [codearea text]
+    (ca/set-text codearea text))
 
 
 (defn -main [& args]
@@ -19,8 +38,8 @@
     (let [
           ca
           (doto
-              (codearea)
-              (highlight/set-text "(foo (bar 1))"))
+              (->codearea)
+              (set-text "(foo (bar 1))"))
 
           scene
           (doto

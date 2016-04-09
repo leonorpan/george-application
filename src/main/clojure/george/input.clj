@@ -107,7 +107,7 @@
 
 
 (defn- run [code-area modified? ns-textfield]
-    (let [input (dah/get-text code-area)]
+    (let [input (gcode/text code-area)]
         (if (s/blank? input)
             (println)
             (j/thread
@@ -134,7 +134,7 @@
 
 
              code-area
-             (doto (gcode/codearea)
+             (doto (gcode/->codearea)
                  #_( .setStyle "
                 -fx-font: 14 'Source Code Pro Medium';
                 -fx-padding: 5 5;

@@ -10,3 +10,12 @@
     -fx-stroke: BLUE;
     -fx-stroke-width: 3;
 }
+
+
+.linetriangle {
+    -fx-fill: null;
+    -fx-stroke: #aaa;
+    -fx-stroke-width: 3;
+    -fx-translate-y: 5;
+    -fx-translate-x: -25;
+}

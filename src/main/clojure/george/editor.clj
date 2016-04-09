@@ -101,7 +101,7 @@
               :text ""
               :font (fx/SourceCodePro "Medium" 16))
           (doto
-              (gcode/codearea)
+              (gcode/->codearea)
               ;(. setFont (fx/SourceCodePro "Medium" 16))
               )
 
@@ -114,7 +114,7 @@
               (. setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn
-          #(save-file (dah/get-text codearea) file-meta file-label chrome-title)
+          #(save-file (gcode/text codearea) file-meta file-label chrome-title)
 
           set-file-fn
           (fn [file] (set-file file file-meta file-label chrome-title))
@@ -129,7 +129,7 @@
           #(when-let [f (select-file)]
               (save-file-fn)
               (set-file-fn f)
-              (dah/set-text codearea (slurp f))
+              (gcode/set-text codearea (slurp f))
               )
 
           open-file-button
@@ -169,7 +169,7 @@
                           (println (if-let [f (:file @file-meta)]
                                        (do (save-file-fn)
                                            (load-from-file f "user"))
-                                       (load-via-tempfile (dah/get-text codearea) "user")))))
+                                       (load-via-tempfile (gcode/text codearea) "user")))))
 
                   :insets [10 0 0 0]
                   ;:alignment Pos/TOP_RIGHT

@@ -1,13 +1,15 @@
 (ns
-  ^{:author "Terje Dahl" }
-  george.code.paredit
-  (:require
-      [paredit.core :as pe]
-      [paredit.parser :as pep]
-      [george.javafx :as fx] :reload
-      [george.code.highlight :as highlight] :reload
-    )
-    )
+    ^{:author "Terje Dahl"}
+    george.code.paredit
+    (:require
+        [paredit.core :as pe]
+        [paredit.parser :as pep]
+        [george.javafx :as fx]
+        :reload
+        [george.code.highlight :as highlight]
+        :reload
+        [george.code.codearea :as ca])
+    (:import [org.fxmisc.richtext StyledTextArea]))
 
 (def ^:dynamic *debug* false)
 
@@ -16,38 +18,38 @@
 
 
 (defn exec-command [cmd codearea]
-    (let [t (highlight/get-text codearea)
+    (let [t (ca/text codearea)
           buffer (pep/edit-buffer nil 0 -1 t)
           parse-tree (pep/buffer-parse-tree buffer :for-test)]
         (pe/paredit cmd
                  {:parse-tree parse-tree :buffer buffer}
                  {:text t,
-                  :offset (min (-> codearea .getSelection .getStart) (.getCaretPosition codearea)),
+                  :offset (min (-> codearea .getSelection .getStart) (. codearea getCaretPosition)),
                   :length (- (-> codearea .getSelection .getEnd) (-> codearea .getSelection .getStart))
                   })))
 
 
 
 
-(defn insert-result [w pe]
+(defn insert-result [^StyledTextArea codearea pe]
     (dorun
         (map
             #(if (= 0 (:length %))
-                (.insertText w
-                             (:offset %)
-                             (:text %))
-                (.replaceText w
-                              (:offset %)  (+ (:length %) (:offset %))
-                              (:text %)))
+                (. codearea insertText
+                   (:offset %)
+                   (:text %))
+                (. codearea replaceText
+                   (:offset %)  (+ (:length %) (:offset %))
+                   (:text %)))
             (:modifs pe)))
 
     ;; position the caret
-    (.selectRange w (:offset pe) (:offset pe))
+    (. codearea selectRange (:offset pe) (:offset pe))
 
     ;; Yes, this does shift the caret to the right of the selection,
     ;; but that's OK for now.
     (when (< 0 (:length pe))
-        (.selectRange w
+        (. codearea selectRange
                       (:offset pe)
                       (+ (:offset pe) (:length pe))
                       )))

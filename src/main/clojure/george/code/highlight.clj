@@ -5,20 +5,19 @@
 
         [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop sliding-buffer]]
 
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
-
-        [george.code.reader :as my] :reload
-        [george.code.tokenizer :as tok] :reload
-        )
+        [george.javafx :as fx]
+        :reload
+        [george.code.reader :as my]
+        :reload
+        [george.code.tokenizer :as tok]
+        :reload
+        [george.code.codearea :as ca])
     (:import
         [java.util Collections]
         [clojure.lang Keyword Symbol]
-        [org.fxmisc.richtext LineNumberFactory StyledTextArea MouseOverTextEvent StyleSpansBuilder]
+        [org.fxmisc.richtext StyledTextArea MouseOverTextEvent StyleSpansBuilder]
         [george.code.tokenizer TokenError Arg DelimChar Comment MacroChar MacroDispatchChar]
 
-        [javafx.scene.text Text]
-        [java.util.function BiConsumer]
         [java.time Duration]))
 
 
@@ -30,78 +29,9 @@
         (> val max) max
         :else val))
 
-(declare type->color)
-
-(defrecord
-    ^{:doc "The data type used for styling code area"}
-    StyleSpec [color weight underline background])
-
-
-(def
-    ^{:doc "Default StyleSpec for codearea.  Used for spans without explicit style, including:
-     white-space, comments, et al."}
-    DEFAULT_SPEC (->StyleSpec "GRAY" "bold" "false" "null"))
-
-
-(defn- ^String style
-    "returns JavaFX-css based on StyleSpec"
-    [^StyleSpec spec]
-    (let [{c :color w :weight u :underline b :background} spec]
-        (str
-            "-fx-fill: " (if c c (type->color :default)) "; "
-            "-fx-font-weight: " (if w w "normal") "; "
-            "-fx-underline: " (if u u "false") "; "
-            "-fx-background-fill: " (if b b "null") "; "
-            ;"-fx-effect: " (if h "dropshadow(one-pass-box, slategray, 5, 1, 0, 0)" "null") "; "
-            )))
-
-
-(defn- apply-specs
-    "called by style-byconsumer"
-    [^Text text specs]
-    (if (instance? StyleSpec specs)
-        (. text setStyle (style specs))
-        (if (= Collections/EMPTY_LIST specs)
-            (. text setStyle (style DEFAULT_SPEC))
-            (doseq [spec specs]
-                (. text setStyle (style spec)))))
-    ;(.setCursor (if h Cursor/DEFAULT nil))
-)
-
-
-(defn- style-biconsumer
-    "passed to codearea on instanciation"
-    []
-    (reify BiConsumer
-        (accept [_ text style]
-            (apply-specs text style))))
 
 
 
-(defn get-text [^StyledTextArea codearea]
-    (. codearea getText 0 (. codearea getLength)))
-
-
-(defn set-text [^StyledTextArea codearea text]
-    (. codearea replaceText text))
-
-
-
-(defn- code-textarea []
-    (doto (StyledTextArea.
-              DEFAULT_SPEC
-              (style-biconsumer))
-        (. setFont (fx/SourceCodePro "Medium" 18))
-        (. setStyle "
-            -fx-padding: 0;
-            -fx-background-color: WHITESMOKE;"
-        )
-
-        (. setUseInitialStyleForInsertion true)
-        (-> .getUndoManager .forgetHistory)
-        (-> .getUndoManager .mark)
-        (. selectRange 0 0)
-    ))
 
 (defn- background-fill [hover?]
     (if hover? "yellow" nil))
@@ -268,7 +198,7 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
 (defn- set-stylespans [tokens codearea]
     (when-not (empty? tokens)
     (let [
-             tokens-and-specs (map (fn [t] [t (->StyleSpec (color t) nil false false)]) tokens)
+             tokens-and-specs (map (fn [t] [t (ca/->StyleSpec (color t) nil false false)]) tokens)
              spans-builder (StyleSpansBuilder. (* 2 (count tokens)))
              ]
 
@@ -334,7 +264,7 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
                     codearea
                     code-len
                     [[(:start t) (:end t)]]
-                    (->StyleSpec (color t) nil false false)
+                    (ca/->StyleSpec (color t) nil false false)
                     false))
         ]
 
@@ -387,46 +317,13 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
 
 
 
-(defn ^StyledTextArea ->codearea []
+(defn set-handlers [^StyledTextArea codearea]
     (let [
-          area (code-textarea)
-
-          ;; http://stackoverflow.com/questions/28659716/show-breakpoint-at-line-number-in-richtextfx-codearea
-          linenumber-factory (LineNumberFactory/get area)
-          _ (.setParagraphGraphicFactory area linenumber-factory)
-
           token-index (atom []) ;; this will contain references to parse-results by index - for lookups
-          hover-handler (mouse-over-handler area token-index)
-]
-        (doto area
-            (.setMouseOverTextDelay (Duration/ofMillis 100))
-            (.addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
-            (-> .textProperty (. addListener (codearea-changelistener area token-index)))
+          hover-handler (mouse-over-handler codearea token-index)
+          ]
+        (doto codearea
+            (. setMouseOverTextDelay (Duration/ofMillis 100))
+            (. addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
+            (-> .textProperty (. addListener (codearea-changelistener codearea token-index)))
             )))
-
-
-(defn -main [& args]
-    (println "dev.highlight/-main")
-    (fx/later
-        (doto (fx/stage
-
-
-            :scene
-            (doto
-                (fx/scene
-                    (fx/stackpane
-                        (doto
-                            (->codearea)
-                            (.replaceText 0 0 (tok/sample-code))))
-                    :size [600 400])
-                    ; (fx/add-stylesheets "styles/basic.css" "dev/highlight/code.css" )
-                    ; (fx/add-stylesheets  "fonts/fonts.css")
-                    (fx/add-stylesheets  "styles/codearea.css")
-                    )
-                )
-            :sizetoscene true
-            :title "highlight"
-            )))
-
-
-;(-main)
