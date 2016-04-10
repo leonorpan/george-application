@@ -11,7 +11,8 @@
              [javafx.scene.text Text]
              [javafx.scene.paint Color]
              [org.reactfx.value Val]
-             [javafx.geometry Pos]))
+             [javafx.geometry Pos]
+             [javafx.beans.property SimpleObjectProperty]))
 
 
 (defrecord
@@ -65,26 +66,86 @@
 
 
 
-(defn- ->arrowfactory [showline]  ;; ObservableValue<Integer>
+(defn- ->errormarkfactory [errorlineset]  ;; ObservableValue<Object>
+    (reify IntFunction
+        (apply [_ linenumber]  ;; ObservableValue<Integer>
+            (let [
+
+                  mark
+                  (doto
+                      ;; upward triangle
+                      (fx/polygon   5. 0.   10. 10.   0. 10.)
+                      (-> .getStyleClass (. add "line-error-mark")))
+
+
+                  show-mark
+                  (Val/map errorlineset
+                           (reify Function
+                               (apply [_ errorlineset]
+                                   ;; linenumber is 0-based, while errorlinest is 1-based
+                                   (boolean (get errorlineset (inc linenumber))))))
+
+                  ]
+
+                (-> mark .visibleProperty
+                    (. bind
+                       (Val/flatMap
+                           (. mark sceneProperty)
+                           (reify Function
+                               (apply [_ scene]
+                                   (if scene show-mark (Val/constant false)))))))
+
+                mark))))
+
+
+(defn- ->errorbackgroundfactory [errorlineset]  ;; ObservableValue<Object>
+    (reify IntFunction
+        (apply [_ linenumber] ;; ObservableValue<Integer>
+            (let [
+
+                  background
+                        (doto
+                            ;; colored background (for whole bar, if error)
+                            (fx/rectangle
+                                :width 18
+                                :height 24
+                                :fill Color/HOTPINK)
+                            (-> .getStyleClass (. add "line-error-background")))
+
+                  show-background
+                        (Val/map errorlineset
+                                 (reify Function
+                                     (apply [_ errorlineset]
+                                         (not (empty? errorlineset )))))
+                  ]
+
+                (-> background .visibleProperty
+                    (. bind
+                       (Val/flatMap
+                           (. background sceneProperty)
+                           (reify Function
+                               (apply [_ scene]
+                                   (if scene show-background (Val/constant false)))))))
+                background))))
+
+
+
+(defn- ->arrowfactory [current-line]  ;; ObservableValue<Integer>
     (reify IntFunction
         (apply [_ linenumber]
             (let [
                   triangle
                   (doto
-                      (fx/polygon
-                          0.  0.
-                          2.  3.
-                          0.  6.)
+                      ;; right-pointing shallow triangle
+                      (fx/polygon  0. 0.   2. 3.   0. 6.)
                       (-> .getStyleClass (. add "linetriangle")))
-
 
                   visible
                   (Val/map
-                      showline
+                      current-line
                       (reify Function
-                          (apply [_ sl]
-                              (= sl linenumber))))
-
+                          (apply [_ cl]
+                              (= cl linenumber))))
                   ]
 
                 (-> triangle .visibleProperty
@@ -101,15 +162,21 @@
 (defn set-linenumbers [codearea]
   (let [
         ;; http://stackoverflow.com/questions/28659716/show-breakpoint-at-line-number-in-richtextfx-codeare
-        numberfactory
+        linenumberfactory
                      (LineNumberFactory/get codearea)
+        errorbackgroundfactory
+                     (->errorbackgroundfactory (. codearea errorlines))
+        errormarkfactory
+                     (->errormarkfactory (. codearea errorlines))
         arrowfactory
                      (->arrowfactory (. codearea currentParagraphProperty))
         graphicfactory
                      (reify IntFunction
                          (apply [_ line]
                              (fx/hbox
-                                 (. numberfactory apply line)
+                                 (. linenumberfactory apply line)
+                                 (. errorbackgroundfactory apply line)
+                                 (. errormarkfactory apply line)
                                  (. arrowfactory apply line)
                                  :alignment Pos/CENTER_LEFT)))
         ]
@@ -118,17 +185,24 @@
 
 
 
+(definterface IErrorLines
+    (errorlines ^SimpleObjectProperty []))
+
+
 (defn ^StyledTextArea ->codearea []
-    (doto
-      (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
-    (. setFont (fx/SourceCodePro "Medium" 18))
-    (. setStyle "
+    (let [lines (SimpleObjectProperty. #{})]
+
+        (doto
+            (proxy [StyledTextArea IErrorLines] [DEFAULT_SPEC (style-biconsumer)]
+                (errorlines [] lines))
+            (. setFont (fx/SourceCodePro "Medium" 18))
+            (. setStyle "
             -fx-padding: 0;
             -fx-background-color: WHITESMOKE;")
-    (. setUseInitialStyleForInsertion true)
-    (-> .getUndoManager .forgetHistory)
-    (-> .getUndoManager .mark)
-    (. selectRange 0 0)))
+            (. setUseInitialStyleForInsertion true)
+            (-> .getUndoManager .forgetHistory)
+            (-> .getUndoManager .mark)
+            (. selectRange 0 0))))
 
 
 (defn text [^StyledTextArea codearea]

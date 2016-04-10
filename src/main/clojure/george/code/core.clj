@@ -14,8 +14,6 @@
 
 
 
-
-
 (defn ^StyledTextArea ->codearea []
     (doto
         (ca/->codearea)
@@ -46,13 +44,14 @@
               (fx/scene (fx/borderpane :center ca :insets 1))
               (fx/add-stylesheets  "styles/codearea.css"))
 
-              stage
+          stage
           (fx/stage
               :title "george.code.core/-main (test)"
               :scene scene
               :size [600 400]
               )
-          ])))
+          ]
+        )))
 
 
 

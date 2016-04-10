@@ -258,15 +258,19 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
 
           unpaired
           (map mark-as-unpaired-delim unpaired)
-
-          _ (doseq [t unpaired]
-                (set-spec
-                    codearea
-                    code-len
-                    [[(:start t) (:end t)]]
-                    (ca/->StyleSpec (color t) nil false false)
-                    false))
         ]
+
+        (. (. codearea errorlines)
+           setValue
+           (into #{} (filter some? (map :line unpaired))))
+
+        (doseq [t unpaired]
+            (set-spec
+                codearea
+                code-len
+                [[(:start t) (:end t)]]
+                (ca/->StyleSpec (color t) nil false false)
+                false))
 
         (go
             (reset! token-index-atom (create-token-index singles paired code-len))

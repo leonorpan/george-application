@@ -17,5 +17,19 @@
     -fx-stroke: #aaa;
     -fx-stroke-width: 3;
     -fx-translate-y: 5;
-    -fx-translate-x: -25;
+    -fx-translate-x: -15;
+}
+
+.line-error-mark {
+    -fx-fill: red;
+    -fx-stroke: darkred;
+    -fx-stroke-width: 1;
+    -fx-translate-x: -42;
+    -fx-translate-y: 7;
+}
+
+.line-error-background {
+    -fx-fill: rgba(255, 0, 0, 0.2);
+    -fx-translate-x: -27;
+    -fx-translate-y: 0;
 }

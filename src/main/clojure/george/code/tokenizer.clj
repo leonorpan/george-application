@@ -48,7 +48,10 @@
 
 (defn indexing-pushback-stringreader [s]
     (let [indx (atom 0) s-len (. s length)]
-        (proxy [java.io.PushbackReader IIndex] [(java.io.StringReader. s)]
+        (proxy [
+                ;java.io.PushbackReader
+                clojure.lang.LineNumberingPushbackReader
+                IIndex] [(java.io.StringReader. s)]
             (read []
                 (if (< @indx s-len)
                     (do
@@ -61,7 +64,11 @@
                     (swap! indx dec)
                     nil)
                 ([^chars cbuf off len]
-                    (proxy-super unread cbuf off len)
+                 (throw
+                     ;; TODO: convert this to multiple calls to unread(ch), if necessary
+                     (Exception. "LineNumberingPushbackReader can't unread multiple chars!"))
+
+                 (proxy-super unread cbuf off len)
                     (reset! indx (- @indx (- len off)))))
             (getIndex []
                 @indx)
@@ -336,8 +343,6 @@
 
 
 
-
-
 (defn- escape-char [sb rdr]
     (let [ch (read-char rdr)]
         (case ch
@@ -410,7 +415,8 @@
 (defn-
     read-delim-char
     [rdr ch]
-    (Token. (dec (. rdr getIndex)) (. rdr getIndex) (DelimChar. ch)))
+    (assoc (Token. (dec (. rdr getIndex)) (. rdr getIndex) (DelimChar. ch))
+        :line (. rdr getLineNumber)))
 
 
 (defn-
