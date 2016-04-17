@@ -1,5 +1,8 @@
 (ns
-    ^{:author "Terje Dahl"}
+    ^{:doc "
+    Much, but not all of the following works:
+    http://danmidwood.com/content/2014/11/21/animated-paredit.html
+    "}
     george.code.paredit
     (:require
         [paredit.core :as pe]
@@ -10,6 +13,9 @@
         :reload
         [george.code.codearea :as ca])
     (:import [org.fxmisc.richtext StyledTextArea]))
+
+
+
 
 (def ^:dynamic *debug* false)
 

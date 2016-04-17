@@ -25,54 +25,11 @@ public class MainPreloader extends Preloader {
     private Stage stage;
     private ProgressBar bar;
 
-    PrintStream stdout = System.out;
-    PrintStream stderr = System.err;
 
 
-    private class MyOut extends StringWriter {
-        boolean is_err;
-        int counter = 1;
-
-        MyOut(boolean is_err) {
-            this.is_err = is_err;
-        }
-
-
-        @Override
-        public void flush(){
-            synchronized(this){
-                super.flush();
-                final String s = toString();
-
-                if (is_err) stderr.print(s);
-                else        stdout.print(s);
-
-                counter++;
-
-                Platform.runLater(new Runnable() { @Override public void run() {
-                        bar.setProgress(counter/250.); }});
-
-                StringBuffer sb = getBuffer();
-                sb.delete(0, sb.length());
-            }
-        }
-    }
-
-
-    private void wrap_outs() {
-        System.setOut(new PrintStream(new WriterOutputStream(new MyOut(false)), true));
-        System.setErr(new PrintStream(new WriterOutputStream(new MyOut(true)), true));
-    }
-
-
-    private void unwrap_outs() {
-        System.setOut(stdout);
-        System.setErr(stderr);
-    }
 
 
     private Scene createPreloaderScene() {
-        wrap_outs();
         bar = new ProgressBar();
         BorderPane p = new BorderPane();
         p.setCenter(bar);
@@ -101,7 +58,6 @@ public class MainPreloader extends Preloader {
                 final Stage s = stage;
                 EventHandler<ActionEvent> eh = new EventHandler<ActionEvent>() {
                     public void handle(ActionEvent t) {
-                        unwrap_outs();
                         s.hide();
                     } };
                 ft.setOnFinished(eh);

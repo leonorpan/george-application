@@ -16,7 +16,9 @@
         (ns-resolve
             (doto
                 (symbol LAUNCHER_NS)
-                (require :verbose :reload))
+                ;(require :verbose :reload)
+                (require :reload)
+                )
             '-main)
         args)
     )

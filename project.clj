@@ -29,7 +29,7 @@
                    ["jcenter" "https://jcenter.bintray.com"] ;; apache.commons.io
                    ]
 
-    :source-paths ["src/main/clojure" ]
+    :source-paths      ["src/main/clojure" ]
     :java-source-paths ["src/main/java"]
     :javac-options     ["-target" "1.8" "-source" "1.8"]
 
