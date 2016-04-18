@@ -187,7 +187,7 @@
 
             scene
              (doto
-                 (fx/scene border-pane 300 300)
+                 (fx/scene border-pane :size [500 200])
                  (fx/add-stylesheets "styles/codearea.css")
                  )
 
@@ -268,4 +268,7 @@
     (println "george.input-stage/-main")
     (fx/later (new-input-stage)))
 
-;(-main)
+
+;;; DEV ;;;
+
+;(println "WARNING: Running george.input/-main" (-main))

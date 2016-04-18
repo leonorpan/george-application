@@ -96,7 +96,7 @@
 
                  "))
              scroll-pane (ScrollPane. text-flow)
-             scene (fx/scene (StackPane. (j/vargs scroll-pane)) 600 300)
+             scene (fx/scene (StackPane. (j/vargs scroll-pane)) :size [600 300])
              ]
         (-> text-flow
             .getChildren
@@ -188,9 +188,9 @@
     (fx/thread (show-output-stage)))
 
 
-;(-main)
+;;; DEV ;;;
+
+;(println "WARNING: Running george.output/-main" (-main))
+
 ;(println (text-flow))
 
-
-
-nil

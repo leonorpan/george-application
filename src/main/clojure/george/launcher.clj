@@ -118,4 +118,6 @@
     (fx/now (show-launcher-stage)))
 
 
-;(-main)
+;;; DEV ;;;
+
+;(println "WARNING: Running george.laucher/-main" (-main))

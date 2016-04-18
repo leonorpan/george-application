@@ -5,6 +5,7 @@
         [george.javafx :as fx] :reload
         [george.code.highlight :as dah] :reload
         [george.code.core :as gcode] :reload
+        [george.input :as input] :reload
         )
     (:import [javafx.beans.property StringProperty]
              [javafx.scene.control OverrunStyle]
@@ -154,6 +155,17 @@
               :insets [0 0 10 0]
               :spacing 10)
 
+          load-button
+          (fx/button
+              "Load"
+              :minwidth 140
+              :tooltip (format "Load/reload file.   %s-L" input/SHORTCUT_KEY)
+              :onaction
+              #(j/thread
+                  (println (if-let [f (:file @file-meta)]
+                               (do (save-file-fn)
+                                   (load-from-file f "user"))
+                               (load-via-tempfile (gcode/text codearea) "user")))))
           pane
           (fx/borderpane
               :center codearea
@@ -161,16 +173,7 @@
               :bottom
               (fx/hbox
                   (fx/region :hgrow :always)
-                  (fx/button
-                      "Load"
-                      :minwidth 140
-                      :onaction
-                      #(j/thread
-                          (println (if-let [f (:file @file-meta)]
-                                       (do (save-file-fn)
-                                           (load-from-file f "user"))
-                                       (load-via-tempfile (gcode/text codearea) "user")))))
-
+                  load-button
                   :insets [10 0 0 0]
                   ;:alignment Pos/TOP_RIGHT
                   )
@@ -185,7 +188,7 @@
             .textProperty
             (. addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
 
-        pane))
+        [pane load-button]))
 
 
 
@@ -202,19 +205,22 @@
         (fx/now (fx/stage
                   :scene scene
                   :title "<unsaved file>"
-                  :location (fx/centering-point-on-primary scene)
-                  :size [600 600]
+                  ;:location (fx/centering-point-on-primary scene)
+                  :location [300 50]
+                  :size [800 600]
                   ;:oncloserequest #(println "closing ...")
                   ;:onhidden #(println "... closed")
                   ))
 
-        root
+        [root load-button]
         (code-editor-pane (. stage titleProperty))
         ]
       ;; replace empty group with pane bound to stages title)
       (. scene setRoot root)
+      (. scene setOnKeyPressed
+         (fx/key-pressed-handler {#{:L :CTRL} #(. load-button fire)}))
 
-    stage))
+      stage))
 
 
 ;;; DEV ;;;
