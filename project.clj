@@ -3,7 +3,7 @@
 
 (defproject
   no.andante.george/george-client-jvm
-  "0.5.1-SNAPSHOT"
+  "0.5.1"
 
   :description "George Client (source/jvm)"
   :url "http://george.andante.no"

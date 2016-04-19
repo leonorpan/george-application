@@ -9,7 +9,7 @@
              [javafx.scene.paint Color]
              [javafx.animation AnimationTimer]
              [javafx.stage Stage]
-             [javafx.scene Node]
+             [javafx.scene Node Scene]
              [com.sun.javafx.perf PerformanceTracker]
              [java.security AccessControlException]
              [javafx.scene.control Label]))
@@ -55,7 +55,7 @@
 
 
 (def nodes
-    (vec (repeatedly STAR_COUNT #(fx/rectangle :width 1 :height 1 :fill Color/WHITE))))
+    (vec (repeatedly STAR_COUNT #(fx/rectangle :size [1 1] :fill Color/WHITE))))
 
 
 (def fps-label
@@ -132,4 +132,4 @@
 
             )))
 
-; (-main)
+;(-main)

@@ -108,13 +108,19 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
 
 
 
+(defn web-color [s]
+    (Color/web s))
+
 
 ;; A nice combo for black text on white background
 (def ANTHRECITE (Color/web "#2b292e")) ;; Almost black
 (def WHITESMOKE Color/WHITESMOKE)  ;; off-white
 
-
-
+(def RED Color/RED)
+(def WHITE Color/WHITE)
+(def BLUE Color/BLUE)
+(def GREEN Color/GREEN)
+(def BLACK Color/BLACK)
 
 
 (defn later*
@@ -452,19 +458,18 @@ javafx.animation.Timeline
 
 
 
-(defn rectangle [& {:keys [x y width height fill arc]
-                    :or   { x 0 y 0
-                           width 50
-                           height 50
+(defn rectangle [& {:keys [location size fill arc]
+                    :or   { location [0 0]
+                           size [50 50]
                            fill Color/BLACK
                            arc 0
                            }}]
 
-    (doto (Rectangle. x y width height)
+    (doto (Rectangle.
+              (first location) (second location) (first size) (second size))
         (. setFill fill)
         (. setArcWidth arc)
-        (. setArcHeight arc)
-        ))
+        (. setArcHeight arc)))
 
 (defn label
     ([] (Label.))
@@ -561,8 +566,8 @@ javafx.animation.Timeline
                        title  "Untitled stage"
                        scene nil
                        sizetoscene false
-                       location [50 50]
-                       size [50 50]
+                       location [100 100]
+                       size [200 200]
                        show true
                        ontop false
                        resizable true
