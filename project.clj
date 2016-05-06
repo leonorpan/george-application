@@ -3,7 +3,7 @@
 
 (defproject
   no.andante.george/george-client-jvm
-  "0.5.1"
+  "0.5.2-SNAPSHOT"
 
   :description "George Client (source/jvm)"
   :url "http://george.andante.no"
@@ -23,6 +23,7 @@
                [org.apache.directory.studio/org.apache.commons.io "2.4"]
                ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
                [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
+;               [no.andante.george/george-javafx "0.1.0-SNAPSHOT"]
                ]
 
     :repositories [
@@ -55,6 +56,8 @@
               "stars" ["run" "-m" "george.example.stars"]
               ;; And here is the original Java-version - for (visual) comparison
               "starsj" ["run" "-m" "george.example.Stars"]
+
+              "graph" ["run" "-m" "george.sandbox.graph"]
 
               }
 

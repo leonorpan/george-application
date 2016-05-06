@@ -7,7 +7,7 @@
     (:require
         [paredit.core :as pe]
         [paredit.parser :as pep]
-        [george.javafx :as fx]
+        [george.javafx.core :as fx]
         :reload
         [george.code.highlight :as highlight]
         :reload

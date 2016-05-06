@@ -1,9 +1,9 @@
 (ns
-  george.sandbox.george.sandbox.graph
+  george.sandbox.graph
   "An edge/node graph example based on   http://stackoverflow.com/questions/30679025/graph-visualisation-like-yfiles-in-javafx "
-    (:require [george.javafx :as fx] :reload
+    (:require [george.javafx.core :as fx] :reload
               [clojure.pprint :refer [pprint]]
-              [george.java :as j])
+              [george.javafx.java :as j])
 
     (:import (javafx.scene.control ScrollPane)
              (javafx.scene.layout Pane)

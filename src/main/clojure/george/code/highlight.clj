@@ -5,7 +5,7 @@
 
         [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop sliding-buffer]]
 
-        [george.javafx :as fx]
+        [george.javafx.core :as fx]
         :reload
         [george.code.reader :as my]
         :reload

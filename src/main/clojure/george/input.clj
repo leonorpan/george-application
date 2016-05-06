@@ -4,8 +4,8 @@
         [clojure.repl :refer [doc]]
         [clojure.string :as s]
 
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
+        [george.javafx.java :as j] :reload
+        [george.javafx.core :as fx] :reload
         [george.output :as output] :reload
         [george.code.highlight :as dah] :reload
         [george.code.core :as gcode] :reload

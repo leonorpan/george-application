@@ -1,8 +1,8 @@
 (ns george.editor
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
+        [george.javafx.java :as j] :reload
+        [george.javafx.core :as fx] :reload
         [george.code.highlight :as dah] :reload
         [george.code.core :as gcode] :reload
         [george.input :as input] :reload

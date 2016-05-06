@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/george-client-jvm.iml" filepath="$PROJECT_DIR$/george-client-jvm.iml" />
+      <module fileurl="file://$PROJECT_DIR$/checkouts/george-javafx/george-javafx.iml" filepath="$PROJECT_DIR$/checkouts/george-javafx/george-javafx.iml" />
     </modules>
   </component>
 </project>

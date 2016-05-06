@@ -4,8 +4,8 @@
         [clojure.repl :refer [doc]]
         [clojure.string :as s]
 
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
+        [george.javafx.java :as j] :reload
+        [george.javafx.core :as fx] :reload
         )
     (:import [javafx.collections ListChangeListener]
 

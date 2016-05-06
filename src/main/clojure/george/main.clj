@@ -2,7 +2,7 @@
 
 
 
-(def LAUNCHER_NS "george.launcher")
+;(def LAUNCHER_NS "george.launcher")
 
 
 (defn -main [& args]
@@ -16,8 +16,10 @@
         (ns-resolve
             (doto
                 (symbol LAUNCHER_NS)
-                ;(require :verbose :reload)
-                (require :reload)
+                (require
+                    :verbose
+                    :reload
+                    )
                 )
             '-main)
         args)
@@ -26,4 +28,4 @@
 
 ;;; DEV ;;;
 
-; (println "  ## WARNING: running george.main/-main from george.main") (-main 1 2 3)
+;(println "  ## WARNING: running george.main/-main from george.main") (-main 1 2 3)

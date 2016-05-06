@@ -7,7 +7,7 @@
       :reload
     [george.code.paredit :as paredit]
     :reload
-    [george.javafx :as fx])
+    [george.javafx.core :as fx])
   (:import [org.fxmisc.richtext StyledTextArea]))
 
 

@@ -3,7 +3,7 @@
     (require
         [clojure.repl :refer [doc]]
 
-        [george.javafx :as fx]
+        [george.javafx.core :as fx]
         :reload
 
         [george.input :as input]
