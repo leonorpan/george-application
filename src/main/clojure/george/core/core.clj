@@ -4,14 +4,403 @@
     (:require
         [clojure.repl :as cr]
         [clojure.pprint :refer [pprint pp] :as cpp]
-        [george.javafx :as fx]
-        :reload)
+        [george.javafx.core :as fx]
+        :reload
+        [george.javafx.java :as fxj]
+        :reload
+
+        [george.code.core :as gcode]
+        [clojure.string :as s])
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
-             (javafx.scene.control Tooltip ListCell)
+             (javafx.scene.control Tooltip ListCell ScrollPane)
              (javafx.util Callback)
-             (clojure.lang Var)))
+             (java.io StringWriter PrintStream OutputStreamWriter StringReader)
+             (org.apache.commons.io.output WriterOutputStream)
+             (javafx.scene.text Text TextFlow)
+             (javafx.scene.layout StackPane)
+             (javafx.collections ListChangeListener)
+             (clojure.lang LineNumberingPushbackReader ExceptionInfo)
+
+             (javafx.scene.input KeyCode KeyEvent)))
+
+
+(defonce standard-out System/out)
+(defonce standard-err System/err)
+(declare output)
+
+
+;;;; input section ;;;;
+
+
+
+;; from Versions.java in george-client
+(def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
+(def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
+
+
+(defn- with-newline [obj]
+    "ensures that the txt ends with a new-line"
+    (let [txt (if (nil? obj) "nil" (str obj))]
+        (if (s/ends-with? txt "\n")
+            txt
+            (str txt "\n"))))
+
+
+(defn- print-error
+
+    ([^ExceptionInfo ei]
+     (let [{:keys [after before]} (ex-data ei)]
+         (print-error after before
+                      (. ei getMessage) (. ei getCause) ei)))
+
+    ([after before msg cause exception]
+     (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
+         (output :err  loc-str)
+         (. standard-err println loc-str)
+         (. (or cause exception) printStackTrace)))
+    )
+
+
+(defn- read-eval-print [code]
+    (println)
+    (output :in (with-newline code))
+    (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
+
+        ;; inspiration:
+        ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
+        ;;   https://github.com/pallet/ritz/blob/develop/repl-utils/src/ritz/repl_utils/compile.clj
+        (push-thread-bindings
+            {Compiler/LINE_BEFORE (Integer. (int 0))
+             Compiler/LINE_AFTER (Integer. (int 0))})
+        (try
+
+            (loop []
+                (let [
+                      after [(. rdr getLineNumber) (. rdr getColumnNumber)]
+                      _ (.. Compiler/LINE_BEFORE (set (Integer. (first after))))
+
+                      form
+                      (try
+                          (read rdr false :eof)
+                          ;; pass exception into form for later handdling
+                          (catch Exception e e))
+
+                      before [(. rdr getLineNumber) (. rdr getColumnNumber)]
+                      _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))
+
+                      ]
+
+                    (if (instance? Exception form)
+                        (print-error after before (. form getMessage) (. form getCause) form))
+
+                    (when-not (= form :eof)
+                        (when-not (instance? Exception form)
+                            (try
+                                (output :res (with-newline (eval form)))
+                                (catch Exception e
+                                    (throw
+                                        (ex-info
+                                            (. e getMessage)
+                                            {:after after :before before}
+                                            (. e getCause)))))
+                            (recur)))))
+            (catch ExceptionInfo ei
+                (print-error ei))
+
+            (finally
+                (pop-thread-bindings)))
+
+        (str *ns*)))
+
+
+(declare
+    read-eval-print-in-ns)
+
+
+(defn- run [code-area modified? ns-textfield]
+    (let [input (gcode/text code-area)]
+        (if (s/blank? input)
+            (println)
+            (fxj/thread
+                (let [new-ns (read-eval-print-in-ns input (. ns-textfield getText))]
+                    (fx/thread (. ns-textfield setText new-ns))
+                    (output :ns (with-newline new-ns))
+
+                    ;; handle history and clearing
+
+                    )))))
+
+
+
+(defn- input-scene []
+    (let [
+
+          ns-label
+          (doto
+              (fx/label "user")
+              ( .setStyle "
+                    -fx-font: 12 'Source Code Pro Regular';
+                    -fx-text-fill: gray;
+                "))
+
+
+          code-area
+          (doto (gcode/->codearea)
+              #_( .setStyle "
+                -fx-font: 14 'Source Code Pro Medium';
+                -fx-padding: 5 5;
+                /* -fx-border-radius: 4; */
+                ")
+              )
+
+
+
+          #_(comment
+                prev-button
+                (doto (jfx/button (str  \u25B2) #(history-button-fn -1 false)) ;; small: \u25B4
+                    (-> .getStyleClass (.add "default-button"))
+                    (.setId "repl-prev-button")
+                    (gui/install-tooltip (format "Previous 'local' history.   %s-UP\nAccess 'global' history by using SHIFT-%s-UP" SHORTCUT_KEY SHORTCUT_KEY))
+                    )
+
+                next-button
+                (doto (jfx/button (str \u25BC) #(history-button-fn 1 false)) ;; small: \u25BE
+                    (-> .getStyleClass (.add "default-button"))
+                    (.setId "repl-next-button")
+                    (gui/install-tooltip (format "Next 'local' history.   %s-DOWN\nAccess 'global' history by using SHIFT-%s-DOWN" SHORTCUT_KEY SHORTCUT_KEY))
+                    )
+                )
+          run-button
+          (fx/button
+              "Eval"
+              :width 130
+              :onaction #(run code-area false ns-label)
+              ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+              :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY)
+              )
+
+          button-box
+          (fx/hbox
+              ;prev-button
+              ;next-button
+              (fx/region :hgrow :always)
+              run-button
+              :spacing 3
+              :alignment Pos/TOP_RIGHT
+              :insets [5 0 0 0])
+
+          border-pane
+          (fx/borderpane
+              :center code-area
+              :top ns-label
+              :bottom button-box
+              :insets 10)
+
+          scene
+          (doto
+              (fx/scene border-pane :size [500 200])
+              (fx/add-stylesheets "styles/codearea.css")
+              )
+
+          key-handler
+          (fx/event-handler-2 [_ ke]
+                              (if (and (= (.getEventType ke) KeyEvent/KEY_PRESSED)
+                                       (.isShortcutDown ke))
+                                  (condp = (.getCode ke)
+                                      ; KeyCode/UP    (do (history-button-fn -1 (.isShiftDown ke)) (.consume ke))
+                                      ; KeyCode/DOWN  (do (history-button-fn 1 (.isShiftDown ke)) (.consume ke))
+                                      KeyCode/ENTER
+                                      (do (run code-area (.isShiftDown ke) ns-label) (.consume ke))
+                                      :default)))
+
+
+          ]
+        (. border-pane addEventFilter KeyEvent/KEY_PRESSED key-handler)
+        ;; TODO: ensure code-area alsways gets focus back when focus in window ...
+
+        scene ))
+
+
+
+;;;; API ;;;;
+
+;; dont remember what the difference is between this and the next.  :-/
+
+#_(defn- read-eval-print-in-ns
+    "Evals expressions in str, prints each non-nil result using prn"
+    [code-str ns-sym]
+    ;; useful?
+    ;    (let [cl (.getContextClassLoader (Thread/currentThread))]
+    ;        (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl)))
+
+    (binding [*ns* ns-sym]
+        (let [eof (Object.)
+              reader (LineNumberingPushbackReader. (StringReader. code-str))]
+            (loop [input (read reader false eof)]
+                (when-not (= input eof)
+                    (let [value (eval input)]
+                        (when-not (nil? value)
+                            (prn value))
+                        (recur (read reader false eof))))))))
+
+
+(defn read-eval-print-in-ns
+    "returns new ns as string"
+    [^String code ^String ns]
+    (binding [*ns* (create-ns (symbol ns)) *file* "'input'"]
+        (read-eval-print code)))
+
+
+(defn input-stage []
+    (let [bounds (. (fx/primary-screen) getVisualBounds)]
+        (fx/now (fx/stage
+            :style :utility
+            :title "Input"
+            :scene (input-scene)
+            :sizetoscene true
+            :location [(-> bounds .getWidth (/ 2) )
+                       (-> bounds .getHeight (/ 2) (- 300) )]))))
+
+
+
+
+
+
+;;;; output section ;;;;
+
+
+(defonce ^:private output-singleton (atom nil))
+
+(declare output)
+
+(defn- textflow []
+    (when-let [stage @output-singleton]
+        (->  stage .getScene .getRoot .getChildrenUnmodifiable first .getContent)
+        ))
+
+
+(defn- output-string-writer [typ] ;; type is one of :out :err
+    (proxy [StringWriter] []
+        (flush []
+            ;; first print the content of StringWriter to output-stage
+            (let [s (str this)]
+                (if (= typ :err)
+                    (. standard-err print s)
+                    (. standard-out print s))
+                (output typ s))
+            ;; then flush the buffer of the StringWriter
+            (let [sb (. this getBuffer)]
+                (. sb delete 0 (. sb length))))))
+
+
+(defn wrap-outs []
+    (println "wrap-outs")
+    (let [
+          ow (output-string-writer :out)
+          ew (output-string-writer :err)
+          ]
+        (System/setOut (PrintStream. (WriterOutputStream. ow) true))
+        (System/setErr (PrintStream. (WriterOutputStream. ew) true))
+        (alter-var-root #'*out* (constantly ow))
+        (alter-var-root #'*err* (constantly ew))))
+
+
+(defn unwrap-outs []
+    (println "unwrap-outs")
+    (System/setOut standard-out)
+    (System/setErr standard-err)
+    (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
+    (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
+
+
+(defn- styled [typ ^Text text]
+    (doto text
+        (. setFont (fx/SourceCodePro "Regular" 16))
+        (. setFill
+           (condp = typ
+               :in Color/BLUE
+               :res Color/GREEN
+               :ns Color/GRAY
+               :err Color/RED
+               Color/BLACK ;; default (:out)
+               ))))
+
+
+
+(defn output [typ obj]  ;; type is one of :in :ns :res :out :err
+    (if-let[tf (textflow)]
+        (fx/later
+            (-> tf .getChildren (. add (styled typ (Text. (str obj)))))))
+    ;; TODO: crop old lines from beginning - for speed.
+    ;; else - make sure these always also appear in stout
+    (if (#{:in :res} typ)
+        (. standard-out print (str obj))))
+
+
+(defn- output-scene []
+    (let [
+          text-flow
+          (doto
+              (TextFlow.)
+              (. setStyle "
+                     -fx-padding: 5 5;
+                 "))
+
+          scroll-pane (ScrollPane. text-flow)
+          scene (fx/scene (StackPane. (fxj/vargs scroll-pane)) :size [600 300])
+          ]
+        (-> text-flow
+            .getChildren
+            (. addListener
+               (reify ListChangeListener
+                   (onChanged [_ _]
+                       (. text-flow layout)
+                       (doto scroll-pane (. layout) (. setVvalue 1.0))))))
+
+        #_(def append (fn [node] (fx/later (-> text-flow .getChildren (. add node)))))
+
+        scene ))
+
+
+
+
+(defn- output-stage []
+    (let [bounds (. (fx/primary-screen) getVisualBounds)
+          size [850 300];[700 300]
+          ]
+        (fx/now
+            (fx/stage
+                :style :utility
+                :title "Output"
+                :location [(. bounds getMinX)
+                           (-> bounds .getMaxY (- (second size)))]
+                :size size
+                :scene (output-scene)))))
+
+
+
+
+(defn show-or-create-output-stage []
+    (if @output-singleton
+        (fx/later (. @output-singleton toFront))
+        (do (wrap-outs)
+            (reset! output-singleton
+                    (fx/setoncloserequest
+                        (output-stage)
+                        #(do
+                            (println "reset!-ing @output-singleton to nil")
+                            (reset! output-singleton nil)
+                            (unwrap-outs)))))))
+
+
+
+
+
+
+
+;;;; VAR section ;;;;
 
 
 
@@ -125,6 +514,8 @@
 
 
 
+
+
 ;;;; namespaces section ;;;;
 
 (defn- namespaces []
@@ -187,6 +578,20 @@
               :onaction #(show-or-create-namespaces-stage)
               :tooltip "Open/show namespace-list")
 
+          output-button
+          (fx/button
+              "Output"
+              :width button-width
+              :onaction show-or-create-output-stage
+              :tooltip "Open/show output-window"
+              )
+          input-button
+          (fx/button
+              "Input"
+              :width button-width
+              :onaction input-stage
+              :tooltip "Open a new input window / REPL"
+              )
 
           logo
           (fx/imageview "graphics/George_logo.png")]
@@ -195,7 +600,7 @@
 
         (fx/scene
             (doto (fx/hbox
-                   logo namespace-button
+                   logo namespace-button output-button input-button
                    :spacing 20
                    :padding 20
                    :alignment Pos/CENTER_LEFT)
@@ -248,7 +653,12 @@
 
 
 
+(defn -main []
+    (show-or-create-launcher-stage)
+    (show-or-create-output-stage)
+    )
+
+
 ;;; DEV ;;;
 
-;(println "  ## WARNING: running `-main` from george.core.core") (-main)
-;(println "  ## WARNING: running `show-or-create-launcher-stage` from george.core.core") (show-or-create-launcher-stage)
+;(println "  ## WARNING: running george.core.core/-main")  (-main)
