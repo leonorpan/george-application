@@ -14,16 +14,17 @@
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
-             (javafx.scene.control Tooltip ListCell ScrollPane)
+             (javafx.scene.control Tooltip ListCell )
              (javafx.util Callback)
              (java.io StringWriter PrintStream OutputStreamWriter StringReader)
              (org.apache.commons.io.output WriterOutputStream)
-             (javafx.scene.text Text TextFlow)
-             (javafx.scene.layout StackPane)
-             (javafx.collections ListChangeListener)
+             (javafx.scene.text Text )
              (clojure.lang LineNumberingPushbackReader ExceptionInfo)
 
-             (javafx.scene.input KeyCode KeyEvent)))
+             (javafx.scene.input KeyCode KeyEvent)
+             (org.fxmisc.richtext StyledTextArea)
+             (java.util.function BiConsumer)
+             (java.util Collections)))
 
 
 (defonce standard-out System/out)
@@ -147,14 +148,7 @@
 
 
           code-area
-          (doto (gcode/->codearea)
-              #_( .setStyle "
-                -fx-font: 14 'Source Code Pro Medium';
-                -fx-padding: 5 5;
-                /* -fx-border-radius: 4; */
-                ")
-              )
-
+          (gcode/->codearea)
 
 
           #_(comment
@@ -174,8 +168,8 @@
                 )
           run-button
           (fx/button
-              "Eval"
-              :width 130
+              "Run"
+              :width 150
               :onaction #(run code-area false ns-label)
               ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
               :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY)
@@ -205,16 +199,14 @@
               )
 
           key-handler
-          (fx/event-handler-2 [_ ke]
-                              (if (and (= (.getEventType ke) KeyEvent/KEY_PRESSED)
-                                       (.isShortcutDown ke))
-                                  (condp = (.getCode ke)
-                                      ; KeyCode/UP    (do (history-button-fn -1 (.isShiftDown ke)) (.consume ke))
-                                      ; KeyCode/DOWN  (do (history-button-fn 1 (.isShiftDown ke)) (.consume ke))
-                                      KeyCode/ENTER
-                                      (do (run code-area (.isShiftDown ke) ns-label) (.consume ke))
-                                      :default)))
-
+          (fx/event-pressed-handler{
+                                    ;#{       :CTRL :UP}    #(history-button-fn -1 false)
+                                    ;#{:SHIFT :CTRL :UP}    #(history-button-fn -1 true)
+                                    ;#{       :CTRL :DOWN}  #(history-button-fn 1 false)
+                                    ;#{:SHIFT :CTRL :DOWN}  #(history-button-fn 1 true)
+                                    #{       :CTRL :ENTER} #(run code-area false ns-label)
+                                    ;#{:SHIFT :CTRL :ENTER} #(run code-area true ns-label)
+                                    })
 
           ]
         (. border-pane addEventFilter KeyEvent/KEY_PRESSED key-handler)
@@ -273,11 +265,10 @@
 
 (defonce ^:private output-singleton (atom nil))
 
-(declare output)
 
-(defn- textflow []
+(defn- get-outputarea []
     (when-let [stage @output-singleton]
-        (->  stage .getScene .getRoot .getChildrenUnmodifiable first .getContent)
+        (->  stage .getScene .getRoot .getChildrenUnmodifiable first)
         ))
 
 
@@ -315,43 +306,97 @@
     (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
 
 
-(defn- styled [typ ^Text text]
-    (doto text
-        (. setFont (fx/SourceCodePro "Regular" 16))
-        (. setFill
-           (condp = typ
-               :in Color/BLUE
-               :res Color/GREEN
-               :ns Color/GRAY
-               :err Color/RED
-               Color/BLACK ;; default (:out)
-               ))))
+(defrecord OutputStyleSpec [color])
+
+(def ^:private DEFAULT_SPEC (->OutputStyleSpec "GRAY"))
+
+(defn ^:private output-style [typ]
+    (get {:out (->OutputStyleSpec "#404042")
+          :err (->OutputStyleSpec "RED")
+          :in (->OutputStyleSpec "BLUE")
+          :ns (->OutputStyleSpec "BROWN")
+          :res (->OutputStyleSpec "GREEN")}
+         typ
+         (->OutputStyleSpec "ORANGE")))
 
 
 
 (defn output [typ obj]  ;; type is one of :in :ns :res :out :err
-    (if-let[tf (textflow)]
+    ;; TODO: maybe crop old lines from beginning for speed?
+    (if-let[oa (get-outputarea)]
         (fx/later
-            (-> tf .getChildren (. add (styled typ (Text. (str obj)))))))
-    ;; TODO: crop old lines from beginning - for speed.
-    ;; else - make sure these always also appear in stout
+            (let [start (.getLength oa)]
+            (.insertText oa start (str obj))
+            (.setStyle oa start (.getLength oa) (output-style typ)))))
+    ;; else:  make sure these always also appear in stout
     (if (#{:in :res} typ)
         (. standard-out print (str obj))))
 
 
+
+(defn- style [spec]
+    (let [{c :color} spec]
+        (str
+            "-fx-fill: " (if c c "#404042") "; "
+            "-fx-font-weight: normal; "
+            "-fx-underline: false; "
+            "-fx-background-fill: null; ")))
+
+
+(defn- apply-specs [^Text text specs]
+    (cond
+        (instance? OutputStyleSpec specs)
+        (.setStyle text (style specs))
+
+        (= Collections/EMPTY_LIST specs)
+        (.setStyle text (style DEFAULT_SPEC))
+
+        :default
+        (doseq [spec specs]
+            (.setStyle text (style spec)))))
+
+
+(defn- style-biconsumer []
+    (reify BiConsumer
+        (accept [_ text style]
+            (apply-specs text style))))
+
+
 (defn- output-scene []
     (let [
-          text-flow
-          (doto
-              (TextFlow.)
-              (. setStyle "
-                     -fx-padding: 5 5;
-                 "))
+          outputarea
+              (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
+                  (.setFont (fx/SourceCodePro "Regular" 16))
+                  (.setStyle "-fx-padding: 0; -fx-background-color: WHITESMOKE;")
+                  (.setUseInitialStyleForInsertion true)
+                  (-> .getUndoManager .forgetHistory)
+                  (-> .getUndoManager .mark)
+                  (.selectRange 0 0)
+                  (.setEditable false))
 
-          scroll-pane (ScrollPane. text-flow)
-          scene (fx/scene (StackPane. (fxj/vargs scroll-pane)) :size [600 300])
+          clear-button
+          (fx/button
+              "Clear"
+              :width 150
+              :onaction #(.replaceText outputarea "")
+              :tooltip (format "Clear output")
+              )
+          button-box
+          (fx/hbox
+
+              (fx/region :hgrow :always)
+              clear-button
+              :spacing 3
+              :alignment Pos/TOP_RIGHT
+              :insets [0 0 5 0])
+
+          scene
+          (fx/scene (fx/borderpane
+                        :top button-box
+                        :center outputarea
+                        :insets 5))
           ]
-        (-> text-flow
+        #_(-> text-flow
             .getChildren
             (. addListener
                (reify ListChangeListener
@@ -368,7 +413,7 @@
 
 (defn- output-stage []
     (let [bounds (. (fx/primary-screen) getVisualBounds)
-          size [850 300];[700 300]
+          size [1000 300];[700 300]
           ]
         (fx/now
             (fx/stage
@@ -661,4 +706,4 @@
 
 ;;; DEV ;;;
 
-;(println "  ## WARNING: running george.core.core/-main")  (-main)
+(println "  ## WARNING: running george.core.core/-main")  (-main)

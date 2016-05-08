@@ -26,15 +26,13 @@
   DEFAULT_SPEC (->StyleSpec "GRAY" "bold" "false" "null"))
 
 
-(declare type->color)
-
 
 (defn- ^String style
   "returns JavaFX-css based on StyleSpec"
   [^StyleSpec spec]
   (let [{c :color w :weight u :underline b :background} spec]
     (str
-      "-fx-fill: " (if c c (type->color :default)) "; "
+      "-fx-fill: " (if c c "#404042") "; "
       "-fx-font-weight: " (if w w "normal") "; "
       "-fx-underline: " (if u u "false") "; "
       "-fx-background-fill: " (if b b "null") "; "
