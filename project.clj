@@ -30,6 +30,11 @@
                    ["jcenter" "https://jcenter.bintray.com"] ;; apache.commons.io
                    ]
 
+    :deploy-repositories [
+                          ["snapshots" :clojars]
+                          ["releases" :clojars]
+                          ]
+
     :source-paths      ["src/main/clojure" ]
     :java-source-paths ["src/main/java"]
     :javac-options     ["-target" "1.8" "-source" "1.8"]

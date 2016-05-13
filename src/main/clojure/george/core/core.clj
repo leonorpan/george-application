@@ -199,7 +199,7 @@
               )
 
           key-handler
-          (fx/event-pressed-handler{
+          (fx/key-pressed-handler{
                                     ;#{       :CTRL :UP}    #(history-button-fn -1 false)
                                     ;#{:SHIFT :CTRL :UP}    #(history-button-fn -1 true)
                                     ;#{       :CTRL :DOWN}  #(history-button-fn 1 false)
