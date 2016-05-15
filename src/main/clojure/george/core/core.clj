@@ -16,7 +16,7 @@
              (javafx.scene.paint Color)
              (javafx.scene.control Tooltip ListCell )
              (javafx.util Callback)
-             (java.io StringWriter PrintStream OutputStreamWriter StringReader)
+             (java.io StringWriter PrintStream OutputStreamWriter StringReader PushbackReader)
              (org.apache.commons.io.output WriterOutputStream)
              (javafx.scene.text Text )
              (clojure.lang LineNumberingPushbackReader ExceptionInfo)
@@ -34,11 +34,46 @@
 
 ;;;; input section ;;;;
 
-
+(def RT-state-atom (atom {}))
 
 ;; from Versions.java in george-client
 (def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
+
+
+
+
+(defn- read-span [[after-l after-c] code]
+    ;(output nil (str " after: " after-l ":" after-c \newline))
+    (let [rdr (LineNumberingPushbackReader. (StringReader. code))
+          newline-int (int \n)
+          sb (StringBuilder.)]
+        ;; step rdr forward to start-line
+        (dotimes [_  (dec after-l)] (.readLine rdr))
+        ;; step forward to start-char
+        (dotimes [_  (dec after-c)] (.read rdr))
+        ;; peek at next char to see if it is newline, and if not step rdr back
+        (let [i (.read rdr)]
+            (when (not=  i newline-int)
+                (.unread rdr i))
+
+            (let [
+                  pbr (proxy [PushbackReader] [rdr]
+                          (read []
+                              (let [i (proxy-super read)]
+                                  (.append sb (char i))
+                                  i)))
+                  ]
+                (when (not= i -1)
+                    (read (PushbackReader. pbr) false :eof)))
+
+            (.trim (str sb))
+
+            )))
+
+
+
+
 
 
 (defn- with-newline [obj]
@@ -57,15 +92,30 @@
                       (. ei getMessage) (. ei getCause) ei)))
 
     ([after before msg cause exception]
-     (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
+     (let [[after-l after-c] after
+            [before-l before-c] before
+           loc-str (format  "%s:%s .. %s:%s  (start at .. end by) (line:char): \n" after-l after-c before-l before-c)]
          (output :err  loc-str)
-         (. standard-err println loc-str)
-         (. (or cause exception) printStackTrace)))
+         (.println standard-err loc-str)
+         (.printStackTrace (or cause exception))))
     )
+
+
+;; TODO:
+"
+The following does not give a useful printout - either from any repl or from a loaded file.
+Solve this to make something more user-friendly: A more usable and beginner-firendly system!
+(defn fail [v] (/ 2 v))
+(fail 0)
+"
+(defn- output-ns [ns]
+    (output :ns (str "namespace: " ns "\n")))
 
 
 (defn- read-eval-print [code]
     (println)
+    (output-ns *ns*)
+
     (output :in (with-newline code))
     (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
 
@@ -77,36 +127,72 @@
              Compiler/LINE_AFTER (Integer. (int 0))})
         (try
 
-            (loop []
+            (loop [ns *ns*]
                 (let [
-                      after [(. rdr getLineNumber) (. rdr getColumnNumber)]
-                      _ (.. Compiler/LINE_BEFORE (set (Integer. (first after))))
+                      after [(.getLineNumber rdr ) (.getColumnNumber rdr )]
+                      _ (.set  Compiler/LINE_BEFORE (Integer. (first after)))
 
-                      form
+                      read-res
                       (try
                           (read rdr false :eof)
-                          ;; pass exception into form for later handdling
+                          ;; pass exception into form for later handling,
+                          ;; so we first can get the code end-point.
                           (catch Exception e e))
 
-                      before [(. rdr getLineNumber) (. rdr getColumnNumber)]
-                      _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))
+                      before [(.getLineNumber rdr) (.getColumnNumber rdr)]
+                      _ (.set Compiler/LINE_BEFORE (Integer. (first before)))
 
+                      ;; TODO: get source from code, not from read-res
+                      source (read-span after code)
                       ]
+                    (when (instance? Exception read-res)
+                        (throw
+                            (ex-info
+                                (.getMessage read-res)
+                                {:after after :before before}
+                                (.getCause read-res))))
 
-                    (if (instance? Exception form)
-                        (print-error after before (. form getMessage) (. form getCause) form))
-
-                    (when-not (= form :eof)
-                        (when-not (instance? Exception form)
+                    (when-not (= read-res :eof)
                             (try
-                                (output :res (with-newline (eval form)))
-                                (catch Exception e
-                                    (throw
-                                        (ex-info
-                                            (. e getMessage)
-                                            {:after after :before before}
-                                            (. e getCause)))))
-                            (recur)))))
+                                (let [eval-res (eval read-res)]
+
+                                    (output :res (with-newline eval-res))
+                                    ;; we made it this far without a read-exception or eval-exception
+
+                                    ;(output nil (str "read-res: " read-res \newline))
+                                    (cond
+                                        (not= *ns* ns)
+                                        (do
+                                            (output-ns *ns*)
+                                            (output nil (str "   new ns: " *ns* " \n"))
+                                            (output nil (str "   source: " source \newline))
+                                            )
+
+                                        (var? eval-res)
+                                        (do
+                                            (output nil (str "      var: " eval-res "   (RT-state store)\n"))
+                                            (output nil (str "   source: " source \newline))
+                                            )
+
+                                        :default
+                                        (do
+                                            (output nil (str " call res: " eval-res "   (history store)\n"))
+                                            (output nil (str "   source: " source \newline))
+                                            ))
+                                    )
+
+                                ;; Catch and re-throw the eval-exception,
+                                ;; adding start and end-point in code
+                                    (catch Exception e
+                                        (throw
+                                            (ex-info
+                                                (.getMessage e)
+                                                {:after after :before before}
+                                                (.getCause e)))))
+                                ;; We only recur if no read or eval exception was thrown.
+                                (recur *ns*))))
+            ;; here we actually catch read and eval exceptions, and print them.
+            ;; This is where something much more useful should be done!!
             (catch ExceptionInfo ei
                 (print-error ei))
 
@@ -125,9 +211,8 @@
         (if (s/blank? input)
             (println)
             (fxj/thread
-                (let [new-ns (read-eval-print-in-ns input (. ns-textfield getText))]
-                    (fx/thread (. ns-textfield setText new-ns))
-                    (output :ns (with-newline new-ns))
+                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
+                    (fx/thread (.setText ns-textfield new-ns))
 
                     ;; handle history and clearing
 
@@ -218,29 +303,13 @@
 
 ;;;; API ;;;;
 
-;; dont remember what the difference is between this and the next.  :-/
-
-#_(defn- read-eval-print-in-ns
-    "Evals expressions in str, prints each non-nil result using prn"
-    [code-str ns-sym]
-    ;; useful?
-    ;    (let [cl (.getContextClassLoader (Thread/currentThread))]
-    ;        (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl)))
-
-    (binding [*ns* ns-sym]
-        (let [eof (Object.)
-              reader (LineNumberingPushbackReader. (StringReader. code-str))]
-            (loop [input (read reader false eof)]
-                (when-not (= input eof)
-                    (let [value (eval input)]
-                        (when-not (nil? value)
-                            (prn value))
-                        (recur (read reader false eof))))))))
-
 
 (defn read-eval-print-in-ns
     "returns new ns as string"
     [^String code ^String ns]
+    ;; useful?  Found in clojure.main/eval-opt
+    ;    (let [cl (.getContextClassLoader (Thread/currentThread))]
+    ;        (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl)))
     (binding [*ns* (create-ns (symbol ns)) *file* "'input'"]
         (read-eval-print code)))
 
