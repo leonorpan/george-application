@@ -43,36 +43,26 @@
 
 
 
-(defn- read-span [[after-l after-c] code]
+(defn- read-span [[after-l after-c] [before-l before-c] code]
     ;(output nil (str " after: " after-l ":" after-c \newline))
     (let [rdr (LineNumberingPushbackReader. (StringReader. code))
           newline-int (int \n)
           sb (StringBuilder.)]
-        ;; step rdr forward to start-line
+        ;; step rdr forward to start-line and start-char
         (dotimes [_  (dec after-l)] (.readLine rdr))
-        ;; step forward to start-char
         (dotimes [_  (dec after-c)] (.read rdr))
-        ;; peek at next char to see if it is newline, and if not step rdr back
-        (let [i (.read rdr)]
-            (when (not=  i newline-int)
-                (.unread rdr i))
 
-            (let [
-                  pbr (proxy [PushbackReader] [rdr]
-                          (read []
-                              (let [i (proxy-super read)]
-                                  (.append sb (char i))
-                                  i)))
-                  ]
-                (when (not= i -1)
-                    (read (PushbackReader. pbr) false :eof)))
-
-            (.trim (str sb))
-
-            )))
-
-
-
+        (loop []
+            ;; keep appending until end-line and end-char are reached
+            (.append sb (char (.read rdr)))
+            (when
+                (or
+                    (< (.getLineNumber rdr) before-l)
+                    (and (= (.getLineNumber rdr) before-l)
+                         (< (.getColumnNumber rdr) before-c)))
+                (recur)))
+        ;; returned a trimmed string of read code
+        (.trim (str sb))))
 
 
 
@@ -87,17 +77,45 @@
 (defn- print-error
 
     ([^ExceptionInfo ei]
-     (let [{:keys [after before]} (ex-data ei)]
-         (print-error after before
+     (let [{:keys [after before source]} (ex-data ei)]
+         (print-error after before source
                       (. ei getMessage) (. ei getCause) ei)))
 
-    ([after before msg cause exception]
-     (let [[after-l after-c] after
-            [before-l before-c] before
-           loc-str (format  "%s:%s .. %s:%s  (start at .. end by) (line:char): \n" after-l after-c before-l before-c)]
-         (output :err  loc-str)
-         (.println standard-err loc-str)
-         (.printStackTrace (or cause exception))))
+    ([after before source msg cause exception]
+     (let [
+           [after-l after-c] after
+           [before-l before-c] before
+           exception-trace (seq (.getStackTrace exception))
+           supressed-trace (seq  (.getSuppressed exception))
+           cause-trace (when-let [cause (.getCause exception)](seq (.getStackTrace cause)))
+           total-error
+           (format
+"# EXCEPTION!
+%s
+## SOURCE:
+%s
+## SOURCE SPAN:
+from inclusive [%s:%s] to exclusive [%s:%s]  ([line:char])
+## STACKTRACE EXCEPTION:
+%s
+## STACKTRACE SUPRESSED:
+%s
+## STACKTRACE CAUSE:
+%s
+"
+msg
+source
+after-l after-c before-l before-c
+exception-trace
+supressed-trace
+cause-trace
+)
+
+           ]
+         (output :err total-error)
+;         (.println standard-err loc-str)
+         (.printStackTrace (or cause exception) standard-err)
+         ))
     )
 
 
@@ -143,13 +161,13 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                       _ (.set Compiler/LINE_BEFORE (Integer. (first before)))
 
                       ;; TODO: get source from code, not from read-res
-                      source (read-span after code)
+                      source (read-span after before code)
                       ]
                     (when (instance? Exception read-res)
                         (throw
                             (ex-info
                                 (.getMessage read-res)
-                                {:after after :before before}
+                                {:after after :before before :source source}
                                 (.getCause read-res))))
 
                     (when-not (= read-res :eof)
@@ -187,7 +205,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                                         (throw
                                             (ex-info
                                                 (.getMessage e)
-                                                {:after after :before before}
+                                                {:after after :before before :source source}
                                                 (.getCause e)))))
                                 ;; We only recur if no read or eval exception was thrown.
                                 (recur *ns*))))
