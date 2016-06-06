@@ -4,14 +4,17 @@
   (:require
       [clojure.pprint :refer [pprint pp] :as cpp]
       [clojure.data :as data]
+      [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
       [george.javafx.core :as fx]
     :reload
     )
 
-  (:import (javafx.scene.control ToggleGroup)
-           (javax.sound.sampled AudioSystem TargetDataLine DataLine$Info AudioFormat$Encoding AudioFormat)))
-
-(def SELECTED_BACKGROUND_COLOR (fx/web-color "0x3875d7"))
+    (:import
+        (javafx.scene.control ToggleGroup)
+        (javax.sound.sampled AudioSystem TargetDataLine DataLine$Info AudioFormat$Encoding AudioFormat LineUnavailableException AudioInputStream)
+        (javafx.scene Group)
+        (java.nio ByteOrder ByteBuffer)
+        (java.io ByteArrayOutputStream)))
 
 
 
@@ -91,11 +94,6 @@
         (let [obj (create-f)] (swap! singletons assoc k obj) obj)))
 
 
-(def ^:private MID-line-map-atom
-    "Contains all opened lines, keyed by MID: {MID1 TDL1, MID2 TDL2}"
-    (atom {}))
-
-
 "
 A line, if opened and closed, can not be reopened.
 Therefore: When new lines are aquired and opened,
@@ -105,6 +103,81 @@ That way, if the line again becomes available, we can then continue using it (wi
 Lines can be started and stopped repeatedly.
 It there a need / purpose for for this, though, as long as whatever data they are feedaign gets drained?
 "
+
+
+
+(def ^:private MID-line-atom
+    "Contains all opened lines, keyed by MID: {MID1 TDL1, MID2 TDL2}"
+    (atom {}))
+
+
+
+
+(defonce ^:private consumers
+         #_"A map of maps: {MID {Object channel}}.
+         There is also key :selected-MID for consumers subscribing to whatever input is selected:
+
+          The channels are all audio data consumers.  They must not block!
+          (Should be sliding or dropping buffers).
+
+          The format of the audio data is: ...
+          "
+         (atom {}))
+
+
+(defn- add-consumer [MID obj ch]
+    (println "add-consumer obj:" obj " ch:" ch)
+    (swap! consumers assoc-in [MID obj] ch)
+    )
+
+
+(defn- feed-consumers
+    "puts given data on all channels listening to the given MID"
+    [MID data]
+    (loop [chans (@consumers MID)]
+        (when-let [[_ ch] (first chans)]
+            (>!! ch data)
+            (recur (rest chans)))))
+
+
+(defn- feeder-loop
+    "Reads data from the line matching the MID, and feeds it to consumers via 'feed-consumer'"
+    [MID]
+    (println "feeder-loop MID:" MID)
+    (let [
+          line (@MID-line-atom MID)
+          AIS (AudioInputStream. line)
+          buffer-size 4096 ;; 44.1k Hz / 2k samples = 22 Hz
+          buffer (byte-array buffer-size)
+          BAOS (ByteArrayOutputStream. buffer-size)
+          ]
+        (.start line)
+        (go-loop [len (.read AIS buffer)]
+            (.write BAOS buffer 0 len)
+            (feed-consumers MID (.toByteArray BAOS))
+            (.reset BAOS)
+            (recur (.read AIS buffer)))))
+
+
+#_(defn audio-bytes->samples [bytes bigendian?]
+    (let [
+          tempBB (java.nio.ByteBuffer/wrap bytes)
+          short-count (/ (count bytes) 2)
+          ]
+        (when-not bigendian? (.order tempBB java.nio.ByteOrder/LITTLE_ENDIAN))
+        (short-array short-count
+            (for [_ (range short-count)]
+                (.getShort tempBB)))))
+
+
+(defn audio-bytes->samples [bytes bigendian?]
+    (let [samples-array (short-array (/ (count bytes) 2))]
+        (-> (ByteBuffer/wrap bytes)
+            (.order (if bigendian? ByteOrder/BIG_ENDIAN ByteOrder/LITTLE_ENDIAN))
+            .asShortBuffer
+            (.get samples-array))
+        samples-array))
+
 
 (def ^:private all-MIDs-atom
   "Contains all mixers ever found, whether available now or not.
@@ -117,27 +190,144 @@ It there a need / purpose for for this, though, as long as whatever data they ar
   (atom #{}))
 
 (def ^:private selected-MID-atom
-  "contains a reference to selected MID/TDL."
+  #_"contains a reference to selected MID/TDL."
   (atom nil))
 
 
-(defn- get-selected-MID
+(defonce ^:private selected-input-panes-atom
+         #_"a set of panes which will contain"
+         (atom #{}))
+
+
+(declare set-active)
+(declare create-monitor-pane)
+
+(defn- selected-MID-watcher [k r o n]
+    (when (not= o n)
+       ; (println "selected-MID-watcher MID changed:" n)
+        (doseq [pane @selected-input-panes-atom]
+            (fx/set! pane
+                     (doto (create-monitor-pane n)
+                         (set-active)))
+            )))
+
+
+(defn mixer->MID
+    "Sometimes the MixerInfo may have its name truncated.
+     To avoid treating known mixers as new because the name was truncated in one instance and not another,
+     we in stead always compare mixers by MID, not MixerInfo."
+    [mixer]
+    (let [m (-> mixer .getMixerInfo)]
+        {:name (apply str (take 30 (.getName m)))
+         :description (.getDescription m)
+         :vendor (.getVendor m)
+         :version (.getVersion m)}))
+
+
+
+
+(defonce MIM-mixer-atom (atom {}))
+
+
+(defn- get-TDL-from-mixer [mixer]
+    (let [lines (.getTargetLines mixer)]
+        (if-not (empty? lines)
+            (first lines)
+            (.getLine mixer DEFAULT_MIC_TARGET_DATA_LINE_INFO))))
+
+
+(defn open-TDL [TDL]
+    (println "open-TDL")
+    (.open ^TargetDataLine TDL DEFAULT_MIC_FORMAT)
+    TDL)
+
+
+(defn open-TDL-safe [TDL]
+    (try
+        (open-TDL TDL)
+
+        (catch LineUnavailableException lue
+            (println " # LineUnavailableException (in open-TDL-safe):" lue)
+            (.printStackTrace lue)
+            nil )
+
+        (catch Exception e
+            (println " # Exception (in open-TDL-safe):" e)
+            (.printStackTrace e)
+            nil )
+        ))
+
+
+(defn refresh-MIDs
+    "queries for compatible lines, updates current-MIDs-atom, updates all-MIDs-atom
+    Returns vector of changed current lines: [added-lines removed-lines]"
+    []
+    (let [
+          found-mixers
+          (no-default (get-compatible-mixer-list DEFAULT_MIC_TARGET_DATA_LINE_INFO))
+
+          found-MIM-mixers
+          (into {} (map (fn [m] [(mixer->MID m) m]) found-mixers))
+
+          found-MIDs
+          (keys found-MIM-mixers)
+
+          [added-MIDs-set removed-MIDs-set _]
+          (data/diff (set found-MIDs) @current-MIDs-atom)
+          ]
+        (println "    added-MIDs-set:" added-MIDs-set)
+        (println "  removed-MIDs-set:" removed-MIDs-set)
+
+        (loop [MIDs added-MIDs-set]
+            (when-let[MID (first MIDs)] ;; sentinel
+                ;(println "new MID:" MID)
+                (when-not (@all-MIDs-atom MID)
+                    ;(println "Unseen! Adding to all-MIDs-atom")
+                    (swap! all-MIDs-atom conj MID)
+
+                    ;(println "    TODO: get line, open, add to lookup-map")
+                    (let [
+                          mixer (found-MIM-mixers MID)
+                          _ (println "  ## mixer:" mixer)
+                          TDL (open-TDL-safe (get-TDL-from-mixer mixer))
+                          ]
+                        ;; perhaps don't need to store mixer for mim?  but what the heck ...
+                        (swap! MIM-mixer-atom assoc MID mixer)
+                        ;; store this opened line "permanently"
+                        (swap! MID-line-atom assoc MID TDL)
+                        ;; start a read-loop which feeds to all consumers for that TDL
+                        (feeder-loop MID)
+                        ))
+                ;(println "Adding to current-MIDs-atom")
+                (swap! current-MIDs-atom conj MID)
+                (recur (rest MIDs))))
+
+        (when (seq removed-MIDs-set)
+            (swap! current-MIDs-atom
+                   (fn [clines]
+                       (set (filter #(not (removed-MIDs-set %)) clines)))))
+
+        ;; make sure there is a "watch" on selected-MID-atom
+        (when (zero? (count (.getWatches selected-MID-atom)))
+            (add-watch selected-MID-atom :selected-MID-watcher selected-MID-watcher))
+
+        ;; Update selected-MID-atom if necessary. If no MIDs, then nil
+        (when-not (@current-MIDs-atom @selected-MID-atom)
+            (reset! selected-MID-atom (first @current-MIDs-atom)))
+
+        [added-MIDs-set removed-MIDs-set]))
+
+
+
+(defn get-selected-MID
   "Returns the selected MID/TDL if not nil, and if in current-MIDs-atom,
   else it will return the first (default) MID/TDL from current-MIDs-atom"
   []
+    (when-not @selected-MID-atom
+        (refresh-MIDs))
+    @selected-MID-atom)
 
-  )
 
-(defn mixer->MID
-  "Sometimes the MixerInfo may have its name truncated.
-   To avoid treating known mixers as new because the name was truncated in one instance and not another,
-   we in stead always compare mixers by MID, not MixerInfo."
-  [mixer]
-  (let [m (-> mixer .getMixerInfo)]
-    {:name (apply str (take 30 (.getName m)))
-     :description (.getDescription m)
-     :vendor (.getVendor m)
-     :version (.getVersion m)}))
 
 
 
@@ -178,7 +368,69 @@ It there a need / purpose for for this, though, as long as whatever data they ar
     [outer-pane lights] ))
 
 
-(defn- monitor-pane [MID togglegroup]
+(defn- set-active [monitor-pane]
+    (let [
+          {:keys [MID lights-pane]} (.getUserData monitor-pane)
+          active (boolean (@current-MIDs-atom MID))
+          ]
+        (.setVisible lights-pane active)
+        ))
+
+
+(defn- clamp [low val high]
+    (let [
+          val (if (< val low) low val)
+          val (if (> val high) high val)
+          ]
+        val))
+
+
+(defn- biggest-sample [samples]
+    (max
+        (apply max samples)
+        (- (apply min samples))))
+
+
+(defn- calculate-prosent [data]
+    (-> data
+        (audio-bytes->samples (.isBigEndian DEFAULT_MIC_FORMAT))
+        biggest-sample
+        (/ Short/MAX_VALUE)
+        (* 100.)))
+
+
+(defn- create-monitor-channel [MID meter-lights]
+    (let [c (chan (sliding-buffer 1))]
+        (go-loop [data (<! c)
+                  cnt 0 prev-prosent 0 prev-sticky-prosent 0 prev-sticky-countdown 0]
+            (let [
+                  update?
+                  (= cnt 0)
+
+                  prosent
+                  (if update?
+                      (calculate-prosent data)
+                      prev-prosent)
+
+                  [sticky-prosent sticky-countdown]
+                  (if (> prosent prev-sticky-prosent)
+                      [prosent 30]
+                      (if (= prev-sticky-countdown 0)
+                          [0 0]
+                          [prev-sticky-prosent (dec prev-sticky-countdown)]))
+
+                  sticky-prosent
+                  (clamp 0 sticky-prosent 100)
+                  ]
+                (when update?
+                    (ignite meter-lights prosent sticky-prosent))
+
+                (recur (<! c)
+                       (mod (inc cnt) 2) prosent sticky-prosent sticky-countdown)))
+        c))
+
+
+(defn- create-monitor-pane [MID]
     (let [
           name (:name MID)
           description (:description MID)
@@ -189,66 +441,39 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           lights-pane
           (apply fx/vbox (conj meter-lights :spacing 1 :padding 2))
 
-          texts (fx/vbox (fx/text name) (fx/text description))
-          texts-and-meter (fx/hbox texts lights-pane)
+          texts
+          (fx/vbox (fx/text name) (fx/text description))
+
+          outer-pane
+          (doto
+              (fx/hbox texts lights-pane)
+              (.setUserData {:MID MID :lights-pane lights-pane}))
+          ]
+        (add-consumer MID outer-pane (create-monitor-channel MID meter-lights))
+
+        outer-pane))
+
+
+(defn- create-radiobutton-monitor-pane [MID togglegroup]
+    (let [
+          monitor-pane (create-monitor-pane MID)
 
           radio-button
           (doto (fx/radiobutton)
               (.setToggleGroup togglegroup)
-              (.setGraphic texts-and-meter)
+              (.setGraphic monitor-pane)
               )
           ]
-        (doto (fx/hbox radio-button texts-and-meter)
+        (doto (fx/hbox radio-button monitor-pane)
             (.setAlignment fx/Pos_CENTER)
             (fx/set-padding 0 0 0 20)
-            (.setUserData {:MID MID :lights-pane lights-pane :radiobutton radio-button})
+            (.setUserData {:MID MID
+                           :lights-pane (-> monitor-pane .getUserData :lights-pane)
+                           :radiobutton radio-button})
             )))
 
 
-(defn refresh-MIDs
-    "queries for compatible lines, updates current-MIDs-atom, updates all-MIDs-atom
-    Returns vector of changed current lines: [added-lines removed-lines]"
-    []
-    (let [
-;          all-MIDs-set (set @all-MIDs-atom)
 
-          found-mixers
-          (no-default (get-compatible-mixer-list DEFAULT_MIC_TARGET_DATA_LINE_INFO))
-
-          found-MIDs
-          (map mixer->MID found-mixers)
-
-          ;current-MIDs-set
-          ;(set @current-MIDs-atom)
-
-          [added-MIDs-set removed-MIDs-set _]
-          (data/diff (set found-MIDs) @current-MIDs-atom)
-          ]
-        (println " added-MIDs-set:" added-MIDs-set)
-        (println "removed-MIDs-set:" removed-MIDs-set)
-
-        (loop [MIDs added-MIDs-set]
-            (when-let[MID (first MIDs)] ;; sentinel
-                (println "new MID:" MID)
-                (when-not (@all-MIDs-atom MID)
-                    (println "Unseen! Adding to all-MIDs-atom")
-                    (swap! all-MIDs-atom conj MID)
-                    (println "    TODO: get line, open, add to lookup-map")
-                    )
-                (println "Adding to current-MIDs-atom")
-                (swap! current-MIDs-atom conj MID)
-                (recur (rest MIDs))))
-
-        (when (seq removed-MIDs-set)
-            (swap! current-MIDs-atom
-                   (fn [clines]
-                       (set (filter #(not (removed-MIDs-set %)) clines)))))
-
-        ;; Update selected-MID-atom if necessary. If no MIDs, then nil
-        (when-not (@current-MIDs-atom @selected-MID-atom)
-            (reset! selected-MID-atom (first @current-MIDs-atom)))
-
-        [added-MIDs-set removed-MIDs-set]))
 
 
 (defn refresh-inputs-pane [monitors-vbox]
@@ -257,9 +482,6 @@ It there a need / purpose for for this, though, as long as whatever data they ar
     (refresh-MIDs)
 
     (let [
-          ;current-MIDs-set
-          ;(set @current-MIDs-atom)
-
           monitors
           (-> monitors-vbox .getChildren)
 
@@ -273,10 +495,9 @@ It there a need / purpose for for this, though, as long as whatever data they ar
                 (when-not (monitor-MIDs-set m)
                     (println "adding monitor for MID:" m)
                     (fx/add monitors-vbox
-                            (monitor-pane
+                            (create-radiobutton-monitor-pane
                                 m
-                                (-> monitors-vbox .getUserData :togglegroup)
-                                )))
+                                (-> monitors-vbox .getUserData :togglegroup))))
 
                 (recur (rest MIDs))))
 
@@ -284,15 +505,11 @@ It there a need / purpose for for this, though, as long as whatever data they ar
         (loop [monitors (-> monitors-vbox .getChildren)]
             (when-let [m (first monitors)]
                 (let [
-                      monitor-MID (-> m .getUserData :MID)
-                      lights-pane (-> m .getUserData :lights-pane)
-                      radiobutton (-> m .getUserData :radiobutton)
-                      active (boolean (@current-MIDs-atom monitor-MID))
-                      selected (= @selected-MID-atom monitor-MID)
+                      {:keys [MID radiobutton]} (.getUserData m)
+                      selected (= @selected-MID-atom MID)
                       ]
-                    (.setVisible lights-pane active)
-                    (.setSelected radiobutton selected)
-                    )
+                    (set-active m)
+                    (.setSelected radiobutton selected))
 
                 (recur (rest monitors))))
         ))
@@ -301,7 +518,7 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 
 
 
-(defn- inputs-pane []
+(defn- input-selector-pane []
   (let [
         togglegroup
         (doto (ToggleGroup.)
@@ -310,7 +527,7 @@ It there a need / purpose for for this, though, as long as whatever data they ar
                     (fx/changelistener
                         [_ _ _ monitor-radiobutton]
                         (let [MID (-> monitor-radiobutton .getParent .getUserData :MID)]
-                            (println "selected MID:" MID)
+                            ;(println "selected MID:" MID)
                             (when-not(= @selected-MID-atom MID)
                                 (reset! selected-MID-atom MID)))))))
 
@@ -338,21 +555,38 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 
 
 
+(defn selected-input-pane []
+    (let [pane (fx/group)]
+        (refresh-MIDs)
+        (fx/set! pane (create-monitor-pane (get-selected-MID)))
+        ;; FIX: Memory leak: The panes aren't removed again when disposed of
+        (swap! selected-input-panes-atom conj pane)
+        pane))
+
+
+(defn- create-selected-input-stage []
+    (fx/now
+        (let []
+            (fx/stage
+                :title "selected input monitor"
+                :scene (fx/scene (selected-input-pane))
+                :sizetoscene true))))
 
 
 
-(defn create-inputs-stage []
+
+(defn- create-input-selector-stage []
   (fx/now
       (let [
             [pane refresh-button-action]
-            (inputs-pane)
+            (input-selector-pane)
 
             stage
             (fx/stage
                 :title "audio input selector"
                 :scene (fx/scene pane)
                 :sizetoscene true
-                :onhidden #(del-singleton :inputs-stage)
+                :onhidden #(del-singleton :input-selector-stage)
                 )
             ]
           (refresh-button-action)
@@ -360,9 +594,9 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           stage)))
 
 
-(defn inputs-stage []
-  (singleton :inputs-stage create-inputs-stage))
+(defn input-selector-stage []
+  (singleton :input-selector-stage create-input-selector-stage))
 
 
 ;;
-;(do (println "WARNING! Running george.audio.input/inputs-stage") (inputs-stage))
+;(do (println "WARNING! Running george.audio.input/inputs-stage")  (input-selector-stage) (create-selected-input-stage))
