@@ -3,15 +3,16 @@
   george.turtle.core
 
   (:require
-    [george.javafx.core :as fx]
-    :reload)
+      [george.javafx.core :as fx]
+      :reload
+      [george.javafx.util :as fxu]
+      :reload
+    )
 
-    (:import (javafx.scene.paint PhongMaterial)
+    (:import (javafx.scene.paint PhongMaterial Color)
              (javafx.scene.shape Box)
              (javafx.scene PerspectiveCamera DepthTest)
              (javafx.scene.transform Rotate Translate)))
-
-
 
 
 
@@ -19,6 +20,7 @@
   (doto (PhongMaterial. color)
     (.setSpecularColor color)
   ))
+
 
 (defn- box [w h d]
   (Box. w h d))
@@ -39,20 +41,15 @@
                   (.setTranslateZ 50))
               )
           ]
-        (doto group
-            ;(.setTranslateX 150)
-            (.setTranslateY 0)
-            ;(.setTranslateZ 200)
-            )
-
   (fx/add parent group)))
 
 
 (defn- set-grid [parent]
     (doseq [i (range -100 100 10)]
-        (fx/add parent (fx/line :x1 -200 :x2 200 :y1 i :y2 i))
-
+        (fx/add parent (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/GRAY))
+        (fx/add parent (fx/line :y1 -200 :y2 200 :x1 i :x2 i :color Color/GRAY))
         ))
+
 
 (defn- build-camera []
     (let [
@@ -64,31 +61,18 @@
           transforms-map {:t t :ry ry :rx rx}
 
           camera
-          (PerspectiveCamera. true)
+          (doto (PerspectiveCamera. true)
+              (.setNearClip 0.1)
+              (.setFarClip 1000))
+
           rotate-group  ;; rotates the camera in all directions, and holds the camera
           (doto (fx/group camera)
               (-> .getTransforms (.setAll [rz ry rx])))
 
           translate-group  ;; moved the camera around, and holds the rotate-group
           (doto (fx/group rotate-group)
-              (-> .getTransforms (.setAll [t]))
-              )
-
+              (-> .getTransforms (.setAll [t])))
           ]
-        (doto camera
-        (.setNearClip 0.1)
-        (.setFarClip 1000)
-
-        ;(.setRotate 45)
-
-;        (-> .getTransforms (.setAll transforms))
-;        (.setRotationAxis Rotate/X_AXIS)
-;        (.setRotate 45)
-
- ;       (.setTranslateX 50)
- ;       (.setTranslateY -50)
- ;       (.setTranslateZ -20)
-        )
 
     [camera translate-group transforms-map]))
 
@@ -96,89 +80,37 @@
 ;; Will hold a reference to the one (and only) screen
 (def ^:private screen-singleton (atom nil))
 
+
 (def ^:private FORWARD_STEP 10)
 (def ^:private SLIDE_STEP 5)
 (def ^:private ROTATE_STEP 2)
 
 
-(defn- print-camera-transforms [ct]
+(defn- print-camera-transforms [{:keys [t rx ry]}]
+    (println "  pan:" (.getAngle ry) "  tilt:" (.getAngle rx)
+             "  x:" (.getX t) "  y:" (.getY t) "  z:" (.getZ t)))
+
+
+(defn- forward [{:keys [t ry]} step]
     (let [
-          t (:t ct)
+          pan (.getAngle ry)
+          [xf yf] (fxu/degrees->xy-factor pan)
           ]
-        (println "  pan:" (-> ct :ry .getAngle) "  tilt:" (-> ct :rx .getAngle)
-                 "  x:" (.getX t) "  y:" (.getY t) "  z:" (.getZ t))))
-
-
-(defn- forward [camera-transform step]
-    (let [
-          ct camera-transform
-          t (:t ct)
-          pan (-> ct :ry .getAngle)
-          _ (println "pan:" pan)
-
-;          a (-> ct :rx .getAngle)
-          ]
-;        (print-camera-transforms c)
-        ;(-> ct :rx (.setAngle 0))
-        (-> t (.setZ (+ (-> t .getZ) step)))
-        ;(-> ct :rx (.setAngle a))
+        ;(println "pan:" pan " xf:" xf " yf:" yf)
+        (.setZ t (+ (.getZ t) (* step xf)))
+        (.setX t (+ (.getX t) (* step yf)))
         ))
 
 
-(defn- pan [camera-tranforms astep]
+(defn- sideways [{:keys [t ry]} step]
     (let [
-          ct camera-tranforms
-          t (:t ct)
-          ry (:ry ct)
-          x (.getX t)
-          z (.getZ t)
+          pan (.getAngle ry)
+          [xf yf] (fxu/degrees->xy-factor pan)
           ]
-        ;(print-camera-transforms ct)
-        ;(.setX t (+ x x))
-        ;(.setY t (+ y y))
-        ;(.setPivotX ry x)
-        ;(.setPivotZ ry z)
-        ;(println "ry:" ry)
-        (.setAngle ry (+ (.getAngle ry) astep))
-        ;(.setX t x)
-        ;(.setY t y)
+        ;(println "slide  pan:" pan " xf:" xf " yf:" yf)
+        (.setX t (+ (.getX t) (* step xf)))
+        (.setZ t (- (.getZ t) (* step yf)))
         ))
-
-#_(defn- pan [camera astep]
-    (let [
-          c camera
-          ]
-        (doto c
-            (.setRotationAxis Rotate/Y_AXIS)
-            (.setRotate (+ (-> c .getRotate) astep)))))
-
-
-#_(comment
-      #{:UP}
-      #(-> ct :t (.setZ (+ (-> ct :t .getZ) FORWARD_STEP)))
-      #{:DOWN}
-      #(-> ct :t (.setZ (- (-> ct :t .getZ) FORWARD_STEP)))
-      )
-
-(defn-  tilt [camera-tranforms astep]
-    (let [
-          ct camera-tranforms
-          t (:t ct)
-          x (.getX t)
-          y (.getY t)
-          ]
-        (print-camera-transforms ct)
-        ;(.setX t (+ x x))
-        ;(.setY t (+ y y))
-        (-> ct :rx (.setAngle (+ (-> ct :rx .getAngle) astep)))
-        ;(.setX t x)
-        ;(.setY t y)
-        ))
-
-
-(defn- slide [camera-transforms step]
-    (let [ct camera-transforms]
-        (-> ct :t (.setX (+ (-> ct :t .getX) step)))))
 
 
 (defn- elevate [camera-transforms step]
@@ -186,18 +118,28 @@
         (-> ct :t (.setY (+ (-> ct :t .getY) step)))))
 
 
-(defn- set-keyhandler [scene camera camera-transforms]
+
+(defn- turn [camera-tranforms astep]
+    (let [ry (:ry camera-tranforms)]
+        (.setAngle ry (+ (.getAngle ry) astep))))
+
+(defn-  tilt [camera-tranforms astep]
+    (let [rx (:rx camera-tranforms)]
+        (.setAngle rx (+ (.getAngle rx) astep))))
+
+
+
+(defn- set-keyhandler [scene camera-transforms]
     (let [
-          c camera
           ct camera-transforms
 
           keypressedhandler
           (fx/key-pressed-handler
               {
                #{:RIGHT}
-               #(pan ct ROTATE_STEP)
+               #(turn ct ROTATE_STEP)
                #{:LEFT}
-               #(pan ct (- ROTATE_STEP))
+               #(turn ct (- ROTATE_STEP))
 
                #{:UP}
                #(forward ct FORWARD_STEP)
@@ -205,9 +147,9 @@
                #(forward ct (- FORWARD_STEP))
 
                #{:CTRL :RIGHT}
-               #(slide ct SLIDE_STEP)
+               #(sideways ct SLIDE_STEP)
                #{:CTRL :LEFT}
-               #(slide ct (- SLIDE_STEP))
+               #(sideways ct (- SLIDE_STEP))
 
                #{:CTRL :UP}
                #(elevate ct (- SLIDE_STEP))
@@ -220,11 +162,9 @@
                #(tilt ct (- ROTATE_STEP))
 
                 #{:C} #(print-camera-transforms ct)
-
                })
           ]
-        (.setOnKeyPressed scene keypressedhandler)
-        ))
+        (.setOnKeyPressed scene keypressedhandler)))
 
 
 
@@ -239,7 +179,7 @@
                    (.setDepthTest DepthTest/ENABLE))
 
           scene (fx/scene root :size [400 300] :fill fx/WHITESMOKE :depthbuffer true)
-          ;; SceneAntialiasing.BALANCED
+          ;;
           stage
           (fx/now (fx/stage
                     :title "george.turtle"
@@ -273,10 +213,8 @@
                         (.setTranslateZ 25)
                         ))
 
-      (set-keyhandler scene camera camera-transforms)
-
-
-      (.setUserData stage {:world world :camera camera})
+      (set-keyhandler scene camera-transforms)
+      (.setUserData stage {:world world :camera-transforms camera-transforms})
 
       stage)))
 
