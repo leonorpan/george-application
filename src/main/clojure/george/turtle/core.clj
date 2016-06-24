@@ -10,7 +10,7 @@
     )
 
     (:import (javafx.scene.paint PhongMaterial Color)
-             (javafx.scene.shape Box)
+             (javafx.scene.shape Box Cylinder Sphere)
              (javafx.scene PerspectiveCamera DepthTest)
              (javafx.scene.transform Rotate Translate)))
 
@@ -26,28 +26,64 @@
   (Box. w h d))
 
 
-(defn- set-3D-axis [parent]
+(defn- cylinder [radius height]
+    (Cylinder. radius height))
+
+(defn- sphere [radius]
+    (Sphere. radius))
+
+(defn- axis-3D []
     (let [group
           (fx/group
-              (doto (box 100 2 2)
+              (doto (cylinder 1 100)
                   (.setMaterial (material fx/RED))
+                  (.setRotationAxis Rotate/Z_AXIS)
+                  (.setRotate 90)
                   (.setTranslateX 50))
-              (doto (box 2 100 2)
+
+              (doto (cylinder 1 100)
                   (.setMaterial (material fx/GREEN))
                   (.setTranslateY 50))
-              (doto
-                  (box 2 2 100)
+
+              (doto (cylinder 1 100)
                   (.setMaterial (material fx/BLUE))
+                  (.setRotationAxis Rotate/X_AXIS)
+                  (.setRotate 90)
                   (.setTranslateZ 50))
+
+              (doto (sphere 2)
+                  (.setMaterial (material Color/GRAY)))
+
               )
           ]
-  (fx/add parent group)))
+  group))
 
 
-(defn- set-grid [parent]
-    (doseq [i (range -100 100 10)]
-        (fx/add parent (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/GRAY))
-        (fx/add parent (fx/line :y1 -200 :y2 200 :x1 i :x2 i :color Color/GRAY))
+(defn- grid-2D []
+    (let [group (fx/group)]
+        (doseq [i (range -200 210 10)]
+            ;; horizontal lines
+            (fx/add group (fx/line :x1 -300 :x2 300 :y1 i :y2 i :color Color/GRAY))
+            ;; vertical lines
+            (fx/add group (fx/line :y1 -300 :y2 300 :x1 i :x2 i :color Color/GRAY))
+            )
+        group))
+
+
+(defn- grid-2D []
+    (let [
+          ;w 400
+          ;h 300
+          ;bleed 50
+          ]
+        (apply fx/group
+               (concat
+                   ;; horizontal lines
+                   (for [i (range -150 160 10)]
+                       (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/GRAY))
+                   ;; vertical lines
+                   (for [i (range -200 210 10)]
+                       (fx/line :y1 -150 :y2 150 :x1 i :x2 i :color Color/GRAY))))
         ))
 
 
@@ -123,9 +159,38 @@
     (let [ry (:ry camera-tranforms)]
         (.setAngle ry (+ (.getAngle ry) astep))))
 
+
 (defn-  tilt [camera-tranforms astep]
     (let [rx (:rx camera-tranforms)]
         (.setAngle rx (+ (.getAngle rx) astep))))
+
+
+
+
+(defn- transition [to {:keys [t ry rx] :as camera-transformations}]
+    (let [
+          ]
+    (condp = to
+        :2D
+        (.play (fx/simple-timeline 500 nil
+                                    [(.angleProperty ry) 0]
+                                    [(.angleProperty rx) -90]
+                                    [(.xProperty t) 0]
+                                    [(.yProperty t) -570]
+                                    [(.zProperty t) 0]
+                                    ))
+
+        :3D
+        (.play (fx/simple-timeline 500 nil
+                                   [(.angleProperty ry) -4]
+                                    [(.angleProperty rx) -20]
+                                    [(.xProperty t) 25]
+                                    [(.yProperty t) -105]
+                                    [(.zProperty t) -270]
+                                    ))
+
+
+        (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to))))))
 
 
 
@@ -162,6 +227,9 @@
                #(tilt ct (- ROTATE_STEP))
 
                 #{:C} #(print-camera-transforms ct)
+
+               #{:CTRL :DIGIT2} #(transition :2D camera-transforms)
+               #{:CTRL :DIGIT3} #(transition :3D camera-transforms)
                })
           ]
         (.setOnKeyPressed scene keypressedhandler)))
@@ -174,12 +242,8 @@
     (let [
           world (fx/group)
           [camera camera-group camera-transforms] (build-camera)
-
-          root (doto (fx/group world camera-group)
-                   (.setDepthTest DepthTest/ENABLE))
-
+          root (doto (fx/group world camera-group) (.setDepthTest DepthTest/ENABLE))
           scene (fx/scene root :size [400 300] :fill fx/WHITESMOKE :depthbuffer true)
-          ;;
           stage
           (fx/now (fx/stage
                     :title "george.turtle"
@@ -187,10 +251,6 @@
                     :scene scene
                     :onhidden #(reset! screen-singleton nil)))
           ]
-      #_(doto root
-        (-> .layoutXProperty (.bind (-> stage .widthProperty (.divide 2))))
-        (-> .layoutYProperty (.bind (-> stage .heightProperty (.divide 2))))
-        )
 
       (.setCamera scene camera)
 
@@ -202,9 +262,8 @@
                                   ]
                                  )))
 
-      (set-3D-axis world)
-      (fx/add world (fx/line :x2 50 :y2 50))
-      (set-grid world)
+      (fx/add world (axis-3D))
+      (fx/add world (grid-2D))
 
       (fx/add world (doto (box 50 50 50)
                         (.setMaterial (material fx/BLUE))
