@@ -12,13 +12,14 @@
     (:import (javafx.scene.paint PhongMaterial Color)
              (javafx.scene.shape Box Cylinder Sphere)
              (javafx.scene PerspectiveCamera DepthTest)
-             (javafx.scene.transform Rotate Translate)))
+             (javafx.scene.transform Rotate Translate)
+             (javafx.geometry Point3D)))
 
 
 
 (defn- material [color]
   (doto (PhongMaterial. color)
-    (.setSpecularColor color)
+    (.setSpecularColor (.darker color))
   ))
 
 
@@ -32,8 +33,55 @@
 (defn- sphere [radius]
     (Sphere. radius))
 
+
+(defn- ensure-Point3D [p]
+    (cond
+        (vector? p)
+        (if (= (count p) 3)
+            (Point3D. (first p) (second p) (get p 2))
+            (throw (IllegalArgumentException. "point must be vector of [x y z]")))
+
+        (instance? Point3D p)
+        p
+
+        :default
+        (throw (IllegalArgumentException. (str "Unknown type for point:" p "  Must be [x y z] or Point3D")))))
+
+
+(defn- bar [start-p end-p radius color]
+    (let [
+          start-p (ensure-Point3D start-p)
+          end-p (ensure-Point3D end-p)
+          res-vec (.subtract start-p end-p)
+          length (.magnitude res-vec)
+          mid (.midpoint start-p end-p)
+          y-axis-angle (.angle Rotate/Y_AXIS res-vec)
+          rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
+          ]
+        (doto (cylinder radius length)
+            (.setMaterial (material color))
+            (-> .getTransforms
+                (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
+                          (Rotate. y-axis-angle rotation-axis)])))))
+
+
+
 (defn- axis-3D []
-    (let [group
+    (let [
+          start-p (Point3D. 100 0 0)
+          end-p (Point3D. 0 0 100)
+          res-vec (.subtract start-p end-p)
+          length (.magnitude res-vec)
+          mid (.midpoint start-p end-p)
+          y-axis-angle (.angle Rotate/Y_AXIS res-vec)
+          rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
+          test1 (doto (cylinder 1 length)
+                    (.setMaterial (material Color/ORANGE))
+                    (-> .getTransforms
+                        (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
+                                  (Rotate. y-axis-angle rotation-axis)])))
+
+          group
           (fx/group
               (doto (cylinder 1 100)
                   (.setMaterial (material fx/RED))
@@ -54,20 +102,16 @@
               (doto (sphere 2)
                   (.setMaterial (material Color/GRAY)))
 
+              (bar [100 0 0] [0 100 0] 1 Color/ORANGE)
+              (bar [ 0 100 0] [0 0 100] 1 Color/PURPLE)
+              (bar [ 0 0 100] [100 0 0] 1 Color/BROWN)
+              (bar [100 0 0] [100 100 100] 1 Color/ORANGE)
+              (bar [ 0 100 0] [100 100 100] 1 Color/PURPLE)
+              (bar [ 0 0 100] [100 100 100] 1 Color/BROWN)
               )
           ]
   group))
 
-
-(defn- grid-2D []
-    (let [group (fx/group)]
-        (doseq [i (range -200 210 10)]
-            ;; horizontal lines
-            (fx/add group (fx/line :x1 -300 :x2 300 :y1 i :y2 i :color Color/GRAY))
-            ;; vertical lines
-            (fx/add group (fx/line :y1 -300 :y2 300 :x1 i :x2 i :color Color/GRAY))
-            )
-        group))
 
 
 (defn- grid-2D []
@@ -87,23 +131,24 @@
         ))
 
 
+
 (defn- build-camera []
     (let [
-
-          t (Translate. 25 -105 -240);(Translate. 50 -150 -250)
-          rz (Rotate. 0 Rotate/Z_AXIS)  ;; unused, actually
-          ry (Rotate. -4 Rotate/Y_AXIS)  ;; pan
-          rx (Rotate. -20 Rotate/X_AXIS) ;; tilt
-          transforms-map {:t t :ry ry :rx rx}
 
           camera
           (doto (PerspectiveCamera. true)
               (.setNearClip 0.1)
               (.setFarClip 1000))
 
+          t (Translate. 25 -105 -240);(Translate. 50 -150 -250)
+          ry (Rotate. -4 Rotate/Y_AXIS)  ;; pan
+          rx (Rotate. -20 Rotate/X_AXIS) ;; tilt
+          transforms-map {:t t :ry ry :rx rx :camera camera}
+
+
           rotate-group  ;; rotates the camera in all directions, and holds the camera
           (doto (fx/group camera)
-              (-> .getTransforms (.setAll [rz ry rx])))
+              (-> .getTransforms (.setAll [ry rx])))
 
           translate-group  ;; moved the camera around, and holds the rotate-group
           (doto (fx/group rotate-group)
@@ -167,7 +212,7 @@
 
 
 
-(defn- transition [to {:keys [t ry rx] :as camera-transformations}]
+(defn- transition [to {:keys [t ry rx camera] :as camera-transformations}]
     (let [
           ]
     (condp = to
