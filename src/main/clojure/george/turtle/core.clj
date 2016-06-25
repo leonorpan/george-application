@@ -136,12 +136,14 @@
               (doto (sphere [0 0] 2)
                   (.setMaterial (material Color/GRAY)))
 
-              (bar [100 0 0] [0 100 0] 1 Color/ORANGE)
-              (bar [ 0 100 0] [0 0 100] 1 Color/PURPLE)
-              (bar [ 0 0 100] [100 0 0] 1 Color/BROWN)
-              (bar [100 0 0] [100 100 100] 1 Color/ORANGE)
-              (bar [ 0 100 0] [100 100 100] 1 Color/PURPLE)
-              (bar [ 0 0 100] [100 100 100] 1 Color/BROWN)
+              #_(comment
+                  (bar [100 0 0] [0 100 0] 1 Color/ORANGE)
+                  (bar [0 100 0] [0 0 100] 1 Color/PURPLE)
+                  (bar [0 0 100] [100 0 0] 1 Color/BROWN)
+                  (bar [100 0 0] [100 100 100] 1 Color/ORANGE)
+                  (bar [0 100 0] [100 100 100] 1 Color/PURPLE)
+                  (bar [0 0 100] [100 100 100] 1 Color/BROWN)
+                  )
               )
           ]
   group))
@@ -166,18 +168,27 @@
 
 
 (defn- create-turtle []
-    (fx/group (doto (fx/group
-                        (sphere [0 0] 1)
-                        (bar [0 0]    [2.5 -5] 1) ;; right front
-                        (sphere [2.5 -5] 1)
-                        (bar [2.5 -5] [0 -4] 1) ;; right back
-                        (sphere [0 -4] 1)
-                        (bar [0 -4]   [-2.5 -5] 1) ;; left back
-                        (sphere [-2.5 -5] 1)
-                        (bar [-2.5 -5] [0 0] 1) ;; left front
-                        )
-                  (set-translate [0 2.5]))
-              ))
+
+    (doto
+        (fx/group
+            (doto
+                (fx/group
+                    (sphere [0 0] 1)
+                    (bar [0 0] [2.5 -5] 1) ;; right front
+                    (sphere [2.5 -5] 1)
+                    (bar [2.5 -5] [0 -4] 1) ;; right back
+                    (sphere [0 -4] 1)
+                    (bar [0 -4] [-2.5 -5] 1) ;; left back
+                    (sphere [-2.5 -5] 1)
+                    (bar [-2.5 -5] [0 0] 1) ;; left front
+                    )
+                (set-translate [0 2.5])  ;; center turtle (compensate for drawing from [0 0])
+                (.setRotate -90)  ;; face right (along x-axis)
+                )
+            )
+        (.setRotate 90)  ;; start turtle facing up (along y-axis): 90 degrees.
+        ))
+
 
 (defn- build-camera []
     (let [
@@ -219,7 +230,7 @@
              "  x:" (.getX t) "  y:" (.getY t) "  z:" (.getZ t)))
 
 
-(defn- forward [{:keys [t ry]} step]
+(defn- c-forward [{:keys [t ry]} step]
     (let [
           pan (.getAngle ry)
           [xf yf] (fxu/degrees->xy-factor pan)
@@ -230,7 +241,7 @@
         ))
 
 
-(defn- sideways [{:keys [t ry]} step]
+(defn- c-sideways [{:keys [t ry]} step]
     (let [
           pan (.getAngle ry)
           [xf yf] (fxu/degrees->xy-factor pan)
@@ -241,25 +252,25 @@
         ))
 
 
-(defn- elevate [camera-transforms step]
+(defn- c-elevate [camera-transforms step]
     (let [ct camera-transforms]
         (-> ct :t (.setY (+ (-> ct :t .getY) step)))))
 
 
 
-(defn- turn [camera-tranforms astep]
+(defn- c-turn [camera-tranforms astep]
     (let [ry (:ry camera-tranforms)]
         (.setAngle ry (+ (.getAngle ry) astep))))
 
 
-(defn-  tilt [camera-tranforms astep]
+(defn-  c-tilt [camera-tranforms astep]
     (let [rx (:rx camera-tranforms)]
         (.setAngle rx (+ (.getAngle rx) astep))))
 
 
 
 
-(defn- transition [to {:keys [t ry rx camera] :as camera-transformations}]
+(defn- c-transition [to {:keys [t ry rx camera] :as camera-transformations}]
     (let [
           ]
     (condp = to
@@ -294,39 +305,40 @@
           (fx/key-pressed-handler
               {
                #{:RIGHT}
-               #(turn ct ROTATE_STEP)
+               #(c-turn ct ROTATE_STEP)
                #{:LEFT}
-               #(turn ct (- ROTATE_STEP))
+               #(c-turn ct (- ROTATE_STEP))
 
                #{:UP}
-               #(forward ct FORWARD_STEP)
+               #(c-forward ct FORWARD_STEP)
                #{:DOWN}
-               #(forward ct (- FORWARD_STEP))
+               #(c-forward ct (- FORWARD_STEP))
 
                #{:CTRL :RIGHT}
-               #(sideways ct SLIDE_STEP)
+               #(c-sideways ct SLIDE_STEP)
                #{:CTRL :LEFT}
-               #(sideways ct (- SLIDE_STEP))
+               #(c-sideways ct (- SLIDE_STEP))
 
                #{:CTRL :UP}
-               #(elevate ct (- SLIDE_STEP))
+               #(c-elevate ct (- SLIDE_STEP))
                #{:CTRL :DOWN}
-               #(elevate ct SLIDE_STEP)
+               #(c-elevate ct SLIDE_STEP)
 
                #{:SHIFT :CTRL :UP}
-               #(tilt ct ROTATE_STEP)
+               #(c-tilt ct ROTATE_STEP)
                #{:SHIFT :CTRL :DOWN}
-               #(tilt ct (- ROTATE_STEP))
+               #(c-tilt ct (- ROTATE_STEP))
 
                 #{:C} #(print-camera-transforms ct)
 
-               #{:CTRL :DIGIT2} #(transition :2D camera-transforms)
-               #{:CTRL :DIGIT3} #(transition :3D camera-transforms)
+               #{:CTRL :DIGIT2} #(c-transition :2D camera-transforms)
+               #{:CTRL :DIGIT3} #(c-transition :3D camera-transforms)
                })
           ]
         (.setOnKeyPressed scene keypressedhandler)))
 
 
+(def ^:private current-turtle-atom (atom nil))
 
 ;; creates and returns a new  visible screen
 (defn- create-screen []
@@ -357,14 +369,7 @@
       (fx/add world (axis-3D))
       (fx/add world (grid-2D))
 
-      (fx/add world (doto (box 50 50 50)
-                        (.setMaterial (material fx/BLUE))
-                        (.setTranslateX 75)
-                        (.setTranslateY 75)
-                        (.setTranslateZ 25)
-                        ))
-
-      (fx/add world (doto (create-turtle)
+      (fx/add world (doto (reset! current-turtle-atom (create-turtle))
                         (.setTranslateX 20)
                         (.setTranslateY -20)
                         ))
@@ -376,14 +381,86 @@
 
 
 
+
+
+(defn- current-turtle []
+    (let [
+
+          ]
+
+        @current-turtle-atom))
+
+
+;;;; API ;;;;
+
+
 ;; Creates and show a new screen, or brings the existing screen to front
 (defn screen []
-  (if @screen-singleton
-    @screen-singleton
-    (reset! screen-singleton (create-screen))))
+    (if @screen-singleton
+        @screen-singleton
+        (reset! screen-singleton (create-screen))))
+
+(defn angle [turtle]
+    (.getRotate turtle))
+
+
+(defn x [turtle]
+    (.getLayoutX turtle))
+
+
+(defn y [turtle]
+    (.getLayoutY turtle))
+
+(defn forward
+    ([distance]
+     (forward (current-turtle) distance))
+    ([turtle distance]
+     (let [ang (angle turtle)
+           x (x turtle)
+           y (y turtle)
+           line nil ;(if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
+           [x-factor y-factor] (fxu/degrees->xy-factor ang)
+           new-x (+ x (* distance x-factor))
+           new-y (+ y (* distance y-factor))
+           ]
+         #_(when line
+               (add-node (:screen @pen) line)
+               (fx/later (. node toFront)))
+
+         (fx/synced-keyframe
+             (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
+             [(.layoutXProperty turtle) new-x]
+             [(.layoutYProperty turtle) new-y]
+             (if line [(.endXProperty line) new-x])
+             (if line [(.endYProperty line) new-y])
+             )
+         turtle))
+    )
+
+
+(defn left
+        ([degrees]
+         (left (current-turtle) degrees))
+    ([turtle degrees]
+     (let [new-angle (+ (angle turtle) degrees)]
+         (fx/synced-keyframe
+             (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
+             [(.rotateProperty turtle) new-angle]
+             )
+         turtle))
+    )
+
+
+(defn right
+    ([degrees]
+     (right (current-turtle) degrees))
+    ([turtle degrees]
+     (left turtle (- degrees)))
+    )
 
 
 
+;;;; main ;;;;
 
 (defn -main
   "Launches an input-stage as a stand-alone app."
