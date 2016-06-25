@@ -5,6 +5,8 @@
   (:require
       [george.javafx.core :as fx]
       :reload
+      [george.javafx.java :as fxj]
+      :reload
       [george.javafx.util :as fxu]
       :reload
     )
@@ -111,8 +113,11 @@
 
 
 
+(defn- create-origo []
+    (sphere [0 0] 2 Color/GRAY))
 
-(defn- axis-3D []
+
+(defn- create-axis-3D []
     ;; http://netzwerg.ch/blog/2015/03/22/javafx-3d-line/
     (let [
           group
@@ -133,8 +138,6 @@
                   (.setRotate 90)
                   (.setTranslateZ 50))
 
-              (doto (sphere [0 0] 2)
-                  (.setMaterial (material Color/GRAY)))
 
               #_(comment
                   (bar [100 0 0] [0 100 0] 1 Color/ORANGE)
@@ -150,7 +153,7 @@
 
 
 
-(defn- grid-2D []
+(defn- create-grid-2D []
     (let [
           ;w 400
           ;h 300
@@ -160,34 +163,34 @@
                (concat
                    ;; horizontal lines
                    (for [i (range -150 160 10)]
-                       (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/GRAY))
+                       (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/LIGHTGRAY))
                    ;; vertical lines
                    (for [i (range -200 210 10)]
-                       (fx/line :y1 -150 :y2 150 :x1 i :x2 i :color Color/GRAY))))
+                       (fx/line :y1 -150 :y2 150 :x1 i :x2 i :color Color/LIGHTGRAY))))
         ))
 
 
 (defn- create-turtle []
-
+    (let [r 1.25]
     (doto
         (fx/group
             (doto
                 (fx/group
-                    (sphere [0 0] 1)
-                    (bar [0 0] [2.5 -5] 1) ;; right front
-                    (sphere [2.5 -5] 1)
-                    (bar [2.5 -5] [0 -4] 1) ;; right back
-                    (sphere [0 -4] 1)
-                    (bar [0 -4] [-2.5 -5] 1) ;; left back
-                    (sphere [-2.5 -5] 1)
-                    (bar [-2.5 -5] [0 0] 1) ;; left front
+                    (sphere [0 0] r)
+                    (bar [0 0] [2.5 -5] r) ;; right front
+                    (sphere [2.5 -5] r)
+                    (bar [2.5 -5] [0 -4] r) ;; right back
+                    (sphere [0 -4] r)
+                    (bar [0 -4] [-2.5 -5] r) ;; left back
+                    (sphere [-2.5 -5] r)
+                    (bar [-2.5 -5] [0 0] r) ;; left front
                     )
                 (set-translate [0 2.5])  ;; center turtle (compensate for drawing from [0 0])
                 (.setRotate -90)  ;; face right (along x-axis)
                 )
             )
         (.setRotate 90)  ;; start turtle facing up (along y-axis): 90 degrees.
-        ))
+        )))
 
 
 (defn- build-camera []
@@ -201,19 +204,17 @@
           t (Translate. 25 -105 -240);(Translate. 50 -150 -250)
           ry (Rotate. -4 Rotate/Y_AXIS)  ;; pan
           rx (Rotate. -20 Rotate/X_AXIS) ;; tilt
-          transforms-map {:t t :ry ry :rx rx :camera camera}
 
 
-          rotate-group  ;; rotates the camera in all directions, and holds the camera
+          inner-camera-group  ;; rotates the camera in all directions, and holds the camera
           (doto (fx/group camera)
               (-> .getTransforms (.setAll [ry rx])))
 
-          translate-group  ;; moved the camera around, and holds the rotate-group
-          (doto (fx/group rotate-group)
+          outer-camera-group  ;; moved the camera around, and holds the rotate-group
+          (doto (fx/group inner-camera-group)
               (-> .getTransforms (.setAll [t])))
           ]
-
-    [camera translate-group transforms-map]))
+        {:t t :ry ry :rx rx :c camera :n outer-camera-group}))
 
 
 ;; Will hold a reference to the one (and only) screen
@@ -270,83 +271,93 @@
 
 
 
-(defn- c-transition [to {:keys [t ry rx camera] :as camera-transformations}]
+(defn- c-transition [to {:keys [origo axis grid] {:keys [t ry rx]} :camera}]
     (let [
           ]
-    (condp = to
-        :2D
-        (.play (fx/simple-timeline 500 nil
-                                    [(.angleProperty ry) 0]
-                                    [(.angleProperty rx) -90]
-                                    [(.xProperty t) 0]
-                                    [(.yProperty t) -570]
-                                    [(.zProperty t) 0]
-                                    ))
+        (condp = to
+            :2D
+            (.play (fx/simple-timeline 500
+                                       #(doseq [n [origo axis grid]] (.setVisible n false))
+                                       [(.angleProperty ry) 0]
+                                       [(.angleProperty rx) -90]
+                                       [(.xProperty t) 0]
+                                       [(.yProperty t) -570]
+                                       [(.zProperty t) 0]
+                                       ))
 
-        :3D
-        (.play (fx/simple-timeline 500 nil
-                                   [(.angleProperty ry) -4]
-                                    [(.angleProperty rx) -20]
-                                    [(.xProperty t) 25]
-                                    [(.yProperty t) -105]
-                                    [(.zProperty t) -270]
-                                    ))
+            :3D
+            (do
+                (doseq [n [origo axis grid]] (.setVisible n true))
+                (.play (fx/simple-timeline 500
+                                           nil
+                                           [(.angleProperty ry) -4]
+                                           [(.angleProperty rx) -20]
+                                           [(.xProperty t) 25]
+                                           [(.yProperty t) -105]
+                                           [(.zProperty t) -270]
+                                           )))
 
 
-        (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to))))))
+            (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to)))))
 
 
 
-(defn- set-keyhandler [scene camera-transforms]
-    (let [
-          ct camera-transforms
+    (defn- set-keyhandler [scene {:keys [origo axis grid camera] :as state}]
+        (let [
 
-          keypressedhandler
-          (fx/key-pressed-handler
-              {
-               #{:RIGHT}
-               #(c-turn ct ROTATE_STEP)
-               #{:LEFT}
-               #(c-turn ct (- ROTATE_STEP))
+              keypressedhandler
+              (fx/key-pressed-handler
+                  {
+                   #{:RIGHT}
+                                    #(c-turn camera ROTATE_STEP)
+                   #{:LEFT}
+                                    #(c-turn camera (- ROTATE_STEP))
 
-               #{:UP}
-               #(c-forward ct FORWARD_STEP)
-               #{:DOWN}
-               #(c-forward ct (- FORWARD_STEP))
+                   #{:UP}
+                                    #(c-forward camera FORWARD_STEP)
+                   #{:DOWN}
+                                    #(c-forward camera (- FORWARD_STEP))
 
-               #{:CTRL :RIGHT}
-               #(c-sideways ct SLIDE_STEP)
-               #{:CTRL :LEFT}
-               #(c-sideways ct (- SLIDE_STEP))
+                   #{:CTRL :RIGHT}
+                                    #(c-sideways camera SLIDE_STEP)
+                   #{:CTRL :LEFT}
+                                    #(c-sideways camera (- SLIDE_STEP))
 
-               #{:CTRL :UP}
-               #(c-elevate ct (- SLIDE_STEP))
-               #{:CTRL :DOWN}
-               #(c-elevate ct SLIDE_STEP)
+                   #{:CTRL :UP}
+                                    #(c-elevate camera (- SLIDE_STEP))
+                   #{:CTRL :DOWN}
+                                    #(c-elevate camera SLIDE_STEP)
 
-               #{:SHIFT :CTRL :UP}
-               #(c-tilt ct ROTATE_STEP)
-               #{:SHIFT :CTRL :DOWN}
-               #(c-tilt ct (- ROTATE_STEP))
+                   #{:SHIFT :CTRL :UP}
+                                    #(c-tilt camera ROTATE_STEP)
+                   #{:SHIFT :CTRL :DOWN}
+                                    #(c-tilt camera (- ROTATE_STEP))
 
-                #{:C} #(print-camera-transforms ct)
+                   #{:CTRL :DIGIT2} #(c-transition :2D state)
+                   #{:CTRL :DIGIT3} #(c-transition :3D state)
 
-               #{:CTRL :DIGIT2} #(c-transition :2D camera-transforms)
-               #{:CTRL :DIGIT3} #(c-transition :3D camera-transforms)
-               })
-          ]
-        (.setOnKeyPressed scene keypressedhandler)))
+                   #{:CTRL :C}      #(print-camera-transforms camera)
+                   #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
+                   #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
+                   #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))
+
+                   })
+              ]
+            (.setOnKeyPressed scene keypressedhandler))))
 
 
 (def ^:private current-turtle-atom (atom nil))
+
+(declare position)
+(declare home)
 
 ;; creates and returns a new  visible screen
 (defn- create-screen []
   (fx/now
     (let [
           world (fx/group)
-          [camera camera-group camera-transforms] (build-camera)
-          root (doto (fx/group world camera-group) (.setDepthTest DepthTest/ENABLE))
+          {:keys [c n] :as camera} (build-camera)
+          root (doto (fx/group world n) (.setDepthTest DepthTest/ENABLE))
           scene (fx/scene root :size [600 600] :fill fx/WHITESMOKE :depthbuffer true)
           stage
           (fx/now (fx/stage
@@ -354,28 +365,45 @@
                     :sizetoscene true
                     :scene scene
                     :onhidden #(reset! screen-singleton nil)))
+
+          origo (create-origo)
+          axis (create-axis-3D)
+          grid (create-grid-2D)
+          state {:camera camera :origo origo :axis axis :grid grid}
           ]
 
-      (.setCamera scene camera)
+      (.setCamera scene c)
+
+      (set-keyhandler scene state)
 
       (doto world
           (-> .getTransforms (.setAll
                                  [
-                                  (Translate. 0 0 0)
+                                  ;(Translate. 0 0 0)
                                   (Rotate. 90 0 0 0 Rotate/X_AXIS)
                                   ]
                                  )))
 
-      (fx/add world (axis-3D))
-      (fx/add world (grid-2D))
 
-      (fx/add world (doto (reset! current-turtle-atom (create-turtle))
-                        (.setTranslateX 20)
-                        (.setTranslateY -20)
-                        ))
+      (fx/add world origo)
+      (fx/add world axis)
+      (fx/add world grid)
+      (fx/add world (reset! current-turtle-atom (create-turtle)))
 
-      (set-keyhandler scene camera-transforms)
-      (.setUserData stage {:world world :camera-transforms camera-transforms})
+      ;; a small startup animation
+      (heading 180)
+      (position 100 -50)
+      (fxj/thread
+          (Thread/sleep 500)
+          (position 0 -50)
+          (heading 90)
+          (Thread/sleep 700)
+          (c-transition :2D state)
+          (Thread/sleep 700)
+          (home)
+          )
+
+      (.setUserData stage {})
 
       stage)))
 
@@ -411,6 +439,23 @@
 (defn y [turtle]
     (.getLayoutY turtle))
 
+(defn position ([x y]
+    (position (current-turtle) x y))
+    ([turtle x y]
+     (let [
+           ]
+     (fx/synced-keyframe
+         250  ;; 600 px per second
+         [(.layoutXProperty turtle) x]
+         [(.layoutYProperty turtle) y]
+;         (if line [(.endXProperty line) new-x])
+ ;        (if line [(.endYProperty line) new-y])
+         ))
+
+        turtle)
+    )
+
+
 (defn forward
     ([distance]
      (forward (current-turtle) distance))
@@ -438,6 +483,18 @@
     )
 
 
+(defn heading
+    ([degrees]
+     (heading (current-turtle) degrees))
+    ([turtle degrees]
+     (fx/synced-keyframe
+         200
+         [(.rotateProperty turtle) degrees]
+         )
+        turtle)
+    )
+
+
 (defn left
         ([degrees]
          (left (current-turtle) degrees))
@@ -459,6 +516,13 @@
     )
 
 
+(defn home
+    ([]
+     (home (current-turtle)))
+    ([turtle]
+     (heading turtle 90)
+     (position turtle 0 0))
+    )
 
 ;;;; main ;;;;
 
