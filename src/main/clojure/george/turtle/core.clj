@@ -17,6 +17,26 @@
 
 
 
+
+(defn- ensure-Point3D [p]
+    (cond
+        (vector? p)
+        (condp = (count p)
+            2
+            (Point3D. (first p) (second p) 0)
+            3
+            (Point3D. (first p) (second p) (get p 2))
+            ;; default
+            (throw (IllegalArgumentException. "point must be vector of [x y] or [x y z]")))
+
+        (instance? Point3D p)
+        p
+
+        :default
+        (throw (IllegalArgumentException. (str "Unknown type for point:" p "  Must be [x y z] or Point3D")))))
+
+
+
 (defn- material [color]
   (doto (PhongMaterial. color)
     (.setSpecularColor (.darker color))
@@ -27,60 +47,74 @@
   (Box. w h d))
 
 
+
 (defn- cylinder [radius height]
     (Cylinder. radius height))
 
-(defn- sphere [radius]
-    (Sphere. radius))
+
+(defn- X [p] (if (vector? p) (first p) (.getX p)))
+(defn- Y [p] (if (vector? p) (second p) (.getY p)))
+(defn- Z [p] (if (vector? p) (get p 2 0) (.getZ p)))
 
 
-(defn- ensure-Point3D [p]
-    (cond
-        (vector? p)
-        (if (= (count p) 3)
-            (Point3D. (first p) (second p) (get p 2))
-            (throw (IllegalArgumentException. "point must be vector of [x y z]")))
-
-        (instance? Point3D p)
-        p
-
-        :default
-        (throw (IllegalArgumentException. (str "Unknown type for point:" p "  Must be [x y z] or Point3D")))))
+(defn- set-translate [n p]
+    (doto n
+        (.setTranslateX (X p))
+        (.setTranslateY (Y p))
+        (.setTranslateZ (Z p))))
 
 
-(defn- bar [start-p end-p radius color]
-    (let [
-          start-p (ensure-Point3D start-p)
-          end-p (ensure-Point3D end-p)
-          res-vec (.subtract start-p end-p)
-          length (.magnitude res-vec)
-          mid (.midpoint start-p end-p)
-          y-axis-angle (.angle Rotate/Y_AXIS res-vec)
-          rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
-          ]
-        (doto (cylinder radius length)
-            (.setMaterial (material color))
-            (-> .getTransforms
-                (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
-                          (Rotate. y-axis-angle rotation-axis)])))))
+(defn- set-material [n color]
+    (.setMaterial n (material color))
+    n)
+
+
+
+(defn- sphere
+    ([]
+     (sphere [0 0 0]))
+    ([loc-p]
+     (sphere loc-p 0.5))
+    ([loc-p radius]
+     (sphere loc-p radius fx/ANTHRECITE))
+     ([loc-p radius color]
+      (let [loc-p (ensure-Point3D loc-p)]
+          (doto (Sphere. radius)
+              (set-material color)
+              (set-translate loc-p))))
+    )
+
+
+
+(defn- bar
+    ([start-p end-p]
+     (bar start-p end-p 0.5))
+    ([start-p end-p radius]
+     (bar start-p end-p radius fx/ANTHRECITE))
+    ([start-p end-p radius color]
+     (let [
+           start-p (ensure-Point3D start-p)
+           end-p (ensure-Point3D end-p)
+           res-vec (.subtract start-p end-p)
+           length (.magnitude res-vec)
+           mid (.midpoint start-p end-p)
+           y-axis-angle (.angle Rotate/Y_AXIS res-vec)
+           rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
+           ]
+         (doto (cylinder radius length)
+             (.setMaterial (material color))
+             (-> .getTransforms
+                 (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
+                           (Rotate. y-axis-angle rotation-axis)])))))
+    )
+
+
 
 
 
 (defn- axis-3D []
+    ;; http://netzwerg.ch/blog/2015/03/22/javafx-3d-line/
     (let [
-          start-p (Point3D. 100 0 0)
-          end-p (Point3D. 0 0 100)
-          res-vec (.subtract start-p end-p)
-          length (.magnitude res-vec)
-          mid (.midpoint start-p end-p)
-          y-axis-angle (.angle Rotate/Y_AXIS res-vec)
-          rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
-          test1 (doto (cylinder 1 length)
-                    (.setMaterial (material Color/ORANGE))
-                    (-> .getTransforms
-                        (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
-                                  (Rotate. y-axis-angle rotation-axis)])))
-
           group
           (fx/group
               (doto (cylinder 1 100)
@@ -99,7 +133,7 @@
                   (.setRotate 90)
                   (.setTranslateZ 50))
 
-              (doto (sphere 2)
+              (doto (sphere [0 0] 2)
                   (.setMaterial (material Color/GRAY)))
 
               (bar [100 0 0] [0 100 0] 1 Color/ORANGE)
@@ -131,6 +165,19 @@
         ))
 
 
+(defn- create-turtle []
+    (fx/group (doto (fx/group
+                        (sphere [0 0] 1)
+                        (bar [0 0]    [2.5 -5] 1) ;; right front
+                        (sphere [2.5 -5] 1)
+                        (bar [2.5 -5] [0 -4] 1) ;; right back
+                        (sphere [0 -4] 1)
+                        (bar [0 -4]   [-2.5 -5] 1) ;; left back
+                        (sphere [-2.5 -5] 1)
+                        (bar [-2.5 -5] [0 0] 1) ;; left front
+                        )
+                  (set-translate [0 2.5]))
+              ))
 
 (defn- build-camera []
     (let [
@@ -288,10 +335,10 @@
           world (fx/group)
           [camera camera-group camera-transforms] (build-camera)
           root (doto (fx/group world camera-group) (.setDepthTest DepthTest/ENABLE))
-          scene (fx/scene root :size [400 300] :fill fx/WHITESMOKE :depthbuffer true)
+          scene (fx/scene root :size [600 600] :fill fx/WHITESMOKE :depthbuffer true)
           stage
           (fx/now (fx/stage
-                    :title "george.turtle"
+                    :title "Turtle - graphics"
                     :sizetoscene true
                     :scene scene
                     :onhidden #(reset! screen-singleton nil)))
@@ -315,6 +362,11 @@
                         (.setTranslateX 75)
                         (.setTranslateY 75)
                         (.setTranslateZ 25)
+                        ))
+
+      (fx/add world (doto (create-turtle)
+                        (.setTranslateX 20)
+                        (.setTranslateY -20)
                         ))
 
       (set-keyhandler scene camera-transforms)
