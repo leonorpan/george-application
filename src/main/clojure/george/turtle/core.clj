@@ -346,10 +346,119 @@
             (.setOnKeyPressed scene keypressedhandler))))
 
 
+
 (def ^:private current-turtle-atom (atom nil))
 
-(declare position)
-(declare home)
+(defn- current-turtle []
+    (let [
+
+          ]
+
+        @current-turtle-atom))
+
+
+;;;; API ;;;;
+
+
+
+
+(defn angle [turtle]
+    (.getRotate turtle))
+
+
+(defn x [turtle]
+    (.getLayoutX turtle))
+
+
+(defn y [turtle]
+    (.getLayoutY turtle))
+
+(defn position
+    ([x y]
+     (position (current-turtle) x y))
+    ([turtle x y]
+     (let [
+           ]
+         (fx/synced-keyframe
+             250  ;; 600 px per second
+             [(.layoutXProperty turtle) x]
+             [(.layoutYProperty turtle) y]
+             ;         (if line [(.endXProperty line) new-x])
+             ;        (if line [(.endYProperty line) new-y])
+             ))
+
+     turtle)
+    )
+
+
+(defn forward
+    ([distance]
+     (forward (current-turtle) distance))
+    ([turtle distance]
+     (let [ang (angle turtle)
+           x (x turtle)
+           y (y turtle)
+           line nil ;(if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
+           [x-factor y-factor] (fxu/degrees->xy-factor ang)
+           new-x (+ x (* distance x-factor))
+           new-y (+ y (* distance y-factor))
+           ]
+         #_(when line
+               (add-node (:screen @pen) line)
+               (fx/later (. node toFront)))
+
+         (fx/synced-keyframe
+             (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
+             [(.layoutXProperty turtle) new-x]
+             [(.layoutYProperty turtle) new-y]
+             (if line [(.endXProperty line) new-x])
+             (if line [(.endYProperty line) new-y])
+             )
+         turtle))
+    )
+
+
+(defn heading
+    ([degrees]
+     (heading (current-turtle) degrees))
+    ([turtle degrees]
+     (fx/synced-keyframe
+         200
+         [(.rotateProperty turtle) degrees]
+         )
+     turtle)
+    )
+
+
+(defn left
+    ([degrees]
+     (left (current-turtle) degrees))
+    ([turtle degrees]
+     (let [new-angle (+ (angle turtle) degrees)]
+         (fx/synced-keyframe
+             (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
+             [(.rotateProperty turtle) new-angle]
+             )
+         turtle))
+    )
+
+
+(defn right
+    ([degrees]
+     (right (current-turtle) degrees))
+    ([turtle degrees]
+     (left turtle (- degrees)))
+    )
+
+
+(defn home
+    ([]
+     (home (current-turtle)))
+    ([turtle]
+     (heading turtle 90)
+     (position turtle 0 0))
+    )
+
 
 ;; creates and returns a new  visible screen
 (defn- create-screen []
@@ -411,15 +520,7 @@
 
 
 
-(defn- current-turtle []
-    (let [
 
-          ]
-
-        @current-turtle-atom))
-
-
-;;;; API ;;;;
 
 
 ;; Creates and show a new screen, or brings the existing screen to front
@@ -428,101 +529,8 @@
         @screen-singleton
         (reset! screen-singleton (create-screen))))
 
-(defn angle [turtle]
-    (.getRotate turtle))
 
 
-(defn x [turtle]
-    (.getLayoutX turtle))
-
-
-(defn y [turtle]
-    (.getLayoutY turtle))
-
-(defn position ([x y]
-    (position (current-turtle) x y))
-    ([turtle x y]
-     (let [
-           ]
-     (fx/synced-keyframe
-         250  ;; 600 px per second
-         [(.layoutXProperty turtle) x]
-         [(.layoutYProperty turtle) y]
-;         (if line [(.endXProperty line) new-x])
- ;        (if line [(.endYProperty line) new-y])
-         ))
-
-        turtle)
-    )
-
-
-(defn forward
-    ([distance]
-     (forward (current-turtle) distance))
-    ([turtle distance]
-     (let [ang (angle turtle)
-           x (x turtle)
-           y (y turtle)
-           line nil ;(if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
-           [x-factor y-factor] (fxu/degrees->xy-factor ang)
-           new-x (+ x (* distance x-factor))
-           new-y (+ y (* distance y-factor))
-           ]
-         #_(when line
-               (add-node (:screen @pen) line)
-               (fx/later (. node toFront)))
-
-         (fx/synced-keyframe
-             (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
-             [(.layoutXProperty turtle) new-x]
-             [(.layoutYProperty turtle) new-y]
-             (if line [(.endXProperty line) new-x])
-             (if line [(.endYProperty line) new-y])
-             )
-         turtle))
-    )
-
-
-(defn heading
-    ([degrees]
-     (heading (current-turtle) degrees))
-    ([turtle degrees]
-     (fx/synced-keyframe
-         200
-         [(.rotateProperty turtle) degrees]
-         )
-        turtle)
-    )
-
-
-(defn left
-        ([degrees]
-         (left (current-turtle) degrees))
-    ([turtle degrees]
-     (let [new-angle (+ (angle turtle) degrees)]
-         (fx/synced-keyframe
-             (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
-             [(.rotateProperty turtle) new-angle]
-             )
-         turtle))
-    )
-
-
-(defn right
-    ([degrees]
-     (right (current-turtle) degrees))
-    ([turtle degrees]
-     (left turtle (- degrees)))
-    )
-
-
-(defn home
-    ([]
-     (home (current-turtle)))
-    ([turtle]
-     (heading turtle 90)
-     (position turtle 0 0))
-    )
 
 ;;;; main ;;;;
 
