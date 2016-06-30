@@ -13,10 +13,17 @@
 
     (:import (javafx.scene.paint PhongMaterial Color)
              (javafx.scene.shape Box Cylinder Sphere)
-             (javafx.scene PerspectiveCamera DepthTest)
+             (javafx.scene PerspectiveCamera DepthTest Node)
              (javafx.scene.transform Rotate Translate)
              (javafx.geometry Point3D)))
 
+
+
+(defn- assoc-userdata [^Node n k v]
+    (.setUserData n
+                  (assoc (if-let [m (.getUserData n)] m {})
+                      k v))
+    n)
 
 
 
@@ -102,6 +109,7 @@
            mid (.midpoint start-p end-p)
            y-axis-angle (.angle Rotate/Y_AXIS res-vec)
            rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
+
            ]
          (doto (cylinder radius length)
              (.setMaterial (material color))
@@ -190,6 +198,7 @@
                 )
             )
         (.setRotate 90)  ;; start turtle facing up (along y-axis): 90 degrees.
+        (.setUserData {:color "BLACK" :pendown true})
         )))
 
 
@@ -357,9 +366,13 @@
         @current-turtle-atom))
 
 
+
+(defn- get-userdata [t k]
+    (-> t .getUserData k))
+
+
+
 ;;;; API ;;;;
-
-
 
 
 (defn angle [turtle]
@@ -367,11 +380,14 @@
 
 
 (defn x [turtle]
-    (.getLayoutX turtle))
+    (.getTranslateX turtle))
 
 
 (defn y [turtle]
-    (.getLayoutY turtle))
+    (.getTranslateY turtle))
+
+(defn- z [turtle]
+    (.getTranslateY turtle))
 
 (defn position
     ([x y]
@@ -381,8 +397,8 @@
            ]
          (fx/synced-keyframe
              250  ;; 600 px per second
-             [(.layoutXProperty turtle) x]
-             [(.layoutYProperty turtle) y]
+             [(.translateXProperty turtle) x]
+             [(.translateYProperty turtle) y]
              ;         (if line [(.endXProperty line) new-x])
              ;        (if line [(.endYProperty line) new-y])
              ))
@@ -398,19 +414,30 @@
      (let [ang (angle turtle)
            x (x turtle)
            y (y turtle)
-           line nil ;(if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
+           z (z turtle)
            [x-factor y-factor] (fxu/degrees->xy-factor ang)
            new-x (+ x (* distance x-factor))
            new-y (+ y (* distance y-factor))
+
+           line
+           (when (get-userdata turtle :pendown)
+               (doto  (fx/line
+                          :x1 x
+                          :y1 y
+                          :color (Color/web (get-userdata turtle :color)))
+                   #_(bar [x y z][new-x new-y z] 0.5 (Color/web (get-userdata turtle :color)))
+                   (assoc-userdata :clearable true)))
+
            ]
-         #_(when line
-               (add-node (:screen @pen) line)
-               (fx/later (. node toFront)))
+         (when line
+             (fx/now
+                 (fx/add (get-userdata turtle :world) line)
+                (. turtle toFront)))
 
          (fx/synced-keyframe
              (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
-             [(.layoutXProperty turtle) new-x]
-             [(.layoutYProperty turtle) new-y]
+             [(.translateXProperty turtle) new-x]
+             [(.translateYProperty turtle) new-y]
              (if line [(.endXProperty line) new-x])
              (if line [(.endYProperty line) new-y])
              )
@@ -426,8 +453,7 @@
          200
          [(.rotateProperty turtle) degrees]
          )
-     turtle)
-    )
+     turtle))
 
 
 (defn left
@@ -459,6 +485,88 @@
      (position turtle 0 0))
     )
 
+(defn color
+    "returns the color as a 'web-compatible' color name."
+    ([]
+     (color (current-turtle)))
+    ([t]
+     (get-userdata t :color)))
+
+
+
+
+(defn set-color
+    "set the color as a 'web-compatible' color name."
+    ([c]
+     (set-color (current-turtle) c))
+    ([t c]
+     (.setUserData t (assoc (.getUserData t) :color c))
+     t))
+
+
+(defn pen-down
+    ([]
+     (pen-down (current-turtle)))
+    ([t]
+     (assoc-userdata t :pen-down true)))
+
+
+(defn pen-up
+    ([]
+     (pen-up (current-turtle)))
+    ([t]
+     (assoc-userdata t :pen-down false)))
+
+
+(defn clear
+    ([]
+     (clear (current-turtle)))
+    ([t]
+     (let [
+           world (get-userdata t :world)
+           filtered (filter #(not(get-userdata % :clearable)) (.getChildren world))
+           ]
+         (fx/later (-> world .getChildren (.setAll filtered)))
+         t)))
+
+
+(defn reset
+    ([]
+     (reset (current-turtle)))
+    ([t]
+     (clear t)
+     (home t)
+     (assoc-userdata t :color "BLACK")
+     (assoc-userdata t :pendown true)
+        t))
+
+
+
+(defn hide
+    ([]
+     (hide (current-turtle)))
+    ([t]
+     (.setVisible t false)
+        t))
+
+
+(defn show
+    ([]
+     (show (current-turtle)))
+    ([t]
+     (.setVisible t true)
+        t))
+
+
+
+(defn- colored-square []
+    (doseq [c ["BLACK" "RED" "BLUE" "GREEN"]]
+        (set-color c)
+        (forward 30)
+        (left 90)
+        ))
+
+(declare dev-run)
 
 ;; creates and returns a new  visible screen
 (defn- create-screen []
@@ -466,6 +574,11 @@
     (let [
           world (fx/group)
           {:keys [c n] :as camera} (build-camera)
+
+          turtle
+          (doto (reset! current-turtle-atom (create-turtle))
+              (assoc-userdata :world world))
+
           root (doto (fx/group world n) (.setDepthTest DepthTest/ENABLE))
           scene (fx/scene root :size [600 600] :fill fx/WHITESMOKE :depthbuffer true)
           stage
@@ -496,20 +609,29 @@
 
       (fx/add world origo)
       (fx/add world axis)
+      (.setVisible axis false)
       (fx/add world grid)
-      (fx/add world (reset! current-turtle-atom (create-turtle)))
+      (fx/add world turtle)
+
 
       ;; a small startup animation
       (heading 180)
       (position 100 -50)
       (fxj/thread
-          (Thread/sleep 500)
+          (Thread/sleep 700)
           (position 0 -50)
-          (heading 90)
+          (colored-square)
           (Thread/sleep 700)
           (c-transition :2D state)
+          (clear)
           (Thread/sleep 700)
+          (colored-square)
+          (Thread/sleep 700)
+          (clear)
+          (heading 90)
           (home)
+          (reset)
+          (dev-run)
           )
 
       (.setUserData stage {})
@@ -543,3 +665,9 @@
 ;;; DEV ;;;
 
 (println "WARNING: Running george.turtle.core/-main" (-main))
+
+
+
+(defn dev-run []
+    (println "dev-run called ...")
+    )
