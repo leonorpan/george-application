@@ -3,6 +3,7 @@
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
         [george.javafx.java :as j] :reload
         [george.javafx.core :as fx] :reload
+        [george.javafx.util :as fxu] :reload
         [george.code.highlight :as dah] :reload
         [george.code.core :as gcode] :reload
         [george.input :as input] :reload
@@ -95,8 +96,13 @@
 
 
 
-(defn code-editor-pane [^StringProperty chrome-title]
+(defn code-editor-pane [^StringProperty chrome-title & args]
+    (println " ## args:" args)
     (let [
+          default-kwargs {:file nil :library nil :namespace "user"}
+          [_ kwargs] (fxu/partition-args args default-kwargs)
+          _ (println "code-editor-pane kwargs:" kwargs)
+
           codearea
           #_(fx/textarea
               :text ""
@@ -106,8 +112,8 @@
               ;(. setFont (fx/SourceCodePro "Medium" 16))
               )
 
-              file-meta
-          (atom {:file nil :changed false})
+          file-meta
+          (atom {:file (:file kwargs) :changed false})
 
           file-label
           (doto
@@ -164,8 +170,8 @@
               #(j/thread
                   (println (if-let [f (:file @file-meta)]
                                (do (save-file-fn)
-                                   (load-from-file f "user"))
-                               (load-via-tempfile (gcode/text codearea) "user")))))
+                                   (load-from-file f (:namespace kwargs)))
+                               (load-via-tempfile (gcode/text codearea) (:namespace kwargs))))))
           pane
           (fx/borderpane
               :center codearea
@@ -192,7 +198,7 @@
 
 
 
-(defn new-code-stage []
+(defn new-code-stage [& args]
   ;(println "new-code-stage")
   (let [
         scene
@@ -206,14 +212,14 @@
                   :scene scene
                   :title "<unsaved file>"
                   ;:location (fx/centering-point-on-primary scene)
-                  :location [300 50]
+                  :location [300 80]
                   :size [800 600]
                   ;:oncloserequest #(println "closing ...")
                   ;:onhidden #(println "... closed")
                   ))
 
         [root load-button]
-        (code-editor-pane (. stage titleProperty))
+        (apply code-editor-pane (cons (. stage titleProperty) args))
         ]
       ;; replace empty group with pane bound to stages title)
       (. scene setRoot root)

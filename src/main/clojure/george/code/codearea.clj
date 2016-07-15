@@ -105,8 +105,7 @@
                         (doto
                             ;; colored background (for whole bar, if error)
                             (fx/rectangle
-                                :width 18
-                                :height 24
+                                :size [18 24]
                                 :fill Color/HOTPINK)
                             (-> .getStyleClass (. add "line-error-background")))
 

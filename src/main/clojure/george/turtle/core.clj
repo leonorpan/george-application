@@ -307,52 +307,52 @@
                                            )))
 
 
-            (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to)))))
+            (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to))))))
 
 
 
-    (defn- set-keyhandler [scene {:keys [origo axis grid camera] :as state}]
-        (let [
+(defn set-keyhandler [scene {:keys [origo axis grid camera] :as state}]
+    (let [
 
-              keypressedhandler
-              (fx/key-pressed-handler
-                  {
-                   #{:RIGHT}
-                                    #(c-turn camera ROTATE_STEP)
-                   #{:LEFT}
-                                    #(c-turn camera (- ROTATE_STEP))
+          keypressedhandler
+          (fx/key-pressed-handler
+              {
+               #{:RIGHT}
+                                #(c-turn camera ROTATE_STEP)
+               #{:LEFT}
+                                #(c-turn camera (- ROTATE_STEP))
 
-                   #{:UP}
-                                    #(c-forward camera FORWARD_STEP)
-                   #{:DOWN}
-                                    #(c-forward camera (- FORWARD_STEP))
+               #{:UP}
+                                #(c-forward camera FORWARD_STEP)
+               #{:DOWN}
+                                #(c-forward camera (- FORWARD_STEP))
 
-                   #{:CTRL :RIGHT}
-                                    #(c-sideways camera SLIDE_STEP)
-                   #{:CTRL :LEFT}
-                                    #(c-sideways camera (- SLIDE_STEP))
+               #{:CTRL :RIGHT}
+                                #(c-sideways camera SLIDE_STEP)
+               #{:CTRL :LEFT}
+                                #(c-sideways camera (- SLIDE_STEP))
 
-                   #{:CTRL :UP}
-                                    #(c-elevate camera (- SLIDE_STEP))
-                   #{:CTRL :DOWN}
-                                    #(c-elevate camera SLIDE_STEP)
+               #{:CTRL :UP}
+                                #(c-elevate camera (- SLIDE_STEP))
+               #{:CTRL :DOWN}
+                                #(c-elevate camera SLIDE_STEP)
 
-                   #{:SHIFT :CTRL :UP}
-                                    #(c-tilt camera ROTATE_STEP)
-                   #{:SHIFT :CTRL :DOWN}
-                                    #(c-tilt camera (- ROTATE_STEP))
+               #{:SHIFT :CTRL :UP}
+                                #(c-tilt camera ROTATE_STEP)
+               #{:SHIFT :CTRL :DOWN}
+                                #(c-tilt camera (- ROTATE_STEP))
 
-                   #{:CTRL :DIGIT2} #(c-transition :2D state)
-                   #{:CTRL :DIGIT3} #(c-transition :3D state)
+               #{:CTRL :DIGIT2} #(c-transition :2D state)
+               #{:CTRL :DIGIT3} #(c-transition :3D state)
 
-                   #{:CTRL :C}      #(print-camera-transforms camera)
-                   #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
-                   #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
-                   #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))
+               #{:CTRL :C}      #(print-camera-transforms camera)
+               #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
+               #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
+               #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))
 
-                   })
-              ]
-            (.setOnKeyPressed scene keypressedhandler))))
+               })
+          ]
+        (.setOnKeyPressed scene keypressedhandler)))
 
 
 
@@ -477,13 +477,6 @@
     )
 
 
-(defn home
-    ([]
-     (home (current-turtle)))
-    ([turtle]
-     (heading turtle 90)
-     (position turtle 0 0))
-    )
 
 (defn color
     "returns the color as a 'web-compatible' color name."
@@ -508,14 +501,14 @@
     ([]
      (pen-down (current-turtle)))
     ([t]
-     (assoc-userdata t :pen-down true)))
+     (assoc-userdata t :pendown true)))
 
 
 (defn pen-up
     ([]
      (pen-up (current-turtle)))
     ([t]
-     (assoc-userdata t :pen-down false)))
+     (assoc-userdata t :pendown false)))
 
 
 (defn clear
@@ -524,30 +517,17 @@
     ([t]
      (let [
            world (get-userdata t :world)
-           filtered (filter #(not(get-userdata % :clearable)) (.getChildren world))
+           filtered (filter #(not (get-userdata % :clearable)) (.getChildren world))
            ]
          (fx/later (-> world .getChildren (.setAll filtered)))
          t)))
-
-
-(defn reset
-    ([]
-     (reset (current-turtle)))
-    ([t]
-     (clear t)
-     (home t)
-     (assoc-userdata t :color "BLACK")
-     (assoc-userdata t :pendown true)
-        t))
-
-
 
 (defn hide
     ([]
      (hide (current-turtle)))
     ([t]
      (.setVisible t false)
-        t))
+     t))
 
 
 (defn show
@@ -555,7 +535,31 @@
      (show (current-turtle)))
     ([t]
      (.setVisible t true)
+     t))
+
+
+(defn home
+    ([]
+     (home (current-turtle)))
+    ([turtle]
+     (show turtle)
+     (heading turtle 90)
+     (position turtle 0 0))
+    )
+
+(defn reset
+    ([]
+     (reset (current-turtle)))
+    ([t]
+     (println "t:" t)
+     (clear t)
+     (show t)
+     (home t)
+     (assoc-userdata t :color "BLACK")
+     (assoc-userdata t :pendown true)
         t))
+
+
 
 
 
@@ -583,7 +587,7 @@
           scene (fx/scene root :size [600 600] :fill fx/WHITESMOKE :depthbuffer true)
           stage
           (fx/now (fx/stage
-                    :title "Turtle - graphics"
+                    :title "Turtle :: screen"
                     :sizetoscene true
                     :scene scene
                     :onhidden #(reset! screen-singleton nil)))
@@ -648,7 +652,8 @@
 ;; Creates and show a new screen, or brings the existing screen to front
 (defn screen []
     (if @screen-singleton
-        @screen-singleton
+        (doto @screen-singleton
+            (.toFront))
         (reset! screen-singleton (create-screen))))
 
 
@@ -664,7 +669,7 @@
 
 ;;; DEV ;;;
 
-(println "WARNING: Running george.turtle.core/-main" (-main))
+;(println "WARNING: Running george.turtle.core/-main" (-main))
 
 
 

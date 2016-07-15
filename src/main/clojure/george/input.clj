@@ -175,7 +175,7 @@
                 (fx/region :hgrow :always)
                 run-button
                 :spacing 3
-                :alignment Pos/TOP_RIGHT
+                :alignment fx/Pos_TOP_RIGHT
                 :insets [5 0 0 0])
 
             border-pane
