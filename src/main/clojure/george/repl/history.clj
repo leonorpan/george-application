@@ -92,16 +92,16 @@
             ""
             (if (= (count items) (count items-global))
               "; No more (global) history.\n"
-              (format))))]))
-"; No more 'local' history.
+              (format
+                "; No more 'local' history.
 ; To access 'global' history use:
 ;    SHIFT-%s-up/down.
-" SHORTCUT_KEY
+" SHORTCUT_KEY))))]
 
-      (reset! current-history-index-atom i)
-      (doto code-area
-          (.replaceText content))
-          ;(.selectRange 0 0)
-          ;(.setStyleSpans 0 (compute-highlighting content))
+    (reset! current-history-index-atom i)
+    (doto code-area
+        (.replaceText content))))
+        ;(.selectRange 0 0)
+        ;(.setStyleSpans 0 (compute-highlighting content))
 
 

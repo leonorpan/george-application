@@ -136,4 +136,4 @@
 
             )))
 
-(-main)
+;(println "WARNING: Running george.example.stars/-main" (-main))

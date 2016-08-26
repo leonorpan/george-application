@@ -139,4 +139,4 @@
 
 
 
-;(println "  ## WARNING: running `-main` from dev.andante.dnd") (-main)
+;(println "WARNING: Running dev.andante.dnd/-main") (-main)

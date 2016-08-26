@@ -6,7 +6,7 @@
         [george.javafx.core :as fx]
         :reload
 
-        [george.input :as input]
+        [george.repl.input :as input]
         :reload
         [george.editor :as editor]
         :reload
@@ -89,15 +89,15 @@
              (launcher-scene)
 
              stage
-             (fx/now (fx/stage)
-                 :scene scene
-                 :location [100 50]
-                 :sizetoscene true
-                 :title "George"
-                 :ontop true
-                 :resizable false
-                 ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-                 :oncloserequest (launcher-close-handler))]
+             (fx/now (fx/stage
+                       :scene scene
+                       :location [100 50]
+                       :sizetoscene true
+                       :title "George"
+                       :ontop true
+                       :resizable false
+                       ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+                       :oncloserequest (launcher-close-handler)))]
 
 
         stage))

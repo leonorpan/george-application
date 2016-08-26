@@ -1,4 +1,4 @@
-(ns george.input
+(ns george.repl.input
 
     (:require
         [clojure.repl :refer [doc]]
@@ -39,70 +39,67 @@
 
 (defn- print-error
 
-    ([^ExceptionInfo ei
-        (let [{:keys [after before]} (ex-data ei)]
-            (print-error after before
-                (. ei getMessage) (. ei getCause) ei))
+    ([^ExceptionInfo ei]
+     (let [{:keys [after before]} (ex-data ei)]
+        (print-error after before (. ei getMessage) (. ei getCause) ei)))
 
-        ([after before msg cause exception
-            (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
-                (output/output :err  loc-str)
-                (.println output/standard-err  loc-str)
-                (.printStackTrace (or cause exception)))])]))
+    ([after before msg cause exception]
+     (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
+        (output/output :err  loc-str)
+        (.println output/standard-err  loc-str)
+        (.printStackTrace (or cause exception)))))
 
 
 
 (defn- read-eval-print [code]
     (println)
     (output/output :in (with-newline code))
-    (let [rdr (LineNumberingPushbackReader. (StringReader. code))
+    (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
 
-            ;; inspiration:
-            ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
-            ;;   https://github.com/pallet/ritz/blob/develop/repl-utils/src/ritz/repl_utils/compile.clj
-             (push-thread-bindings
-                 {Compiler/LINE_BEFORE (Integer. (int 0))
-                  Compiler/LINE_AFTER (Integer. (int 0))})
-             (try
+      ;; inspiration:
+      ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
+      ;;   https://github.com/pallet/ritz/blob/develop/repl-utils/src/ritz/repl_utils/compile.clj
+       (push-thread-bindings
+           {Compiler/LINE_BEFORE (Integer. (int 0))
+            Compiler/LINE_AFTER (Integer. (int 0))})
+       (try
 
-                (loop []
-                    (let [
-                             after [(.getLineNumber rdr ) (.getColumnNumber rdr)]
-                             _ (.. Compiler/LINE_BEFORE (set (Integer. (first after))))
+          (loop []
+              (let [
+                       after [(.getLineNumber rdr ) (.getColumnNumber rdr)]
+                       _ (.. Compiler/LINE_BEFORE (set (Integer. (first after))))
 
-                             form
-                             (try
-                                  (read rdr false :eof)
-                                 ;; pass exception into form for later handdling
-                                  (catch Exception e e))
+                       form
+                       (try
+                            (read rdr false :eof)
+                           ;; pass exception into form for later handling
+                            (catch Exception e e))
 
-                            before [(.getLineNumber rdr ) (.getColumnNumber rdr)]
-                            _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))]
+                      before [(.getLineNumber rdr ) (.getColumnNumber rdr)]
+                      _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))]
 
+                   (if (instance? Exception form)
+                       (print-error after before (.getMessage form ) (.getCause form ) form)
 
+                       (when-not (= form :eof)
+                           (when-not (instance? Exception form)
+                               (try
+                                   (output/output :res (with-newline (eval form)))
+                                   (catch Exception e
+                                       (throw
+                                           (ex-info
+                                               (. e getMessage)
+                                               {:after after :before before}
+                                               (. e getCause)))))
+                               (recur))))))
+          (catch ExceptionInfo ei
+              (print-error ei))
 
-                        (if (instance? Exception form)
-                            (print-error after before (.getMessage form ) (.getCause form ) form))
-
-                        (when-not (= form :eof)
-                            (when-not (instance? Exception form)
-                                (try
-                                    (output/output :res (with-newline (eval form)))
-                                    (catch Exception e
-                                        (throw
-                                            (ex-info
-                                                (. e getMessage)
-                                                {:after after :before before}
-                                                (. e getCause)))))
-                                (recur))))
-                 (catch ExceptionInfo ei
-                     (print-error ei))
-
-                 (finally
-                     (pop-thread-bindings))
+          (finally
+            (pop-thread-bindings)))
 
 
-                 (str *ns*)))]))
+       (str *ns*)))
 
 
 #_(defn- read-eval-print-in-ns
@@ -185,9 +182,9 @@
                 (fx/button
                     (str  \u25C0)  ;; up: \u25B2
                     :onaction #(do-history-fn hist/PREV false)
-                    :tooltip (format)))]))
-"Previous 'local' history.          %s-LEFT
-Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY
+                    :tooltip (format
+                               "Previous 'local' history.          %s-LEFT
+Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
                 ; (-> .getStyleClass (.add "default-button"))
                 ;(.setId "repl-prev-button")
 
@@ -198,9 +195,9 @@ Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY
                 (fx/button
                     (str \u25B6)  ;; down \u25BC
                     :onaction #(do-history-fn hist/NEXT false)
-                    :tooltip (format)))
-"Next 'local' history.          %s-RIGHT
-Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY
+                    :tooltip (format
+                               "Next 'local' history.          %s-RIGHT
+Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
                 ; (-> .getStyleClass (.add "default-button"))
                 ;(.setId "repl-next-button")
 
@@ -211,9 +208,9 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY
                 "Eval"
                 :width 130
                 :onaction #(do-run-fn false)
-                :tooltip (format))
-"Run code, then clear.          %s-ENTER
-Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY
+                :tooltip (format
+                           "Run code, then clear.          %s-ENTER
+Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
 
             button-box
@@ -248,7 +245,7 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY
                                   #{:SHIFT :CTRL :RIGHT} #(do-history-fn hist/NEXT true)
 
                                   #{:CTRL :ENTER} #(do-run-fn true)
-                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)})
+                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)})]
 
 
 
@@ -257,7 +254,7 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY
         ;; TODO: colorcode also when history is the same
         ;; TODO: nicer tooltips.  (monospace and better colors)
 
-        scene
+        scene))
 
 
 
@@ -297,4 +294,4 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY
 
 ;;; DEV ;;;
 
-(println "WARNING: Running george.input/-main" (-main))
+;(println "WARNING: Running george.input/-main" (-main))

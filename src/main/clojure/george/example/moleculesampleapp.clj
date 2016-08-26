@@ -4,16 +4,16 @@
   (:require
     [george.javafx.core :as fx]
     :reload
-    [george.javafx.java :as fxj] :reload
+    [george.javafx.java :as fxj] :reload)
 
-    )
 
-    (:import (javafx.scene DepthTest Scene PerspectiveCamera Node)
-             (javafx.scene.paint Color PhongMaterial)
-             (moleculesampleapp Xform)
-             (javafx.scene.shape Box Cylinder Sphere)
-             (javafx.scene.transform Rotate)
-             (javafx.geometry Point2D)))
+
+  (:import (javafx.scene DepthTest Scene PerspectiveCamera Node)
+           (javafx.scene.paint Color PhongMaterial)
+           (moleculesampleapp Xform)
+           (javafx.scene.shape Box Cylinder Sphere)
+           (javafx.scene.transform Rotate)
+           (javafx.geometry Point2D)))
 
 (def CAMERA_INITIAL_DISTANCE -450)
 (def CAMERA_INITIAL_X_ANGLE 70.0)
@@ -39,8 +39,8 @@
 
 (defn- build-material [c1 c2]
     (doto (PhongMaterial. c1)
-        (.setSpecularColor c2)
-        ))
+        (.setSpecularColor c2)))
+
 
 (defn- white-material []
     (build-material Color/WHITE Color/LIGHTBLUE))
@@ -69,8 +69,8 @@
         (.setTranslateZ CAMERA_INITIAL_DISTANCE))
     (doto cameraXform
         (-> .rx (.setAngle CAMERA_INITIAL_X_ANGLE))
-        (-> .ry (.setAngle CAMERA_INITIAL_Y_ANGLE))
-        )
+        (-> .ry (.setAngle CAMERA_INITIAL_Y_ANGLE)))
+
   cameraXform)
 
 
@@ -79,8 +79,8 @@
             [
              [(red-material) AXIS_LENGTH 1 1]
              [(green-material) 1 AXIS_LENGTH 1]
-             [(blue-material) 1 1 AXIS_LENGTH]
-             ]]
+             [(blue-material) 1 1 AXIS_LENGTH]]]
+
         (fx/add axisGroup (doto (Box. w h d) (.setMaterial m))))
     (.setVisible axisGroup false)
     axisGroup)
@@ -122,8 +122,8 @@
           h2-f (doto (Xform. [h2]) (.setTx 100.))
           h1-side-f (Xform. [h1-f b1])
           h2-side-f (doto (Xform. [h2-f b2]) (.setRotateY HYDROGEN_ANGLE))
-          m-f (Xform. [o-f h1-side-f h2-side-f])
-          ]
+          m-f (Xform. [o-f h1-side-f h2-side-f])]
+
 
         (doto moleculeGroup
             (fx/add m-f))))
@@ -163,15 +163,15 @@
 (defn- handle-mouse [scene]
     (let [
           curr-pos (Point. 0 0)
-          prev-pos (Point. 0 0)
-          ]
+          prev-pos (Point. 0 0)]
+
         (.setOnMousePressed
             scene
             (fx/event-handler-2
                 [_ me]
-                (.set curr-pos (.getSceneX me) (.getSceneY me))
+                (.set curr-pos (.getSceneX me) (.getSceneY me))))
                 ;(.copy prev-pos curr-pos)
-                ))
+
 
         (.setOnMouseDragged
             scene
@@ -185,9 +185,9 @@
                       modifier (cond
                                    (.isControlDown me) CONTROL_MULTIPLIER
                                    (.isShiftDown me) SHIFT_MULTIPLIER
-                                   :default 1.)
+                                   :default 1.)]
 
-                      ]
+
                     (cond
                         (.isPrimaryButtonDown me)
                         (doto cameraXform
@@ -200,9 +200,9 @@
                         (.isMiddleButtonDown me)
                         (doto (.t cameraXform2)
                             (.setX (+ (.. cameraXform2 t getX) (* deltaX MOUSE_SPEED modifier TRACK_SPEED)))
-                            (.setY (+ (.. cameraXform2 t getY) (* deltaY MOUSE_SPEED modifier TRACK_SPEED)))
-                        )))))
-        ))
+                            (.setY (+ (.. cameraXform2 t getY) (* deltaY MOUSE_SPEED modifier TRACK_SPEED))))))))))
+
+
 
 
 
@@ -211,8 +211,8 @@
     (let [
           world (Xform.)
 
-         root (doto (fx/group world)
-                (.setDepthTest DepthTest/ENABLE))
+          root (doto (fx/group world)
+                 (.setDepthTest DepthTest/ENABLE))
 
           _ (fx/add root (build-camera))
           _ (fx/add world (build-axes))
@@ -224,15 +224,15 @@
                                 :fill Color/GRAY)
                     (.setCamera camera)
                     (handle-keyboard)
-                    (handle-mouse)
-                  )
+                    (handle-mouse))
+
 
           stage (fx/stage
                   :title "Molecule Sample App"
                   :scene scene
-                  :sizetoscene true
-                  )
-          ]
+                  :sizetoscene true)]
+
+
 
       stage)))
 

@@ -4,8 +4,8 @@
         [george.java :as j]
         :reload
         [george.javafx :as fx]
-        :reload
-        )
+        :reload)
+
     (:import [javafx.scene Node Scene]
              [javafx.scene.shape Rectangle]
              [javafx.scene.layout StackPane Pane]
@@ -31,8 +31,8 @@
              (doto (StackPane. (j/vargs-t Node rectangle content))
                  (.setBorder (fx/make-border Color/TRANSPARENT 2.))
                  (. setStyle "-fx-background-color: cornflowerblue;")
-                 (. relocate loc-x loc-y))
-         ]
+                 (. relocate loc-x loc-y))]
+
 
         pane))
 
@@ -44,8 +44,8 @@
             (doto (->tile (Text. "swirl") loc-x loc-y)
                 (. setOnMouseClicked
                     (fx/event-handler-2 [_ event]
-                        (. (. event getSource) setVisible false))))
-          ]
+                        (. (. event getSource) setVisible false))))]
+
 
         tile))
 
@@ -61,13 +61,13 @@
              (->swirl 100 80)
 
              swirl2
-             (->swirl 200 120)
+             (->swirl 200 120)]
 
-             ]
+
         (-> pane .getChildren (. addAll (j/vargs swirl1 swirl2)))
-        (Scene. pane 800 600)
+        (Scene. pane 800 600)))
 
-        ))
+
 
 
 
@@ -79,11 +79,11 @@
             (. setScene (scene))
             (. centerOnScreen)
             (. toFront)
-            (. show))
-
-        ))
+            (. show))))
 
 
 
 
-;; (-main)
+
+
+;(println "WARNING: Running dev.andante.db.test/-main" (-main))

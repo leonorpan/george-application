@@ -6,8 +6,8 @@
         [george.javafx.util :as fxu] :reload
         [george.code.highlight :as dah] :reload
         [george.code.core :as gcode] :reload
-        [george.input :as input] :reload
-        )
+        [george.repl.input :as input] :reload)
+
     (:import [javafx.beans.property StringProperty]
              [javafx.scene.control OverrunStyle]
              [javafx.beans.value ChangeListener]))
@@ -18,15 +18,15 @@
       (println)
       (printf "(load-file \"%s\")\n" file)
       (println)
-      (load-file (str file))
-      ))
+      (load-file (str file))))
+
 
 
 (defn load-via-tempfile [code-str ns-str]
     (let [temp-file (java.io.File/createTempFile "code_" ".clj")]
       (spit temp-file code-str)
-      (load-from-file temp-file ns-str)
-      ))
+      (load-from-file temp-file ns-str)))
+
 
 
 
@@ -34,8 +34,8 @@
     (when-let [f (:file @file-meta)]
         (fx/later
             (. chrome-title setValue (str (if (:changed @file-meta) "* " "") (. f getName)))
-            (. file-label setText (str (. f getAbsolutePath)))
-            )))
+            (. file-label setText (str (. f getAbsolutePath))))))
+
 
 
 
@@ -78,12 +78,12 @@
 
 (defn- save-channel [file-meta file-label chrome-title]
     (let [c (chan (sliding-buffer 1))]  ;; we only need to save latest update
-        (go (while true
+        (go (while true)
             (<! (timeout 5000))  ;; save latest update every 5 seconds
             (let [data (<! c)]
                 ;(println "save-channel got data ...")
-                (save-file data file-meta file-label chrome-title))))
-  c))
+                (save-file data file-meta file-label chrome-title)))
+      c))
 
 
 
@@ -108,9 +108,9 @@
               :text ""
               :font (fx/SourceCodePro "Medium" 16))
           (doto
-              (gcode/->codearea)
+              (gcode/->codearea))
               ;(. setFont (fx/SourceCodePro "Medium" 16))
-              )
+
 
           file-meta
           (atom {:file (:file kwargs) :changed false})
@@ -136,16 +136,16 @@
           #(when-let [f (select-file)]
               (save-file-fn)
               (set-file-fn f)
-              (gcode/set-text codearea (slurp f))
-              )
+              (gcode/set-text codearea (slurp f)))
+
 
           open-file-button
           (fx/button "Open ..."
                      :minwidth 60
                      :width 60
                      :onaction open-file-fn
-                     :tooltip "Select  and open an existing (Clojure) file ..."
-                     )
+                     :tooltip "Select  and open an existing (Clojure) file ...")
+
 
           file-pane
           (fx/hbox
@@ -156,8 +156,8 @@
                          :minwidth 70
                          :width 70
                          :onaction save-file-as-fn
-                         :tooltip "Save as a new (Clojure) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked."
-                         )
+                         :tooltip "Save as a new (Clojure) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.")
+
               :insets [0 0 10 0]
               :spacing 10)
 
@@ -180,15 +180,15 @@
               (fx/hbox
                   (fx/region :hgrow :always)
                   load-button
-                  :insets [10 0 0 0]
+                  :insets [10 0 0 0])
                   ;:alignment Pos/TOP_RIGHT
-                  )
+
               :insets 10)
 
           save-chan
-          (save-channel file-meta file-label chrome-title)
+          (save-channel file-meta file-label chrome-title)]
 
-          ]
+
 
         (-> codearea
             .textProperty
@@ -204,8 +204,8 @@
         scene
         (doto
             (fx/scene (fx/group))  ;; temporary root
-            (fx/add-stylesheets "styles/codearea.css")
-            )
+            (fx/add-stylesheets "styles/codearea.css"))
+
 
         stage
         (fx/now (fx/stage
@@ -213,14 +213,14 @@
                   :title "<unsaved file>"
                   ;:location (fx/centering-point-on-primary scene)
                   :location [300 80]
-                  :size [800 600]
+                  :size [800 600]))
                   ;:oncloserequest #(println "closing ...")
                   ;:onhidden #(println "... closed")
-                  ))
+
 
         [root load-button]
-        (apply code-editor-pane (cons (. stage titleProperty) args))
-        ]
+        (apply code-editor-pane (cons (. stage titleProperty) args))]
+
       ;; replace empty group with pane bound to stages title)
       (. scene setRoot root)
       (. scene setOnKeyPressed

@@ -988,4 +988,4 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 ;;; DEV ;;;
 
-;(println "  ## WARNING: running george.core.core/-main")  (-main)
+;(println "WARNING: Running george.core.core/-main")  (-main)

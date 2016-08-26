@@ -187,9 +187,9 @@
 (defn -main
   "Launches an input-stage as a stand-alone app."
   [& args]
-  (fx/later (toolbar-stage))
+  (fx/later (toolbar-stage)))
 
 
 ;;; DEV ;;;
 
- (println "WARNING: Running george.turtle.environment/-main" (-main)))
+;(println "WARNING: Running george.turtle.environment/-main" (-main)))

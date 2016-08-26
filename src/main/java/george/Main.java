@@ -1,3 +1,7 @@
+
+
+/* This class is possibly depreciated! */
+
 package george;
 
 import clojure.java.api.Clojure;

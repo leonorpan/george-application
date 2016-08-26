@@ -7,11 +7,11 @@
         [george.java :as j] :reload
         [george.javafx :as fx] :reload
         [george.javafx-classes :as fxc] :reload
-        [george.output :as output] :reload
+        [george.output :as output] :reload))
 
-        )
 
-    )
+
+
 
 
 "
@@ -52,15 +52,15 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
     (setTab [tab])
     (getTab [])
     (setText [ text])
-    (getText [])
-    )
+    (getText []))
+
 
 (deftype SimpleEditor [
-        textarea
-        ^:volatile-mutable filename
-        ^:volatile-mutable modified
-        ^:volatile-mutable tab
-    ]
+                       textarea
+                       ^:volatile-mutable filename
+                       ^:volatile-mutable modified
+                       ^:volatile-mutable tab]
+
     IContent
     (getRoot [_] textarea)
     ISimpleEditor
@@ -71,8 +71,8 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
     (getTab [_] tab)
     (setTab [_ t] (set! tab t))
     (setText [_ text] (. textarea setText text))
-    (getText [this] (. textarea getText))
-    )
+    (getText [this] (. textarea getText)))
+
 
 
 
@@ -128,11 +128,11 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
 ;            vbox
             root
             (VBox. 5 (j/vargs-t Node hbox web-view))
-            _ (VBox/setVgrow web-view Priority/ALWAYS)
+            _ (VBox/setVgrow web-view Priority/ALWAYS)]
 
 ;            root
 ;            (VBox. vbox)
-        ]
+
 
 
         (reify IContent
@@ -160,16 +160,16 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                  EDITOR
                  (create-simple-editor-and-register)
                  BROWSER
-                 (create-web-browser)
-                 )
+                 (create-web-browser))
+
 
              tab
              (Tab.
                  (if (= type-str BROWSER)
                      (str type-str " " (swap! browser-count inc))
                      type-str)
-                 (. content getRoot))
-        ]
+                 (. content getRoot))]
+
 
         (if (instance? SimpleEditor content) (. content setTab tab))
 
@@ -183,8 +183,8 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
             (FileChooser.)
 
             file-to-open
-            (. fc showOpenDialog nil)
-         ]
+            (. fc showOpenDialog nil)]
+
 
         (when file-to-open
             (let [
@@ -205,9 +205,9 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                     tab
                     (Tab.
                         (. file-to-open getName)
-                        (. editor getRoot))
-                    ]
-                    (. editor setTab tab)
+                        (. editor getRoot))]
+
+                 (. editor setTab tab)
 
                 tab))))
 
@@ -228,12 +228,12 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                 (str path ".txt")
 
                 new-file
-                (cio/file new-path)
+                (cio/file new-path)]
 
-             ]
+
             ;; TODO: Very bad! Existing file by same name gets overwritten!!! Pop-up a warning/question!!!
             (. file delete)
-            new-file )))
+            new-file)))
 
 
 
@@ -241,7 +241,7 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
     ;; TODO: this is not safe! do tempfile first, then swap at OS level if write was successful
     (with-open [bos (cio/output-stream file)]
         (doto bos (. write (. text getBytes)) (. flush))
-        true ))
+        true))
 
 
 
@@ -292,13 +292,13 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                 file
                 (if file
                     file
-                    (new-file! editor))
-            ]
+                    (new-file! editor))]
+
             (when file
                 (if (write-file file (. editor getText))
                     (indicate-file-saved)
-                    (println "Error. File save failed!")
-                    )))))
+                    (println "Error. File save failed!"))))))
+
 
 
 
@@ -308,8 +308,8 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
             (or (. ke isControlDown) (. ke isMetaDown))
 
             code (. ke getCode)
-            text (. ke getText)
-         ]
+            text (. ke getText)]
+
         (println "modifier?:" modifier?)
         (cond
 
@@ -321,9 +321,9 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                 (or
                     (SPEC_KEYCODE_SET code)
                     (and (not (empty? text)) (not modifier?)))
-                (indicate-file-modified))
+                (indicate-file-modified)))))
 
-            )))
+
 
 
 (defn- save-modifications []
@@ -393,9 +393,9 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                 (. setFillWidth true))
 
             scene
-            (Scene. layout 800 600)
+            (Scene. layout 800 600)]
 
-            ]
+
 
         (doto tab-pane
             (-> .prefWidthProperty (. bind (. scene widthProperty)))
@@ -406,16 +406,16 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                 (fx/event-handler-2 [_ ke]
                     (let [
                              text (. ke getText)
-                             code (. ke getCode)
-                         ]
+                             code (. ke getCode)]
+
                         (printf "onKeyPressed: code=%s, text=%s\n" code text)
                         (handle-key-press ke))))
             (. setOnKeyReleased
                 (fx/event-handler-2 [_ ke]
                     (let [
                              text (. ke getText)
-                             code (. ke getCode)
-                         ]
+                             code (. ke getCode)]
+
                         (when (SPEC_KEYCODE_SET code)
                             (indicate-file-modified))
                         ;; After the "s" is pressed to invoke a save action, make
@@ -443,12 +443,12 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
                  (. setScene scene)
                  (. sizeToScene)
                  ;                      (. centerOnScreen)
-                 (. setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2) ))
-                 (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300) ))
+                 (. setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))
+                 (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))
                  (. setTitle "Simple Editor / Browser")
                  (. show)
-                 (. toFront))
-             ]
+                 (. toFront))]
+
         (reset! stage-singelton stage)
         nil))
 
@@ -462,7 +462,7 @@ http://www.drdobbs.com/jvm/a-javafx-file-editor-part-2/240142542
     (fx/dont-exit!)
     (fx/thread (show-simple-editor-stage)))
 
-(-main)
+;(println "WARNING: Running george.simple-editor/-main" (-main))
 
 ;(run "(println \"(+ 2 3)\"))\n(+ 4 (+ 2 3))")
 ;(run "(println (+ 2 3)))\n((+ 4 5)")
