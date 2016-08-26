@@ -5,8 +5,8 @@
         [clojure.string :as s]
 
         [george.javafx.java :as j] :reload
-        [george.javafx.core :as fx] :reload
-        )
+        [george.javafx.core :as fx] :reload)
+
     (:import [javafx.collections ListChangeListener]
 
              [java.io StringWriter OutputStreamWriter PrintStream]
@@ -15,8 +15,8 @@
              [javafx.scene.paint Color]
              [javafx.scene.control ScrollPane]
              [javafx.scene.layout StackPane]
-             [javafx.stage Screen])
-    )
+             [javafx.stage Screen]))
+
 
 
 (defonce standard-out System/out)
@@ -26,8 +26,8 @@
 
 (declare
     close-output-stage
-    output
-    )
+    output)
+
 
 
 (defn- output-string-writer [typ] ;; type is one of :out :err
@@ -47,13 +47,13 @@
 (defn wrap-outs []
     (let [
              ow (output-string-writer :out)
-             ew (output-string-writer :err)
-             ]
+             ew (output-string-writer :err)]
+
         (System/setOut (PrintStream. (WriterOutputStream. ow) true))
         (System/setErr (PrintStream. (WriterOutputStream. ew) true))
         (alter-var-root #'*out* (constantly ow))
-        (alter-var-root #'*err* (constantly ew))
-        ))
+        (alter-var-root #'*err* (constantly ew))))
+
 
 (wrap-outs)
 
@@ -61,8 +61,8 @@
     (System/setOut standard-out)
     (System/setErr standard-err)
     (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
-    (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err)))
-    )
+    (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
+
 
 
 
@@ -74,14 +74,14 @@
                 :res Color/GREEN
                 :ns Color/GRAY
                 :err Color/RED
-                Color/BLACK ;; default (:out)
-                ))))
+                Color/BLACK)))) ;; default (:out)
+
 
 
 (defn- get-text-flow []
     (when-let [stage @stage-singleton]
-        (->  stage .getScene .getRoot .getChildrenUnmodifiable first .getContent)
-        ))
+        (->  stage .getScene .getRoot .getChildrenUnmodifiable first .getContent)))
+
 
 
 
@@ -96,8 +96,8 @@
 
                  "))
              scroll-pane (ScrollPane. text-flow)
-             scene (fx/scene (StackPane. (j/vargs scroll-pane)) :size [600 300])
-             ]
+             scene (fx/scene (StackPane. (j/vargs scroll-pane)) :size [600 300])]
+
         (-> text-flow
             .getChildren
             (. addListener
@@ -108,7 +108,7 @@
 
         (def append (fn [node] (fx/thread (-> text-flow .getChildren (. add node)))))
 
-        scene ))
+        scene))
 
 
 
@@ -123,12 +123,12 @@
                  (. setScene scene)
                  (. sizeToScene)
                  (. setX 100)
-                 (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) ))
+                 (. setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2)))
                  (. setTitle "Output")
                  (. show)
                  (. toFront)
-                 (. setOnCloseRequest (fx/event-handler (close-output-stage))))
-             ]
+                 (. setOnCloseRequest (fx/event-handler (close-output-stage))))]
+
         (wrap-outs)
         stage))
 
@@ -144,9 +144,9 @@
             ;; TODO: crop old lines from beginning - for speed.
     ;; else - make sure these always also appear in stout
     (if (#{:in :res} typ)
-        (. standard-out print (str obj))
+        (. standard-out print (str obj))))
 
-        ))
+
 
 
 

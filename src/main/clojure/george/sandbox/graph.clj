@@ -30,14 +30,14 @@
             (when (.isControlDown scroll-event)
                 (let [scale-value (. scale-transform getX) ;; equal scaling in both directions
                       delta-y (. scroll-event getDeltaY)  ;; positive or negative
-                      new-scale-value (+ scale-value (* delta (if (pos? delta-y) 1 -1)))
-                      ]
+                      new-scale-value (+ scale-value (* delta (if (pos? delta-y) 1 -1)))]
+
                     (.setX scale-transform new-scale-value)
                     (.setY scale-transform  new-scale-value)
 
-                    (. scroll-event consume))))
+                    (. scroll-event consume))))]
         ;; Tips on keeping zoom centered: https://community.oracle.com/thread/2541811?tstart=0
-        ]
+
       (-> transform-group .getTransforms (.add scale-transform))
       ;; eventfilter allows my code to get in front of ScrollPane's event-handler.
       (.addEventFilter scrollpane ScrollEvent/ANY zoom-handler)
@@ -61,8 +61,8 @@
                                       (- (* (. bounds getMinX) scale-value)
                                          (. event getScreenX))
                                       (- (* (. bounds getMinY) scale-value)
-                                         (. event getScreenY))
-                                      ])))
+                                         (. event getScreenY))])))
+
 
           drag-handler
           (fx/event-handler-2
@@ -70,17 +70,17 @@
               (let [
                     offset-x (+ (. event getScreenX) (first @point-atom))
                     offset-y (+ (. event getScreenY) (second @point-atom))
-                    scale-value (. scale getX)
-                    ]
+                    scale-value (. scale getX)]
+
                   (. (:node vertex) relocate
                      (/ offset-x scale-value)
-                     (/ offset-y scale-value))))
-          ]
+                     (/ offset-y scale-value))))]
+
 
         (doto (:node vertex)
             (. setOnMousePressed press-handler)
-            (. setOnMouseDragged drag-handler)
-            )
+            (. setOnMouseDragged drag-handler))
+
         vertex))
 
 
@@ -94,8 +94,8 @@
   (let [
         line (fx/line :color Color/LIGHTBLUE)
         source-hwh (half-width-height source-vertex)
-        target-hwh (half-width-height source-vertex)
-        ]
+        target-hwh (half-width-height source-vertex)]
+
     (-> line .startXProperty (.bind (-> source-vertex :node .layoutXProperty (.add (first source-hwh)))))
     (-> line .startYProperty (.bind (-> source-vertex :node .layoutYProperty (.add (second source-hwh)))))
     (-> line .endXProperty (.bind (-> target-vertex :node .layoutXProperty (.add (first target-hwh)))))
@@ -107,8 +107,8 @@
 (defn create-vertex [id]
     {:a :VERTEX
      :id   id
-     :node (doto (Circle. 20. 20. 20.) (.setFill fx/WHITESMOKE) (.setStroke Color/BLUE) (.setStrokeWidth 2))
-     })
+     :node (doto (Circle. 20. 20. 20.) (.setFill fx/WHITESMOKE) (.setStroke Color/BLUE) (.setStrokeWidth 2))})
+
 
 
 (defn create-graph-panes []
@@ -117,8 +117,8 @@
         vertexlayer (Pane.)
         canvas (fx/group vertexlayer)
         [scale scrollpane]
-        (create-zoomable-scrollpane canvas)
-        ]
+        (create-zoomable-scrollpane canvas)]
+
     {:scrollpane scrollpane
      :vertexlayer vertexlayer
      :scale scale}))
@@ -176,11 +176,11 @@
           graph ;; now insert all children/edges
           (reduce
               (fn[graph [vertex _]]
-                  (assoc graph vertex (create-edges-fn graph vertex)))
+                 (assoc graph vertex (create-edges-fn graph vertex)))
               graph graph)
 
-          vertexlayer (:vertexlayer graph-panes)
-          ]
+          vertexlayer (:vertexlayer graph-panes)]
+
 
         (doseq [[vertex child-vertices] graph]
             (fx/add vertexlayer (:node vertex))
@@ -196,24 +196,24 @@
          (doseq [c (map :node (keys model))]
              (let [x (* (. randomizer nextDouble) 400)
                    y (* (. randomizer nextDouble) 400)]
-                 (. c relocate x y)
-                 )))
+                 (. c relocate x y))))
+
 
 
 (defn -main [& _]
   (let [
         graph-atom (atom (create-graph))
-        graph-panes (create-graph-panes)
-        ]
+        graph-panes (create-graph-panes)]
+
     (swap! graph-atom populate graph-panes)
     (randomize-layout @graph-atom)
     (fx/later (fx/stage
                 :title "graph"
                 :location [100 50]
                 :size [800 600]
-                :scene (fx/scene (fx/borderpane :center (:scrollpane graph-panes) :insets 0))
-                ))
-    ))
+                :scene (fx/scene (fx/borderpane :center (:scrollpane graph-panes) :insets 0))))))
+
+
 
 
 ;;;; DEV ;;;;

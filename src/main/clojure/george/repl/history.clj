@@ -4,14 +4,14 @@
     (:require [clojure.java.io :as cio]
               [clojure.edn :as edn]
 
-              [george.javafx.java :as j] :reload
+              [george.javafx.java :as j] :reload)
 
 
-              )
+
   (:import (george Versions)
            (java.util Date UUID)
-           (java.sql Timestamp)
-           ))
+           (java.sql Timestamp)))
+
 
 (def SHORTCUT_KEY (if Versions/IS_MAC "CMD" "CTRL"))
 
@@ -33,9 +33,9 @@
   (when (.exists HISTORY_FILE)
     (set! *data-readers* (assoc *data-readers* 'inst clojure.instant/read-instant-timestamp))
     ;(println "reading history from file ...")
-    (reset! history-atom (edn/read-string (slurp HISTORY_FILE)))
+    (reset! history-atom (edn/read-string (slurp HISTORY_FILE)))))
     ;(println " ... done")
-    ))
+
 (load-history)
 
 
@@ -51,14 +51,14 @@
   (let [item {:repl-uuid repl-uuid
               :timestamp (Timestamp. (.getTime (Date.)))
               :content   content}
-        _ (println "item:" item)
-        ]
+        _ (println "item:" item)]
+
     (swap! history-atom #(-> % (prune 100) (conj item)))
     (j/thread
       (println "writing history to file ...")
       (spit HISTORY_FILE (pr-str @history-atom))
-      (println " ... done")
-      )))
+      (println " ... done"))))
+
 
 
 (def NEXT 1)
@@ -81,8 +81,8 @@
         (if (and
                 (not (empty? items))
                 (not (< i 0))
-                (not (>= i (count items)))
-                )
+                (not (>= i (count items))))
+
             (:content (nth items i)))
 
         content
@@ -92,16 +92,16 @@
             ""
             (if (= (count items) (count items-global))
               "; No more (global) history.\n"
-              (format
+              (format))))]))
 "; No more 'local' history.
 ; To access 'global' history use:
 ;    SHIFT-%s-up/down.
-" SHORTCUT_KEY))))
-        ]
+" SHORTCUT_KEY
+
       (reset! current-history-index-atom i)
       (doto code-area
-          (.replaceText content)
+          (.replaceText content))
           ;(.selectRange 0 0)
           ;(.setStyleSpans 0 (compute-highlighting content))
-          )))
+
 

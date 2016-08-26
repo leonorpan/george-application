@@ -19,8 +19,8 @@
         (ca/->codearea)
         (ca/set-linenumbers)
         (paredit/set-handlers)
-        (highlight/set-handlers)
-        ))
+        (highlight/set-handlers)))
+
 
 
 (defn text [codearea]
@@ -48,10 +48,10 @@
           (fx/stage
               :title "george.code.core/-main (test)"
               :scene scene
-              :size [600 400]
-              )
-          ]
-        )))
+              :size [600 400])])))
+
+
+
 
 
 

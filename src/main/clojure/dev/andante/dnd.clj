@@ -1,13 +1,19 @@
 (ns dev.andante.dnd
     (:require
         [clojure.repl :refer [doc]]
-        [dev.andante.util.java :as j] :reload
-        [dev.andante.util.javafx :as fx] :reload
-        [dev.andante.util.javafx.classes :as fxc] :reload
+        [george.java :as j]
+        :reload
+        [george.javafx :as fx]
+        :reload
         )
-    )
+    (:import [javafx.scene Parent Group Node SnapshotParameters Cursor Scene]
+             [javafx.scene.layout Pane StackPane FlowPane]
+             [javafx.scene.text Text]
+             [javafx.scene.input MouseEvent TransferMode ClipboardContent]
+             [javafx.scene.paint Color]
+             [javafx.geometry VPos]
+             [javafx.stage StageStyle Screen Stage]))
 
-(fxc/import!)
 
 (defn first-child [^Parent p]
 (-> p .getChildren (.get 0)))
@@ -114,9 +120,7 @@
 
 (defn -main [& args]
     (println "dev.dnd/-main")
-    (fx/dont-exit!)
-    (fx/thread
-
+    (fx/later
         (doto (Stage. StageStyle/UTILITY)
             (.setScene (palette-scene))
             (.sizeToScene)
@@ -134,7 +138,5 @@
         ))
 
 
-(fx/init)
 
-
-(-main)
+;(println "  ## WARNING: running `-main` from dev.andante.dnd") (-main)

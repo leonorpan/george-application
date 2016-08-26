@@ -8,14 +8,14 @@
       [george.javafx.java :as fxj]
       :reload
       [george.javafx.util :as fxu]
-      :reload
-    )
+      :reload)
 
-    (:import (javafx.scene.paint PhongMaterial Color)
-             (javafx.scene.shape Box Cylinder Sphere)
-             (javafx.scene PerspectiveCamera DepthTest Node)
-             (javafx.scene.transform Rotate Translate)
-             (javafx.geometry Point3D)))
+
+  (:import (javafx.scene.paint PhongMaterial Color)
+           (javafx.scene.shape Box Cylinder Sphere)
+           (javafx.scene PerspectiveCamera DepthTest Node)
+           (javafx.scene.transform Rotate Translate)
+           (javafx.geometry Point3D)))
 
 
 
@@ -48,8 +48,8 @@
 
 (defn- material [color]
   (doto (PhongMaterial. color)
-    (.setSpecularColor (.darker color))
-  ))
+    (.setSpecularColor (.darker color))))
+
 
 
 (defn- box [w h d]
@@ -86,12 +86,12 @@
      (sphere loc-p 0.5))
     ([loc-p radius]
      (sphere loc-p radius fx/ANTHRECITE))
-     ([loc-p radius color]
-      (let [loc-p (ensure-Point3D loc-p)]
-          (doto (Sphere. radius)
-              (set-material color)
-              (set-translate loc-p))))
-    )
+    ([loc-p radius color]
+     (let [loc-p (ensure-Point3D loc-p)]
+         (doto (Sphere. radius)
+             (set-material color)
+             (set-translate loc-p)))))
+
 
 
 
@@ -108,15 +108,15 @@
            length (.magnitude res-vec)
            mid (.midpoint start-p end-p)
            y-axis-angle (.angle Rotate/Y_AXIS res-vec)
-           rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)
+           rotation-axis (.crossProduct Rotate/Y_AXIS res-vec)]
 
-           ]
+
          (doto (cylinder radius length)
              (.setMaterial (material color))
              (-> .getTransforms
                  (.setAll [(Translate. (.getX mid) (.getY mid) (.getZ mid))
-                           (Rotate. y-axis-angle rotation-axis)])))))
-    )
+                           (Rotate. y-axis-angle rotation-axis)]))))))
+
 
 
 
@@ -153,20 +153,20 @@
                   (bar [0 0 100] [100 0 0] 1 Color/BROWN)
                   (bar [100 0 0] [100 100 100] 1 Color/ORANGE)
                   (bar [0 100 0] [100 100 100] 1 Color/PURPLE)
-                  (bar [0 0 100] [100 100 100] 1 Color/BROWN)
-                  )
-              )
-          ]
-  group))
+                  (bar [0 0 100] [100 100 100] 1 Color/BROWN)))]
+
+
+
+     group))
 
 
 
 (defn- create-grid-2D []
-    (let [
+    (let []
           ;w 400
           ;h 300
           ;bleed 50
-          ]
+
         (apply fx/group
                (concat
                    ;; horizontal lines
@@ -174,32 +174,32 @@
                        (fx/line :x1 -200 :x2 200 :y1 i :y2 i :color Color/LIGHTGRAY))
                    ;; vertical lines
                    (for [i (range -200 210 10)]
-                       (fx/line :y1 -150 :y2 150 :x1 i :x2 i :color Color/LIGHTGRAY))))
-        ))
+                       (fx/line :y1 -150 :y2 150 :x1 i :x2 i :color Color/LIGHTGRAY))))))
+
 
 
 (defn- create-turtle []
     (let [r 1.25]
-    (doto
-        (fx/group
-            (doto
-                (fx/group
-                    (sphere [0 0] r)
-                    (bar [0 0] [2.5 -5] r) ;; right front
-                    (sphere [2.5 -5] r)
-                    (bar [2.5 -5] [0 -4] r) ;; right back
-                    (sphere [0 -4] r)
-                    (bar [0 -4] [-2.5 -5] r) ;; left back
-                    (sphere [-2.5 -5] r)
-                    (bar [-2.5 -5] [0 0] r) ;; left front
-                    )
-                (set-translate [0 2.5])  ;; center turtle (compensate for drawing from [0 0])
-                (.setRotate -90)  ;; face right (along x-axis)
-                )
-            )
-        (.setRotate 90)  ;; start turtle facing up (along y-axis): 90 degrees.
-        (.setUserData {:color "BLACK" :pendown true})
-        )))
+     (doto
+         (fx/group
+             (doto
+                 (fx/group
+                     (sphere [0 0] r)
+                     (bar [0 0] [2.5 -5] r) ;; right front
+                     (sphere [2.5 -5] r)
+                     (bar [2.5 -5] [0 -4] r) ;; right back
+                     (sphere [0 -4] r)
+                     (bar [0 -4] [-2.5 -5] r) ;; left back
+                     (sphere [-2.5 -5] r)
+                     (bar [-2.5 -5] [0 0] r)) ;; left front
+
+                 (set-translate [0 2.5])  ;; center turtle (compensate for drawing from [0 0])
+                 (.setRotate -90)))  ;; face right (along x-axis)
+
+
+         (.setRotate 90)  ;; start turtle facing up (along y-axis): 90 degrees.
+         (.setUserData {:color "BLACK" :pendown true}))))
+
 
 
 (defn- build-camera []
@@ -221,8 +221,8 @@
 
           outer-camera-group  ;; moved the camera around, and holds the rotate-group
           (doto (fx/group inner-camera-group)
-              (-> .getTransforms (.setAll [t])))
-          ]
+              (-> .getTransforms (.setAll [t])))]
+
         {:t t :ry ry :rx rx :c camera :n outer-camera-group}))
 
 
@@ -243,23 +243,23 @@
 (defn- c-forward [{:keys [t ry]} step]
     (let [
           pan (.getAngle ry)
-          [xf yf] (fxu/degrees->xy-factor pan)
-          ]
+          [xf yf] (fxu/degrees->xy-factor pan)]
+
         ;(println "pan:" pan " xf:" xf " yf:" yf)
         (.setZ t (+ (.getZ t) (* step xf)))
-        (.setX t (+ (.getX t) (* step yf)))
-        ))
+        (.setX t (+ (.getX t) (* step yf)))))
+
 
 
 (defn- c-sideways [{:keys [t ry]} step]
     (let [
           pan (.getAngle ry)
-          [xf yf] (fxu/degrees->xy-factor pan)
-          ]
+          [xf yf] (fxu/degrees->xy-factor pan)]
+
         ;(println "slide  pan:" pan " xf:" xf " yf:" yf)
         (.setX t (+ (.getX t) (* step xf)))
-        (.setZ t (- (.getZ t) (* step yf)))
-        ))
+        (.setZ t (- (.getZ t) (* step yf)))))
+
 
 
 (defn- c-elevate [camera-transforms step]
@@ -281,8 +281,8 @@
 
 
 (defn- c-transition [to {:keys [origo axis grid] {:keys [t ry rx]} :camera}]
-    (let [
-          ]
+    (let []
+
         (condp = to
             :2D
             (.play (fx/simple-timeline 500
@@ -291,8 +291,8 @@
                                        [(.angleProperty rx) -90]
                                        [(.xProperty t) 0]
                                        [(.yProperty t) -570]
-                                       [(.zProperty t) 0]
-                                       ))
+                                       [(.zProperty t) 0]))
+
 
             :3D
             (do
@@ -303,8 +303,8 @@
                                            [(.angleProperty rx) -20]
                                            [(.xProperty t) 25]
                                            [(.yProperty t) -105]
-                                           [(.zProperty t) -270]
-                                           )))
+                                           [(.zProperty t) -270])))
+
 
 
             (throw (IllegalArgumentException. (str "Unknown arg: 'to': " to))))))
@@ -318,29 +318,29 @@
           (fx/key-pressed-handler
               {
                #{:RIGHT}
-                                #(c-turn camera ROTATE_STEP)
+                #(c-turn camera ROTATE_STEP)
                #{:LEFT}
-                                #(c-turn camera (- ROTATE_STEP))
+                #(c-turn camera (- ROTATE_STEP))
 
                #{:UP}
-                                #(c-forward camera FORWARD_STEP)
+                #(c-forward camera FORWARD_STEP)
                #{:DOWN}
-                                #(c-forward camera (- FORWARD_STEP))
+                #(c-forward camera (- FORWARD_STEP))
 
                #{:CTRL :RIGHT}
-                                #(c-sideways camera SLIDE_STEP)
+                #(c-sideways camera SLIDE_STEP)
                #{:CTRL :LEFT}
-                                #(c-sideways camera (- SLIDE_STEP))
+                #(c-sideways camera (- SLIDE_STEP))
 
                #{:CTRL :UP}
-                                #(c-elevate camera (- SLIDE_STEP))
+                #(c-elevate camera (- SLIDE_STEP))
                #{:CTRL :DOWN}
-                                #(c-elevate camera SLIDE_STEP)
+                #(c-elevate camera SLIDE_STEP)
 
                #{:SHIFT :CTRL :UP}
-                                #(c-tilt camera ROTATE_STEP)
+                #(c-tilt camera ROTATE_STEP)
                #{:SHIFT :CTRL :DOWN}
-                                #(c-tilt camera (- ROTATE_STEP))
+                #(c-tilt camera (- ROTATE_STEP))
 
                #{:CTRL :DIGIT2} #(c-transition :2D state)
                #{:CTRL :DIGIT3} #(c-transition :3D state)
@@ -348,10 +348,10 @@
                #{:CTRL :C}      #(print-camera-transforms camera)
                #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
                #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
-               #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))
+               #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))})]
 
-               })
-          ]
+
+
         (.setOnKeyPressed scene keypressedhandler)))
 
 
@@ -359,9 +359,9 @@
 (def ^:private current-turtle-atom (atom nil))
 
 (defn- current-turtle []
-    (let [
+    (let []
 
-          ]
+
 
         @current-turtle-atom))
 
@@ -393,18 +393,18 @@
     ([x y]
      (position (current-turtle) x y))
     ([turtle x y]
-     (let [
-           ]
+     (let []
+
          (fx/synced-keyframe
              250  ;; 600 px per second
              [(.translateXProperty turtle) x]
-             [(.translateYProperty turtle) y]
+             [(.translateYProperty turtle) y]))
              ;         (if line [(.endXProperty line) new-x])
              ;        (if line [(.endYProperty line) new-y])
-             ))
 
-     turtle)
-    )
+
+     turtle))
+
 
 
 (defn forward
@@ -426,9 +426,9 @@
                           :y1 y
                           :color (Color/web (get-userdata turtle :color)))
                    #_(bar [x y z][new-x new-y z] 0.5 (Color/web (get-userdata turtle :color)))
-                   (assoc-userdata :clearable true)))
+                   (assoc-userdata :clearable true)))]
 
-           ]
+
          (when line
              (fx/now
                  (fx/add (get-userdata turtle :world) line)
@@ -439,10 +439,10 @@
              [(.translateXProperty turtle) new-x]
              [(.translateYProperty turtle) new-y]
              (if line [(.endXProperty line) new-x])
-             (if line [(.endYProperty line) new-y])
-             )
-         turtle))
-    )
+             (if line [(.endYProperty line) new-y]))
+
+         turtle)))
+
 
 
 (defn heading
@@ -451,8 +451,8 @@
     ([turtle degrees]
      (fx/synced-keyframe
          200
-         [(.rotateProperty turtle) degrees]
-         )
+         [(.rotateProperty turtle) degrees])
+
      turtle))
 
 
@@ -463,18 +463,18 @@
      (let [new-angle (+ (angle turtle) degrees)]
          (fx/synced-keyframe
              (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
-             [(.rotateProperty turtle) new-angle]
-             )
-         turtle))
-    )
+             [(.rotateProperty turtle) new-angle])
+
+         turtle)))
+
 
 
 (defn right
     ([degrees]
      (right (current-turtle) degrees))
     ([turtle degrees]
-     (left turtle (- degrees)))
-    )
+     (left turtle (- degrees))))
+
 
 
 
@@ -517,8 +517,8 @@
     ([t]
      (let [
            world (get-userdata t :world)
-           filtered (filter #(not (get-userdata % :clearable)) (.getChildren world))
-           ]
+           filtered (filter #(not (get-userdata % :clearable)) (.getChildren world))]
+
          (fx/later (-> world .getChildren (.setAll filtered)))
          t)))
 
@@ -544,8 +544,8 @@
     ([turtle]
      (show turtle)
      (heading turtle 90)
-     (position turtle 0 0))
-    )
+     (position turtle 0 0)))
+
 
 (defn reset
     ([]
@@ -557,7 +557,7 @@
      (home t)
      (assoc-userdata t :color "BLACK")
      (assoc-userdata t :pendown true)
-        t))
+     t))
 
 
 
@@ -567,8 +567,8 @@
     (doseq [c ["BLACK" "RED" "BLUE" "GREEN"]]
         (set-color c)
         (forward 30)
-        (left 90)
-        ))
+        (left 90)))
+
 
 (declare dev-run)
 
@@ -595,8 +595,8 @@
           origo (create-origo)
           axis (create-axis-3D)
           grid (create-grid-2D)
-          state {:camera camera :origo origo :axis axis :grid grid}
-          ]
+          state {:camera camera :origo origo :axis axis :grid grid}]
+
 
       (.setCamera scene c)
 
@@ -606,9 +606,9 @@
           (-> .getTransforms (.setAll
                                  [
                                   ;(Translate. 0 0 0)
-                                  (Rotate. 90 0 0 0 Rotate/X_AXIS)
-                                  ]
-                                 )))
+                                  (Rotate. 90 0 0 0 Rotate/X_AXIS)])))
+
+
 
 
       (fx/add world origo)
@@ -635,8 +635,8 @@
           (heading 90)
           (home)
           (reset)
-          (dev-run)
-          )
+          (dev-run))
+
 
       (.setUserData stage {})
 
@@ -674,5 +674,4 @@
 
 
 (defn dev-run []
-    (println "dev-run called ...")
-    )
+    (println "dev-run called ..."))

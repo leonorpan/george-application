@@ -11,12 +11,12 @@
         [george.editor :as editor]
         :reload
         [george.output :as output]
-        :reload
-        )
+        :reload)
+
     (:import [javafx.scene.image ImageView Image]
              [javafx.scene.paint Color]
-             [javafx.geometry Pos])
-    )
+             [javafx.geometry Pos]))
+
 
 
 (defn- launcher-scene []
@@ -28,8 +28,8 @@
               "Output"
               :width b-width
               :onaction output/show-output-stage
-              :tooltip "Open/show output-window"
-              )
+              :tooltip "Open/show output-window")
+
 
           input-button
           (fx/button
@@ -38,8 +38,8 @@
               :onaction #(do
                             ;(. output-button fire)
                             (input/new-input-stage))
-              :tooltip "Open a new input window / REPL"
-              )
+              :tooltip "Open a new input window / REPL")
+
 
           code-button
           (fx/button
@@ -48,8 +48,8 @@
               :onaction #(do
                             ;(. output-button fire)
                             (editor/new-code-stage))
-              :tooltip "Open a new code editing window. \n(Can be used to open and save files.)"
-              )
+              :tooltip "Open a new code editing window. \n(Can be used to open and save files.)")
+
 
           logo
           (ImageView. (Image. "graphics/George_logo.png"))
@@ -60,12 +60,12 @@
                     logo input-button output-button code-button
                     :spacing 20
                     :padding 20
-                    :alignment Pos/TOP_CENTER )
+                    :alignment Pos/TOP_CENTER)
                 :fill Color/WHITE ;; Doesn't take effect! :-(
-                :size [180 220] )
-         ]
+                :size [180 220])]
 
-        scene ))
+
+        scene))
 
 
 (defn- launcher-close-handler []
@@ -78,9 +78,9 @@
                     "Do you want to quit George? (NOT IMPLEMENTED YET!) \n(TODO: handle open windows on exit!)"
                     ["Quit"]
                     true))
-            (. e consume)
+            (. e consume))))
             ;; else TODO: maybe do some exit-actions ...?
-        )))
+
 
 
 (defn show-launcher-stage []
@@ -89,7 +89,7 @@
              (launcher-scene)
 
              stage
-             (fx/now (fx/stage
+             (fx/now (fx/stage)
                  :scene scene
                  :location [100 50]
                  :sizetoscene true
@@ -97,9 +97,9 @@
                  :ontop true
                  :resizable false
                  ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-                 :oncloserequest (launcher-close-handler)
-                 ))
-             ]
+                 :oncloserequest (launcher-close-handler))]
+
+
         stage))
 
 

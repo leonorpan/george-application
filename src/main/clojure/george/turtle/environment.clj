@@ -36,12 +36,12 @@
     (let [
           files (file-seq lib-dir)
           files (.listFiles (file (System/getProperty "user.home")))
-          files (.listFiles lib-dir)
+          files (.listFiles lib-dir)]
 
-          ]
+
 ;        (doseq [f files] (println "f:"f))
-        (.setItems listview (apply fx/observablearraylist files))
-        ))
+        (.setItems listview (apply fx/observablearraylist files))))
+
 
 
 (defn- library-pane []
@@ -55,8 +55,8 @@
           refresh-button
           (fx/button "R"
                      :onaction #(poll-library lib-dir listview)
-                     :tooltip "Refresh list of files"
-                     )
+                     :tooltip "Refresh list of files")
+
 
           top(fx/hbox
                    (fx/label
@@ -65,11 +65,11 @@
                    refresh-button
                    :spacing 3
                    :alignment fx/Pos_TOP_RIGHT
-                   :insets [0 0 5 0]
-                   )
+                   :insets [0 0 5 0])
 
-          pane (fx/borderpane :top top :center listview :insets 5)
-          ]
+
+          pane (fx/borderpane :top top :center listview :insets 5)]
+
         (.fire refresh-button)
 
         pane))
@@ -77,8 +77,8 @@
 
 
 (defn- create-library-stage []
-    (let [
-          ]
+    (let []
+
         (fx/now
             (fx/stage
                 :style :utility
@@ -86,8 +86,8 @@
                 :title "Turtle :: library"
                 :scene (fx/scene (library-pane) :size [300 300])
                 :sizetoscene true
-                :onhidden #(singleton/remove ::library-stage)
-                ))))
+                :onhidden #(singleton/remove ::library-stage)))))
+
 
 
 
@@ -96,8 +96,8 @@
 
 
 (defn- prep-user-namespace []
-    (let [
-          ]
+    (let []
+
 
         "
         ;; prepair the user.turtle-namespace
@@ -109,15 +109,15 @@
             (ns user.turtle
                 (:require [george.turtle.core :refer :all]
                           :reload))
-            (ns george.turtle.environment)
-            )
-        ))
+            (ns george.turtle.environment))))
+
+
 
 
 (defn- toolbar-pane []
     (prep-user-namespace)
     (let [button-width
-          150
+          150]
 
         pane (fx/hbox
                  ;(fx/imageview "graphics/George_logo.png")
@@ -125,47 +125,47 @@
                (fx/button "Library"
                           :width button-width
                           :onaction #(library-stage)
-                          :tooltip "Open/show the library navigator (your files)"
+                          :tooltip "Open/show the library navigator (your files)")
 
-                          )
+
                (fx/button "Editor"
                           :width button-width
                           :onaction #(editor/new-code-stage :namespace "user.turtle")
-                          :tooltip "Open a new code editor"
-                          )
+                          :tooltip "Open a new code editor")
+
                (fx/button
                  "Input"
                  :width button-width
                  :onaction gcc/input-stage
-                 :tooltip "Open a new input window / REPL"
-                 )
+                 :tooltip "Open a new input window / REPL")
+
                (fx/button
                  "Output"
                  :width button-width
                  :onaction gcc/show-or-create-output-stage
-                 :tooltip "Open/show output-window"
-                 )
+                 :tooltip "Open/show output-window")
+
                (fx/button "Commands"
                           :width button-width
                           :onaction #(println "missing IMPL (Commands)")
-                          :tooltip "Open/show a panel with useful turtle commands"
-                          )
+                          :tooltip "Open/show a panel with useful turtle commands")
+
                (fx/button "Screen"
                           :width button-width
                           :onaction #(tr/screen)
-                          :tooltip "Open/show a new Turtle screen"
-                          )
-               :spacing 10
-               :padding 10
-               )
+                          :tooltip "Open/show a new Turtle screen")
 
-        ]
-    pane ))
+               :spacing 10
+               :padding 10))
+
+
+
+    pane)
 
 
 (defn- create-toolbar-stage []
-  (let [
-        ]
+  (let []
+
     (fx/now
       (fx/stage
         :style :utility
@@ -174,8 +174,8 @@
         :title "Turtle :: toolbar"
         :scene (fx/scene (toolbar-pane))
         :sizetoscene true
-        :onhidden #(singleton/remove ::toolbar-stage)
-        ))))
+        :onhidden #(singleton/remove ::toolbar-stage)))))
+
 
 
 (defn toolbar-stage []
@@ -187,9 +187,9 @@
 (defn -main
   "Launches an input-stage as a stand-alone app."
   [& args]
-  (fx/later (toolbar-stage)))
+  (fx/later (toolbar-stage))
 
 
 ;;; DEV ;;;
 
-; (println "WARNING: Running george.turtle.environment/-main" (-main))
+ (println "WARNING: Running george.turtle.environment/-main" (-main)))

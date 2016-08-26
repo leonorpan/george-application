@@ -2,7 +2,7 @@
 
 setLocal EnableExtensions EnableDelayedExpansion
 
-set LEIN_VERSION=2.6.1
+set LEIN_VERSION=2.7.0
 
 if "%LEIN_VERSION:~-9%" == "-SNAPSHOT" (
     set SNAPSHOT=YES
@@ -19,6 +19,9 @@ call :FIND_DIR_CONTAINING_UPWARDS project.clj
 if "%DIR_CONTAINING%" neq "" cd "%DIR_CONTAINING%"
 
 :: LEIN_JAR and LEIN_HOME variables can be set manually.
+:: Only set LEIN_JAR manually if you know what you are doing.
+:: Having LEIN_JAR pointing to one version of Leiningen as well as
+:: having a different version in PATH has been known to cause problems.
 
 if "x%LEIN_HOME%" == "x" (
     set LEIN_HOME=!USERPROFILE!\.lein
@@ -39,17 +42,17 @@ if not exist "%~dp0..\src\leiningen\version.clj" goto RUN_NO_CHECKOUT
 
 	set "bootstrapfile=!LEIN_ROOT!\leiningen-core\.lein-bootstrap"
 	rem in .lein-bootstrap there is only one line where each path is concatenated to each other via a semicolon, there's no semicolon at the end
-	rem each path is NOT inside double quotes and may contain spaces (even semicolons but this is not supported here) in their names,
+	rem each path is NOT inside double quotes and may contain spaces (even semicolons but this is not supported here) in their names, 
 	rem  but they won't/cannot contain double quotes " or colons :  in their names (at least on windows it's not allowed/won't work)
-
+	
 	rem tested when folders contain spaces and when LEIN_ROOT contains semicolon
-
-
+	
+	
 	if not "x%DEBUG%" == "x" echo LEIN_ROOT=!LEIN_ROOT!
-
+	
 	rem if not "%LEIN_ROOT:;=%" == "%LEIN_ROOT%" (
 
-
+	
 	rem oddly enough /G:/ should've worked but doesn't where / they say it's console
 	rem findstr is C:\Windows\System32\findstr.exe
 	echo.!LEIN_ROOT! | findstr /C:";" >nul 2>&1 && (
@@ -92,9 +95,9 @@ rem the paths inside the bootstrap file do not already contain double quotes but
     if "x!LEIN_LIBS!" == "x" goto NO_DEPENDENCIES
 
 
-	rem CLASSPATH must contain each path element double quoted and separated by semicolons ie. "c:\some folder";"c:\some other folder";"c:\semicolons;;;;in;name;work okay"
+	rem semicolons in pathes are not supported, spaces are supported by quoting CLASSPATH as a whole
 	rem (no end semicolon required)
-    set CLASSPATH=!LEIN_LIBS!;"!LEIN_ROOT!\src";"!LEIN_ROOT!\resources"
+    set CLASSPATH=!LEIN_LIBS!;!LEIN_ROOT!\src;!LEIN_ROOT!\resources
 
     :: Apply context specific CLASSPATH entries
     if exist "%~dp0..\.lein-classpath" (
@@ -113,7 +116,7 @@ rem the paths inside the bootstrap file do not already contain double quotes but
     :: Not running from a checkout.
     if not exist "%LEIN_JAR%" goto NO_LEIN_JAR
     set CLASSPATH=%LEIN_JAR%
-
+  
     if exist ".lein-classpath" (
         for /f "tokens=* delims= " %%i in (.lein-classpath) do (
             set CONTEXT_CP=%%i
@@ -168,7 +171,7 @@ call curl --help >nul 2>&1
 if NOT ERRORLEVEL 0 GOTO NO_HTTP_CLIENT
     rem We set CURL_PROXY to a space character below to pose as a no-op argument
     set LAST_HTTP_CLIENT=curl
-    set CURL_PROXY=
+    set CURL_PROXY= 
     if NOT "x%HTTPS_PROXY%" == "x" set CURL_PROXY="-x %HTTPS_PROXY%"
     call curl %CURL_PROXY% -f -L -o  %1 %2
     SET RC=%ERRORLEVEL%
@@ -218,7 +221,7 @@ del "%LEIN_JAR%.pending" >nul 2>&1
 echo.
 echo Failed to download %LEIN_JAR_URL%
 echo.
-echo It is possible that the download failed due to "powershell",
+echo It is possible that the download failed due to "powershell", 
 echo "curl" or "wget"'s inability to retrieve GitHub's security certificate.
 echo The suggestions below do not check certificates, so use this only if
 echo you understand the security implications of not doing so.
@@ -227,7 +230,7 @@ echo.
 if "%LAST_HTTP_CLIENT%" == "powershell" (
   echo The PowerShell failed to download the latest Leiningen version.
   echo Try to use "curl" or "wget" to download Leiningen by setting up
-  echo the HTTP_CLIENT environment variable with one of the following
+  echo the HTTP_CLIENT environment variable with one of the following 
   echo values:
   echo.
   echo   a^) set HTTP_CLIENT=wget --no-check-certificate -O
@@ -240,14 +243,14 @@ if "%LAST_HTTP_CLIENT%" == "powershell" (
 if "%LAST_HTTP_CLIENT%" == "curl" (
   echo Curl failed to download the latest Leiningen version.
   echo Try to use "wget" to download Leiningen by setting up
-  echo the HTTP_CLIENT environment variable with one of the following
+  echo the HTTP_CLIENT environment variable with one of the following 
   echo values:
   echo.
   echo   a^) set HTTP_CLIENT=wget --no-check-certificate -O
   echo.
   echo NOTE: Make sure to *not* add double quotes when setting the value
   echo       of HTTP_CLIENT
-  echo.
+  echo. 
   echo If neither curl nor wget can download Leiningen, please seek
   echo for help on Leiningen's GitHub project issues page.
 )
@@ -255,14 +258,14 @@ if "%LAST_HTTP_CLIENT%" == "curl" (
 if "%LAST_HTTP_CLIENT%" == "wget" (
   echo Curl failed to download the latest Leiningen version.
   echo Try to use "wget" to download Leiningen by setting up
-  echo the HTTP_CLIENT environment variable with one of the following
+  echo the HTTP_CLIENT environment variable with one of the following 
   echo values:
   echo.
   echo.   a^) set HTTP_CLIENT=curl -f -L -k -o
   echo.
-  echo NOTE: make sure *not* to add double quotes to set the value of
+  echo NOTE: make sure *not* to add double quotes to set the value of 
   echo       HTTP_CLIENT
-  echo.
+  echo. 
   echo If neither curl nor wget can download Leiningen, please seek
   echo for help on Leiningen's GitHub project issues page.
 )
@@ -377,7 +380,7 @@ set RC=0
 "%LEIN_JAVA_CMD%" -client %LEIN_JVM_OPTS% ^
  -Dclojure.compile.path="%DIR_CONTAINING%/target/classes" ^
  -Dleiningen.original.pwd="%ORIGINAL_PWD%" ^
- -cp %CLASSPATH% clojure.main -m leiningen.core.main %*
+ -cp "%CLASSPATH%" clojure.main -m leiningen.core.main %*
 SET RC=%ERRORLEVEL%
 if not %RC% == 0 goto EXITRC
 

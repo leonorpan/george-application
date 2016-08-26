@@ -9,8 +9,8 @@
         [george.output :as output] :reload
         [george.repl.history :as hist] :reload
         [george.code.highlight :as dah] :reload
-        [george.code.core :as gcode] :reload
-        )
+        [george.code.core :as gcode] :reload)
+
     (:import
         [java.io StringReader]
         [clojure.lang Compiler LineNumberingPushbackReader ExceptionInfo]
@@ -18,9 +18,9 @@
         [javafx.scene Node]
         [javafx.geometry Pos]
         [javafx.scene.input KeyEvent KeyCode]
-        [javafx.stage Screen]
-        )
-    )
+        [javafx.stage Screen]))
+
+
 
 
 ;; from Versions.java in george-client
@@ -39,23 +39,23 @@
 
 (defn- print-error
 
-    ([^ExceptionInfo ei]
+    ([^ExceptionInfo ei
         (let [{:keys [after before]} (ex-data ei)]
             (print-error after before
-                (. ei getMessage) (. ei getCause) ei)))
+                (. ei getMessage) (. ei getCause) ei))
 
-        ([after before msg cause exception]
+        ([after before msg cause exception
             (let [loc-str (str "     [line column] - starting at " after ", ending by " before ": " \newline)]
                 (output/output :err  loc-str)
                 (.println output/standard-err  loc-str)
-                (.printStackTrace (or cause exception) )))
-    )
+                (.printStackTrace (or cause exception)))])]))
+
 
 
 (defn- read-eval-print [code]
     (println)
     (output/output :in (with-newline code))
-    (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
+    (let [rdr (LineNumberingPushbackReader. (StringReader. code))
 
             ;; inspiration:
             ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
@@ -67,7 +67,7 @@
 
                 (loop []
                     (let [
-                             after [(.getLineNumber rdr ) (.getColumnNumber rdr )]
+                             after [(.getLineNumber rdr ) (.getColumnNumber rdr)]
                              _ (.. Compiler/LINE_BEFORE (set (Integer. (first after))))
 
                              form
@@ -76,10 +76,10 @@
                                  ;; pass exception into form for later handdling
                                   (catch Exception e e))
 
-                            before [(.getLineNumber rdr ) (.getColumnNumber rdr )]
-                            _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))
+                            before [(.getLineNumber rdr ) (.getColumnNumber rdr)]
+                            _ (.. Compiler/LINE_BEFORE (set (Integer. (first before))))]
 
-                        ]
+
 
                         (if (instance? Exception form)
                             (print-error after before (.getMessage form ) (.getCause form ) form))
@@ -94,15 +94,15 @@
                                                 (. e getMessage)
                                                 {:after after :before before}
                                                 (. e getCause)))))
-                                (recur)))))
+                                (recur))))
                  (catch ExceptionInfo ei
                      (print-error ei))
 
                  (finally
-                     (pop-thread-bindings)
-                     ))
+                     (pop-thread-bindings))
 
-                 (str *ns*)))
+
+                 (str *ns*)))]))
 
 
 #_(defn- read-eval-print-in-ns
@@ -141,8 +141,8 @@
                     ;; handle history and clearing
                     (hist/append-history repl-uuid input)
                     (reset! current-history-index-atom -1)
-                    (when clear? (fx/later (.clear code-area)))
-                    )))))
+                    (when clear? (fx/later (.clear code-area))))))))
+
 
 
 
@@ -168,8 +168,8 @@
                 -fx-font: 14 'Source Code Pro Medium';
                 -fx-padding: 5 5;
                 /* -fx-border-radius: 4; */
-                ")
-                 )
+                "))
+
 
 
           do-history-fn
@@ -185,12 +185,12 @@
                 (fx/button
                     (str  \u25C0)  ;; up: \u25B2
                     :onaction #(do-history-fn hist/PREV false)
-                    :tooltip (format
+                    :tooltip (format)))]))
 "Previous 'local' history.          %s-LEFT
-Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY))
+Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY
                 ; (-> .getStyleClass (.add "default-button"))
                 ;(.setId "repl-prev-button")
-                )
+
 
 
             next-button
@@ -198,12 +198,12 @@ Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY))
                 (fx/button
                     (str \u25B6)  ;; down \u25BC
                     :onaction #(do-history-fn hist/NEXT false)
-                    :tooltip (format
+                    :tooltip (format)))
 "Next 'local' history.          %s-RIGHT
-Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY))
+Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY
                 ; (-> .getStyleClass (.add "default-button"))
                 ;(.setId "repl-next-button")
-                 )
+
 
 
             run-button
@@ -211,10 +211,10 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY))
                 "Eval"
                 :width 130
                 :onaction #(do-run-fn false)
-                :tooltip (format
+                :tooltip (format))
 "Run code, then clear.          %s-ENTER
-Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY)
-                )
+Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY
+
 
             button-box
             (fx/hbox
@@ -236,8 +236,8 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY)
             scene
              (doto
                  (fx/scene border-pane :size [500 200])
-                 (fx/add-stylesheets "styles/codearea.css")
-                 )
+                 (fx/add-stylesheets "styles/codearea.css"))
+
 
           key-pressed-handler
           (fx/key-pressed-handler{
@@ -248,16 +248,16 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY)
                                   #{:SHIFT :CTRL :RIGHT} #(do-history-fn hist/NEXT true)
 
                                   #{:CTRL :ENTER} #(do-run-fn true)
-                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)
-                 })
+                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)})
 
-             ]
+
+
         (.addEventFilter border-pane KeyEvent/KEY_PRESSED key-pressed-handler)
         ;; TODO: ensure code-area alsways gets focus back when focus in window ...
         ;; TODO: colorcode also when history is the same
         ;; TODO: nicer tooltips.  (monospace and better colors)
 
-        scene ))
+        scene
 
 
 
@@ -276,13 +276,13 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY)
               (doto (fx/stage
                         :title (format "Input %s" repl-nr)
                         :scene (input-scene)
-                        :sizetoscene true
+                        :sizetoscene true)
                         ;(. centerOnScreen))
-                        )
+
                   (.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))
-                  (.setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))
-              ))
-             ]
+                  (.setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))))]
+
+
         stage))
 
 

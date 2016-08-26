@@ -14,17 +14,19 @@
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
-             (javafx.scene.control Tooltip ListCell )
+             (javafx.scene.control Tooltip ListCell ScrollPane)
              (javafx.util Callback)
              (java.io StringWriter PrintStream OutputStreamWriter StringReader PushbackReader)
              (org.apache.commons.io.output WriterOutputStream)
-             (javafx.scene.text Text )
+             (javafx.scene.text Text TextFlow)
              (clojure.lang LineNumberingPushbackReader ExceptionInfo)
 
-             (javafx.scene.input KeyCode KeyEvent)
+             (javafx.scene.input KeyCode KeyEvent ScrollEvent)
+             (javafx.scene.transform Scale)
              (org.fxmisc.richtext StyledTextArea)
              (java.util.function BiConsumer)
-             (java.util Collections)))
+             (java.util Collections Random)
+             (javafx.scene.layout Pane)))
 
 
 (defonce standard-out System/out)
@@ -39,27 +41,43 @@
 ;; from Versions.java in george-client
 (def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
+(def ^:const N \newline)
+
+
+
+
+
+
+
+(defn- post-eval
+    "processes input and result, possibly updating RT-state and/or history"
+    [source read-res eval-res current-ns prev-ns]
+    (when (var? eval-res)
+        (alter-meta! eval-res #(assoc % :source source)))
+
+    (doseq [token read-res] (println "  " token (type token))))
+
 
 
 
 
 (defn- read-span [[after-l after-c] [before-l before-c] code]
-    ;(output nil (str " after: " after-l ":" after-c \newline))
+    ;(output nil (str " after: " after-l ":" after-c " before: " before-l ":" before-c N))
     (let [rdr (LineNumberingPushbackReader. (StringReader. code))
-          newline-int (int \n)
           sb (StringBuilder.)]
         ;; step rdr forward to start-line and start-char
         (dotimes [_  (dec after-l)] (.readLine rdr))
         (dotimes [_  (dec after-c)] (.read rdr))
 
         (loop []
-            ;; keep appending until end-line and end-char are reached
-            (.append sb (char (.read rdr)))
+            ;; keep appending and looping until end-line and end-char are reached
             (when
                 (or
                     (< (.getLineNumber rdr) before-l)
                     (and (= (.getLineNumber rdr) before-l)
                          (< (.getColumnNumber rdr) before-c)))
+                (.append sb (char (.read rdr)))
+
                 (recur)))
         ;; returned a trimmed string of read code
         (.trim (str sb))))
@@ -90,7 +108,7 @@
            cause-trace (when-let [cause (.getCause exception)](seq (.getStackTrace cause)))
            total-error
            (format
-"# EXCEPTION!
+            "# EXCEPTION!
 %s
 ## SOURCE:
 %s
@@ -103,20 +121,20 @@ from inclusive [%s:%s] to exclusive [%s:%s]  ([line:char])
 ## STACKTRACE CAUSE:
 %s
 "
-msg
-source
-after-l after-c before-l before-c
-exception-trace
-supressed-trace
-cause-trace
-)
+            msg
+            source
+            after-l after-c before-l before-c
+            exception-trace
+            supressed-trace
+            cause-trace)]
 
-           ]
+
+
          (output :err total-error)
 ;         (.println standard-err loc-str)
-         (.printStackTrace (or cause exception) standard-err)
-         ))
-    )
+         (.printStackTrace (or cause exception) standard-err))))
+
+
 
 
 ;; TODO:
@@ -147,7 +165,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
             (loop [ns *ns*]
                 (let [
-                      after [(.getLineNumber rdr ) (.getColumnNumber rdr )]
+                      after [(.getLineNumber rdr ) (.getColumnNumber rdr)]
                       _ (.set  Compiler/LINE_BEFORE (Integer. (first after)))
 
                       read-res
@@ -160,9 +178,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                       before [(.getLineNumber rdr) (.getColumnNumber rdr)]
                       _ (.set Compiler/LINE_BEFORE (Integer. (first before)))
 
-                      ;; TODO: get source from code, not from read-res
-                      source (read-span after before code)
-                      ]
+                      source (read-span after before code)]
+
                     (when (instance? Exception read-res)
                         (throw
                             (ex-info
@@ -178,37 +195,39 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                                     ;; we made it this far without a read-exception or eval-exception
 
                                     ;(output nil (str "read-res: " read-res \newline))
-                                    (cond
+
+                                    #_(cond
                                         (not= *ns* ns)
                                         (do
                                             (output-ns *ns*)
                                             (output nil (str "   new ns: " *ns* " \n"))
-                                            (output nil (str "   source: " source \newline))
-                                            )
+                                            (output nil (str "   source: " source \newline)))
+
 
                                         (var? eval-res)
                                         (do
                                             (output nil (str "      var: " eval-res "   (RT-state store)\n"))
-                                            (output nil (str "   source: " source \newline))
-                                            )
+                                            (output nil (str "   source: " source \newline)))
+
 
                                         :default
                                         (do
                                             (output nil (str " call res: " eval-res "   (history store)\n"))
-                                            (output nil (str "   source: " source \newline))
-                                            ))
-                                    )
+                                            (output nil (str "   source: " source \newline))))
+
+                                    (post-eval source read-res eval-res  *ns* ns))
+
 
                                 ;; Catch and re-throw the eval-exception,
                                 ;; adding start and end-point in code
-                                    (catch Exception e
-                                        (throw
-                                            (ex-info
-                                                (.getMessage e)
-                                                {:after after :before before :source source}
-                                                (.getCause e)))))
+                                (catch Exception e
+                                    (throw
+                                        (ex-info
+                                            (.getMessage e)
+                                            {:after after :before before :source source}
+                                            (.getCause e)))))
                                 ;; We only recur if no read or eval exception was thrown.
-                                (recur *ns*))))
+                            (recur *ns*))))
             ;; here we actually catch read and eval exceptions, and print them.
             ;; This is where something much more useful should be done!!
             (catch ExceptionInfo ei
@@ -230,11 +249,11 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
             (println)
             (fxj/thread
                 (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                    (fx/thread (.setText ns-textfield new-ns))
+                    (fx/thread (.setText ns-textfield new-ns)))))))
 
                     ;; handle history and clearing
 
-                    )))))
+
 
 
 
@@ -259,24 +278,24 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                 (doto (jfx/button (str  \u25B2) #(history-button-fn -1 false)) ;; small: \u25B4
                     (-> .getStyleClass (.add "default-button"))
                     (.setId "repl-prev-button")
-                    (gui/install-tooltip (format "Previous 'local' history.   %s-UP\nAccess 'global' history by using SHIFT-%s-UP" SHORTCUT_KEY SHORTCUT_KEY))
-                    )
+                    (gui/install-tooltip (format "Previous 'local' history.   %s-UP\nAccess 'global' history by using SHIFT-%s-UP" SHORTCUT_KEY SHORTCUT_KEY)))
+
 
                 next-button
                 (doto (jfx/button (str \u25BC) #(history-button-fn 1 false)) ;; small: \u25BE
                     (-> .getStyleClass (.add "default-button"))
                     (.setId "repl-next-button")
-                    (gui/install-tooltip (format "Next 'local' history.   %s-DOWN\nAccess 'global' history by using SHIFT-%s-DOWN" SHORTCUT_KEY SHORTCUT_KEY))
-                    )
-                )
+                    (gui/install-tooltip (format "Next 'local' history.   %s-DOWN\nAccess 'global' history by using SHIFT-%s-DOWN" SHORTCUT_KEY SHORTCUT_KEY))))
+
+
           run-button
           (fx/button
               "Run"
               :width 150
               :onaction #(run code-area false ns-label)
               ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
-              :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY)
-              )
+              :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY))
+
 
           button-box
           (fx/hbox
@@ -298,8 +317,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           scene
           (doto
               (fx/scene border-pane :size [500 200])
-              (fx/add-stylesheets "styles/codearea.css")
-              )
+              (fx/add-stylesheets "styles/codearea.css"))
+
 
           key-handler
           (fx/key-pressed-handler{
@@ -307,15 +326,15 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                                     ;#{:SHIFT :CTRL :UP}    #(history-button-fn -1 true)
                                     ;#{       :CTRL :DOWN}  #(history-button-fn 1 false)
                                     ;#{:SHIFT :CTRL :DOWN}  #(history-button-fn 1 true)
-                                    #{       :CTRL :ENTER} #(run code-area false ns-label)
+                                    #{       :CTRL :ENTER} #(run code-area false ns-label)})]
                                     ;#{:SHIFT :CTRL :ENTER} #(run code-area true ns-label)
-                                    })
 
-          ]
+
+
         (. border-pane addEventFilter KeyEvent/KEY_PRESSED key-handler)
         ;; TODO: ensure code-area alsways gets focus back when focus in window ...
 
-        scene ))
+        scene))
 
 
 
@@ -335,12 +354,12 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 (defn input-stage []
     (let [bounds (. (fx/primary-screen) getVisualBounds)]
         (fx/now (fx/stage
-            :style :utility
-            :title "Input"
-            :scene (input-scene)
-            :sizetoscene true
-            :location [(-> bounds .getWidth (/ 2) )
-                       (-> bounds .getHeight (/ 2) (- 300) )]))))
+                 :style :utility
+                 :title "Input"
+                 :scene (input-scene)
+                 :sizetoscene true
+                 :location [(-> bounds .getWidth (/ 2))
+                            (-> bounds .getHeight (/ 2) (- 300))]))))
 
 
 
@@ -355,8 +374,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 (defn- get-outputarea []
     (when-let [stage @output-singleton]
-        (->  stage .getScene .getRoot .getChildrenUnmodifiable first)
-        ))
+        (->  stage .getScene .getRoot .getChildrenUnmodifiable first)))
+
 
 
 (defn- output-string-writer [typ] ;; type is one of :out :err
@@ -377,8 +396,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
     (println "wrap-outs")
     (let [
           ow (output-string-writer :out)
-          ew (output-string-writer :err)
-          ]
+          ew (output-string-writer :err)]
+
         (System/setOut (PrintStream. (WriterOutputStream. ow) true))
         (System/setErr (PrintStream. (WriterOutputStream. ew) true))
         (alter-var-root #'*out* (constantly ow))
@@ -413,8 +432,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
     (if-let[oa (get-outputarea)]
         (fx/later
             (let [start (.getLength oa)]
-            (.insertText oa start (str obj))
-            (.setStyle oa start (.getLength oa) (output-style typ)))))
+             (.insertText oa start (str obj))
+             (.setStyle oa start (.getLength oa) (output-style typ)))))
     ;; else:  make sure these always also appear in stout
     (if (#{:in :res} typ)
         (. standard-out print (str obj))))
@@ -466,8 +485,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
               "Clear"
               :width 150
               :onaction #(.replaceText outputarea "")
-              :tooltip (format "Clear output")
-              )
+              :tooltip (format "Clear output"))
+
           button-box
           (fx/hbox
 
@@ -481,8 +500,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           (fx/scene (fx/borderpane
                         :top button-box
                         :center outputarea
-                        :insets 5))
-          ]
+                        :insets 5))]
+
         #_(-> text-flow
             .getChildren
             (. addListener
@@ -493,15 +512,15 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
         #_(def append (fn [node] (fx/later (-> text-flow .getChildren (. add node)))))
 
-        scene ))
+        scene))
 
 
 
 
 (defn- output-stage []
     (let [bounds (. (fx/primary-screen) getVisualBounds)
-          size [1000 300];[700 300]
-          ]
+          size [1000 300]];[700 300]
+
         (fx/now
             (fx/stage
                 :style :utility
@@ -544,7 +563,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
          (format "%s   %s  %s   %s" t k (if (fn? derefed) "FN" "") (meta v)))))
 
 
-(defn print-all [nsthing]
+(defn- print-all [nsthing]
     (let [
           {:keys [k v t]} nsthing
           m (meta v)
@@ -559,6 +578,57 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
         (println  "  meta: " (dissoc m :ns))
         (println  "   doc: " doc)
         (println  "   src: " src)))
+
+
+(defn- create-node [interned-var]
+
+    (let [
+          mt (meta interned-var)
+          nm (:name mt)
+
+          short-text
+          (doto (fx/text (str nm)
+                         :font (fx/SourceCodePro "Regular" 20)))
+
+
+          name-text (fx/text (str nm)
+                             :font (fx/SourceCodePro "Regular" 18))
+
+          text-flow (doto (TextFlow. (fxj/vargs short-text))
+                        (.setUserData interned-var))
+
+          args-text (fx/text (str N (:arglists mt))
+                             :font (fx/SourceCodePro "Regular" 16))]
+
+
+        #_(-> visible-label .visibleProperty (.bind
+                                              (-> hovered-textflow .visibleProperty .not)))
+
+        (.setOnMouseEntered text-flow
+                            (fx/event-handler
+                                (println "mouse entered")
+                                (-> text-flow .getChildren (.setAll (fxj/vargs name-text args-text)))))
+
+        (.setOnMouseExited text-flow
+                            (fx/event-handler
+                                (println "mouse exited")
+                                (-> text-flow .getChildren (.setAll (fxj/vargs short-text)))))
+
+
+        text-flow))
+
+
+(defn- get-or-create-node [interned-var]
+    (let [
+          mt (meta interned-var)
+          nd  (:node mt)]
+
+        (if nd
+            nd
+            (do
+                (alter-meta! interned-var
+                             #(assoc % :node (create-node interned-var)))
+                (recur interned-var)))))
 
 
 (defn- tooltip [nsthing]
@@ -594,9 +664,10 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                      (proxy-super updateItem item empty?)
                      (when-not empty?
                         ;(.setText  lbl (str item))
-                         (.setText this (str item))
+                         (.setText this (str item)))
 ;                        (.setText tt (str "TT: " item))
-                         (.setTooltip this  (tooltip item)))
+                         ;(.setTooltip this  (tooltip item))
+
 
                      this))))))
 
@@ -614,13 +685,9 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                   aliases
                   imports)
 
-
           view (fx/listview
                    (apply fx/observablearraylist-t Object
                           all))]
-
-
-
         (-> view
             .getSelectionModel
             .selectedItemProperty
@@ -630,6 +697,130 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
         (. view (setCellFactory (a-namespace-listcell-factory)))
         (fx/scene view)))
+
+
+(defn- make-draggable [scale node]
+    (let [
+          point-atom (atom [0 0])
+
+          press-handler
+          (fx/event-handler-2
+              [_ event]
+              (let [bounds (.getBoundsInParent node)
+                    scale-value (.getX scale)]
+                  (reset! point-atom [
+                                      (- (* (.getMinX bounds ) scale-value)
+                                         (.getScreenX event))
+                                      (- (* (.getMinY bounds ) scale-value)
+                                         (.getScreenY event))])))
+
+
+          drag-handler
+          (fx/event-handler-2
+              [_ event]
+              (let [
+                    offset-x (+ (.getScreenX event ) (first @point-atom))
+                    offset-y (+ (.getScreenY event ) (second @point-atom))
+                    scale-value (.getX scale)]
+
+                  (.relocate node
+                     (/ offset-x scale-value)
+                     (/ offset-y scale-value))))]
+
+
+        (doto node
+            (.setOnMousePressed press-handler)
+            (.setOnMouseDragged drag-handler))
+
+        nil))
+
+
+(defn strip-node-from-vars [namespace]
+    (let [interns (ns-interns namespace)]
+        (doseq [[_ vr] interns]
+            (alter-meta! vr #(dissoc % :node)))))
+
+
+(defn- display-all [namespace group scale]
+    (let [interns (ns-interns namespace)]
+        (doseq [[nm vr] interns]
+            (let [node (get-or-create-node vr)]
+                (make-draggable scale node)
+             (println nm ":" node)
+             (fx/later (fx/add group node))))))
+
+
+
+(defn- create-zoomable-scrollpane []
+    (let [
+          content-layer (Pane.)
+          content-group (fx/group content-layer)
+
+
+          delta 0.1  ;; scroll by this much
+
+          transform-group (fx/group content-group) ;; gets transformed by the group
+          layout-bounds-group  (fx/group transform-group)  ;; will resize to adapt to transform-group  zooms
+          scrollpane (ScrollPane. layout-bounds-group) ;; will adjust scrollbars et al when layout-bounds-group expands
+          scale-transform (Scale.)
+
+          zoom-handler
+          (fx/event-handler-2
+              [_ scroll-event]
+              (when (.isControlDown scroll-event)
+                  (let [scale-value (.getX scale-transform) ;; equal scaling in both directions
+                        delta-y (.getDeltaY scroll-event)  ;; positive or negative
+                        new-scale-value (+ scale-value (* delta (if (pos? delta-y) 1 -1)))]
+
+                      (.setX scale-transform new-scale-value)
+                      (.setY scale-transform  new-scale-value)
+                      (.consume scroll-event))))]
+          ;; Tips on keeping zoom centered: https://community.oracle.com/thread/2541811?tstart=0
+
+        (-> transform-group .getTransforms (.add scale-transform))
+        ;; eventfilter allows my code to get in front of ScrollPane's event-handler.
+        (.addEventFilter scrollpane ScrollEvent/ANY zoom-handler)
+
+        [scale-transform scrollpane]
+
+        {:scrollpane scrollpane
+         :contentpane content-layer
+         :scale scale-transform}))
+
+
+
+
+(def ^:private randomizer (Random.))
+
+(defn- randomize-layout [nodes]
+    (doseq [c nodes]
+        (let [x (* (. randomizer nextDouble) 400)
+              y (* (. randomizer nextDouble) 400)]
+            (. c relocate x y))))
+
+
+(defn- a-namespace-view [namespace]
+        (let [
+              {:keys [contentpane scrollpane scale]}
+              (create-zoomable-scrollpane)]
+;              graph-atom (atom (create-graph))
+ ;             graph-panes (create-graph-panes)
+
+            (display-all namespace contentpane scale)
+            (randomize-layout (.getChildren contentpane))
+  ;          (swap! graph-atom populate graph-panes)
+   ;         (randomize-layout @graph-atom)
+            (fx/later (fx/stage
+                          :style :utility
+                          :title (str "namespace: " namespace)
+                          :location [100 50]
+                          :size [800 600]
+                          :scene (fx/scene (fx/borderpane
+                                               :center scrollpane
+                                               :insets 0))))))
+
+
+
 
 
 
@@ -665,7 +856,11 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
             (.addListener
                 (fx/changelistener [_ _ _ val]
                                    (println "namespace:" val)
-                                   (a-namespace-stage val))))
+                                   (a-namespace-stage val)
+                                   (a-namespace-view val))))
+
+
+
 
         (fx/scene view)))
 
@@ -715,15 +910,15 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
               "Output"
               :width button-width
               :onaction show-or-create-output-stage
-              :tooltip "Open/show output-window"
-              )
+              :tooltip "Open/show output-window")
+
           input-button
           (fx/button
               "Input"
               :width button-width
               :onaction input-stage
-              :tooltip "Open a new input window / REPL"
-              )
+              :tooltip "Open a new input window / REPL")
+
 
           logo
           (fx/imageview "graphics/George_logo.png")]
@@ -787,10 +982,10 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 (defn -main []
     (show-or-create-launcher-stage)
-    (show-or-create-output-stage)
-    )
+    (show-or-create-output-stage))
+
 
 
 ;;; DEV ;;;
 
-(println "  ## WARNING: running george.core.core/-main")  (-main)
+;(println "  ## WARNING: running george.core.core/-main")  (-main)

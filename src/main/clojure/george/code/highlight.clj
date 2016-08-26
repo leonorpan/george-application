@@ -42,14 +42,14 @@
         (when (and from to)  ;; skip [nil nil] ranges.  Fix!
             (let [
                  ;; ensure bounds
-                 new-style  (assoc style :background (background-fill hover?))
-                 from (max 0 from)
-                 to (min to code-len)
-                 ]
-;            (println "new-style:" from to new-style)
-            (. codearea setStyle  from to new-style)
+                  new-style  (assoc style :background (background-fill hover?))
+                  from (max 0 from)
+                  to (min to code-len)]
 
-            ))))
+;            (println "new-style:" from to new-style)
+             (. codearea setStyle  from to new-style)))))
+
+
 
 
 
@@ -95,8 +95,8 @@
             "#cc7832";"#c35a00";"#A33EFE"
 
             :else
-            "orange"
-        ))
+            "orange"))
+
 
 
 (defn- color [token]
@@ -111,8 +111,8 @@
                     :unpaired
 
                     :else
-                    (type value))
-         ]
+                    (type value))]
+
         (type->color typ)))
 
 
@@ -125,14 +125,14 @@
 
 
 (defn- token->range
-"Takes a token and returns a range-vector:  Token -> [start end]"
+ "Takes a token and returns a range-vector:  Token -> [start end]"
     [token]
     [(:start token) (:end token)])
 
 
 
 (defn- token->ranges
-"Takes a Token or a pair of tokens in a vector and returns a vector of range-vectors:
+ "Takes a Token or a pair of tokens in a vector and returns a vector of range-vectors:
 Token -> [[start end]]
 [Token Token] -> [[start end] [start end]]"
     [thing]
@@ -146,26 +146,26 @@ Token -> [[start end]]
     [index-vector! rngs token]
     (if-not token  ;; avoid NullPointerExeptions.  Fix this!
         index-vector!
-    (let [
-             indexes
-             (reduce
-                 (fn [acc rng] (concat acc (apply range rng)))
-                 [] rngs)
-        ]
-        (loop [indv index-vector!
-               inds indexes]
-            (if (empty? inds)
-                indv
-                (recur
-                    (assoc! indv (first inds) token)
-                    (rest inds))))))
-    )
+     (let [
+              indexes
+              (reduce
+                  (fn [acc rng] (concat acc (apply range rng)))
+                  [] rngs)]
+
+         (loop [indv index-vector!
+                inds indexes]
+             (if (empty? inds)
+                 indv
+                 (recur
+                     (assoc! indv (first inds) token)
+                     (rest inds)))))))
+
 
 
 
 
 (defn- create-token-index
-"assocs a seq of single and paired tokens to every index they cover:
+ "assocs a seq of single and paired tokens to every index they cover:
 [Token0{:start 0 :end 2 ...}  Token1{:start 4 :end 5 ...} ...] -> [Token0 Token0 Token0 nil Token1 ...]
 all-tokens:  seq of single tokens:  [Token0 Token1 Token2 Token3 Token4 Token 5]
 paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
@@ -179,8 +179,8 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
                token-index!
                       (transient (mapv (constantly nil) (range code-length)))
                tokens
-                      all-and-paired
-            ]
+                      all-and-paired]
+
 
             (if-not tokens
                 ; make vector persistent, and return
@@ -189,56 +189,56 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
                     (assoc-token
                         token-index!
                         (token->ranges (first tokens))
-                        (first tokens)
-                        )
-                    (next tokens)))
-            )))
+                        (first tokens))
+
+                    (next tokens))))))
+
 
 
 (defn- set-stylespans [tokens codearea]
     (when-not (empty? tokens)
-    (let [
-             tokens-and-specs (map (fn [t] [t (ca/->StyleSpec (color t) nil false false)]) tokens)
-             spans-builder (StyleSpansBuilder. (* 2 (count tokens)))
-             ]
+     (let [
+              tokens-and-specs (map (fn [t] [t (ca/->StyleSpec (color t) nil false false)]) tokens)
+              spans-builder (StyleSpansBuilder. (* 2 (count tokens)))]
 
-        (loop [prev-end 0 [[token spec] & tokens-and-specs] tokens-and-specs]
-            (when-let [{:keys [start end]} token]
-                (doto spans-builder
+
+         (loop [prev-end 0 [[token spec] & tokens-and-specs] tokens-and-specs]
+             (when-let [{:keys [start end]} token]
+                 (doto spans-builder
                     ;; add a spacer between tokens
-                    (. add (Collections/emptyList) (- start prev-end))
+                     (. add (Collections/emptyList) (- start prev-end))
                     ;; then add the token itself
-                    (. add (Collections/singleton spec) (- end start))
-                    )
+                     (. add (Collections/singleton spec) (- end start)))
 
-                (recur end tokens-and-specs)))
 
-            (fx/thread  ;; should this not go on a channel for speed?!
-                (try
-                    (. codearea setStyleSpans 0 (. spans-builder create))
-                    (catch Exception e (. e printStackTrace))  ;; handle end greater than length.  Fix!
-                )
-        ))))
+                 (recur end tokens-and-specs)))
+
+         (fx/thread  ;; should this not go on a channel for speed?!
+             (try
+                 (. codearea setStyleSpans 0 (. spans-builder create))
+                 (catch Exception e (. e printStackTrace)))))))  ;; handle end greater than length.  Fix!
+
+
 
 
 (defn- set-spec [codearea code-len ranges spec hover?]
     (doseq [[from to] ranges]
         (when (and from to)  ;; avoid NullPointerException
-        (let [
+         (let [
                  ;; ensure bounds
-                 new-spec (assoc spec :hover hover?)
-                 from (max 0 from)
-                 to (min to code-len)
-                 ]
-                 ;(println "new-spec:" from to new-spec)
-                 (fx/thread
-                     (try
-                         (. codearea setStyle from to new-spec)
-                         (catch IllegalArgumentException e (. e printStackTrace)) ;; handle end is greater than length. Fix!
-                         )
-                     )
+                  new-spec (assoc spec :hover hover?)
+                  from (max 0 from)
+                  to (min to code-len)]
 
-            ))))
+                 ;(println "new-spec:" from to new-spec)
+              (fx/thread
+                  (try
+                      (. codearea setStyle from to new-spec)
+                      (catch IllegalArgumentException e (. e printStackTrace)))))))) ;; handle end is greater than length. Fix!
+
+
+
+
 
 
 
@@ -257,8 +257,8 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
           (tok/paired-delims (tok/delim-tokens singles))
 
           unpaired
-          (map mark-as-unpaired-delim unpaired)
-        ]
+          (map mark-as-unpaired-delim unpaired)]
+
 
         (. (. codearea errorlines)
            setValue
@@ -273,8 +273,8 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
                 false))
 
         (go
-            (reset! token-index-atom (create-token-index singles paired code-len))
-            )))
+            (reset! token-index-atom (create-token-index singles paired code-len)))))
+
 
 
 
@@ -294,8 +294,8 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
             (let [style (. codearea getStyleOfChar index)]
                 (if (map? style)  ;; don't know why `(instance? StyleSpec style)` doesn't work! :-(
                     style
-                    (first style)  ;; .getStyle... may return java.util.Collections$SingletonSet!
-                    ))
+                    (first style)))  ;; .getStyle... may return java.util.Collections$SingletonSet!
+
             hover?)
         index))
 
@@ -316,18 +316,18 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
             ;; first "un-hover" the previous thing
             (swap! last-hovered-index unhover codarea @tokenindexes-atom)
             ;; then "hover" the current thing
-            (reset! last-hovered-index (hover (. event getCharacterIndex) codarea @tokenindexes-atom))
-            )))
+            (reset! last-hovered-index (hover (. event getCharacterIndex) codarea @tokenindexes-atom)))))
+
 
 
 
 (defn set-handlers [^StyledTextArea codearea]
     (let [
           token-index (atom []) ;; this will contain references to parse-results by index - for lookups
-          hover-handler (mouse-over-handler codearea token-index)
-          ]
+          hover-handler (mouse-over-handler codearea token-index)]
+
         (doto codearea
             (. setMouseOverTextDelay (Duration/ofMillis 100))
             (. addEventHandler MouseOverTextEvent/MOUSE_OVER_TEXT_BEGIN hover-handler)
-            (-> .textProperty (. addListener (codearea-changelistener codearea token-index)))
-            )))
+            (-> .textProperty (. addListener (codearea-changelistener codearea token-index))))))
+

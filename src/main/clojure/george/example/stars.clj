@@ -9,10 +9,11 @@
              [javafx.scene.paint Color]
              [javafx.animation AnimationTimer]
              [javafx.stage Stage]
-             [javafx.scene Node Scene]
+             [javafx.scene Node Scene CacheHint]
              [com.sun.javafx.perf PerformanceTracker]
              [java.security AccessControlException]
-             [javafx.scene.control Label]))
+             [javafx.scene.control Label]
+             [javafx.scene.shape Rectangle]))
 
 
 ;; primitive math is faster
@@ -24,7 +25,7 @@
 
 
 (def STAR_COUNT 20000)
-;(def STAR_COUNT (/ 20000 10))
+; (def STAR_COUNT 200000)
 
 ;; 2 billion possible steps between origo and edge of circle
 (def TWO_BILL 2000000000)
@@ -34,12 +35,13 @@
 
 ;; multiply with SQRT_" to ensure that the radius reaches corners of stage
 (def SQRT_2 (Math/sqrt 2))
-;(def SQRT_2 (* (Math/sqrt 2) 10))
+;(def SQRT_2 (* (Math/sqrt 2) 10.))
 
 (def random (Random.))
 
 ;; precalculated seq of numbers - for iteration over
 (def STAR_COUNT_RANGE (range STAR_COUNT))
+;(def STAR_COUNT_RANGE (range (/ STAR_COUNT 1000)))
 
 
 
@@ -97,15 +99,17 @@
             height (* 0.5 ^double (. stage getHeight))
             radius ^double (* ^double SQRT_2 (Math/max width height))
             ]
-          (doseq [i STAR_COUNT_RANGE]
-              (let [
-                t (rem (- ^int now (aget ^longs starts i)) ^int TWO_BILL)
-                d (/ (* t radius) ^double TWO_BILL_D)
-                ]
-          (doto ^Node (get nodes i)
-              (. setTranslateX (+ (*  (aget ^doubles angles_cos i) d) width))
-              (. setTranslateY (+ (*  (aget ^doubles angles_sin i) d) height))
-              )))
+          (loop [i 0]
+              (when (< i ^int STAR_COUNT)
+                  (let [
+                        t (rem (- ^int now (aget ^longs starts i)) ^int TWO_BILL)
+                        d (/ (* t radius) ^double TWO_BILL_D)
+                        ]
+                      (doto ^Node (get nodes i)
+                          (. setTranslateX (+ (*  (aget ^doubles angles_cos i) d) width))
+                          (. setTranslateY (+ (*  (aget ^doubles angles_sin i) d) height))
+                          )
+                      (recur (inc i)))))
           )
         (. ^Label fps-label (setText (format " FPS: %.2f   [reset]" (fps))))
         )))
@@ -132,4 +136,4 @@
 
             )))
 
-;(-main)
+(-main)
