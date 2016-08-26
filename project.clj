@@ -42,14 +42,19 @@
 
   :target-path "target/%s"
 
-  :main ^:skip-aot george.Main
+  :main ^:skip-aot george.app.Loader
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
   ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
 
   :aliases {
-            ;; go straight to george.main
-            "main" ["run" "-m" "george.main"]
+            ;; starts the Loader, which in turn starts Starter, which in turn starts main.
+            "loader" ["run" "-m" "george.app.Loader"]
+            ;; starts Starter, which in turn starts main.
+            "starter" ["run" "-m" "george.app.Starter"]
+            ;; starts main directly
+            "main" ["run" "-m" "george.app.main"]
+
 
             ;; Simple george.example of staring Clojure from Java
             "example" ["run" "-m" "george.example.app" "4 5 6"]
