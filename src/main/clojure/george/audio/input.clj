@@ -6,27 +6,27 @@
       [clojure.data :as data]
       [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
       [george.javafx.core :as fx]
-    :reload
-    )
+    :reload)
 
-    (:import
-        (javafx.scene.control ToggleGroup)
-        (javax.sound.sampled AudioSystem TargetDataLine DataLine$Info AudioFormat$Encoding AudioFormat LineUnavailableException AudioInputStream)
-        (javafx.scene Group)
-        (java.nio ByteOrder ByteBuffer)
-        (java.io ByteArrayOutputStream)))
+
+  (:import
+      (javafx.scene.control ToggleGroup)
+      (javax.sound.sampled AudioSystem TargetDataLine DataLine$Info AudioFormat$Encoding AudioFormat LineUnavailableException AudioInputStream)
+      (javafx.scene Group)
+      (java.nio ByteOrder ByteBuffer)
+      (java.io ByteArrayOutputStream)))
 
 
 
 (def DEFAULT_MIC_FORMAT
   (AudioFormat.
     AudioFormat$Encoding/PCM_SIGNED ; format
-    (float 44100)	; sample rate
-    16  			; bits per sample (2 bytes)
-    1	    		; channels: mono!
-    2		    	; frame size in bytes - for PCM it is bytes pr sample x channels.
-    (float 44100)	; frame rate
-    false ) )		; is big endian
+    (float 44100)  ; sample rate
+    16        ; bits per sample (2 bytes)
+    1          ; channels: mono!
+    2          ; frame size in bytes - for PCM it is bytes pr sample x channels.
+    (float 44100)  ; frame rate
+    false))    ; is big endian
 
 
 (def DEFAULT_MIC_TARGET_DATA_LINE_INFO
@@ -127,8 +127,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 
 (defn- add-consumer [MID obj ch]
     (println "add-consumer obj:" obj " ch:" ch)
-    (swap! consumers assoc-in [MID obj] ch)
-    )
+    (swap! consumers assoc-in [MID obj] ch))
+
 
 
 (defn- feed-consumers
@@ -149,8 +149,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           AIS (AudioInputStream. line)
           buffer-size 4096 ;; 44.1k Hz / 2k samples = 22 Hz
           buffer (byte-array buffer-size)
-          BAOS (ByteArrayOutputStream. buffer-size)
-          ]
+          BAOS (ByteArrayOutputStream. buffer-size)]
+
         (.start line)
         (go-loop [len (.read AIS buffer)]
             (.write BAOS buffer 0 len)
@@ -162,8 +162,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 #_(defn audio-bytes->samples [bytes bigendian?]
     (let [
           tempBB (java.nio.ByteBuffer/wrap bytes)
-          short-count (/ (count bytes) 2)
-          ]
+          short-count (/ (count bytes) 2)]
+
         (when-not bigendian? (.order tempBB java.nio.ByteOrder/LITTLE_ENDIAN))
         (short-array short-count
             (for [_ (range short-count)]
@@ -208,8 +208,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
         (doseq [pane @selected-input-panes-atom]
             (fx/set! pane
                      (doto (create-monitor-pane n)
-                         (set-active)))
-            )))
+                         (set-active))))))
+
 
 
 (defn mixer->MID
@@ -249,13 +249,13 @@ It there a need / purpose for for this, though, as long as whatever data they ar
         (catch LineUnavailableException lue
             (println " # LineUnavailableException (in open-TDL-safe):" lue)
             (.printStackTrace lue)
-            nil )
+            nil)
 
         (catch Exception e
             (println " # Exception (in open-TDL-safe):" e)
             (.printStackTrace e)
-            nil )
-        ))
+            nil)))
+
 
 
 (defn refresh-MIDs
@@ -273,8 +273,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           (keys found-MIM-mixers)
 
           [added-MIDs-set removed-MIDs-set _]
-          (data/diff (set found-MIDs) @current-MIDs-atom)
-          ]
+          (data/diff (set found-MIDs) @current-MIDs-atom)]
+
         (println "    added-MIDs-set:" added-MIDs-set)
         (println "  removed-MIDs-set:" removed-MIDs-set)
 
@@ -289,15 +289,15 @@ It there a need / purpose for for this, though, as long as whatever data they ar
                     (let [
                           mixer (found-MIM-mixers MID)
                           _ (println "  ## mixer:" mixer)
-                          TDL (open-TDL-safe (get-TDL-from-mixer mixer))
-                          ]
+                          TDL (open-TDL-safe (get-TDL-from-mixer mixer))]
+
                         ;; perhaps don't need to store mixer for mim?  but what the heck ...
                         (swap! MIM-mixer-atom assoc MID mixer)
                         ;; store this opened line "permanently"
                         (swap! MID-line-atom assoc MID TDL)
                         ;; start a read-loop which feeds to all consumers for that TDL
-                        (feeder-loop MID)
-                        ))
+                        (feeder-loop MID)))
+
                 ;(println "Adding to current-MIDs-atom")
                 (swap! current-MIDs-atom conj MID)
                 (recur (rest MIDs))))
@@ -323,9 +323,9 @@ It there a need / purpose for for this, though, as long as whatever data they ar
   "Returns the selected MID/TDL if not nil, and if in current-MIDs-atom,
   else it will return the first (default) MID/TDL from current-MIDs-atom"
   []
-    (when-not @selected-MID-atom
-        (refresh-MIDs))
-    @selected-MID-atom)
+  (when-not @selected-MID-atom
+      (refresh-MIDs))
+  @selected-MID-atom)
 
 
 
@@ -338,16 +338,16 @@ It there a need / purpose for for this, though, as long as whatever data they ar
         len (count lights)
         lim-activate (Math/round (* (/ len 100.) prosent))
         sticky-activate (Math/round (* (/ len 100.) sticky-prosent))
-        rev-lights (vec (reverse lights))
-        ]
+        rev-lights (vec (reverse lights))]
+
     (fx/later
       (doseq [l rev-lights]
         (.setFill l fx/GREY))
       (doseq [l (take lim-activate rev-lights)]
         (.setFill l fx/BLUE))
       (if(< 0 sticky-activate len)
-        (.setFill (get rev-lights sticky-activate) fx/BLUE))
-      )))
+        (.setFill (get rev-lights sticky-activate) fx/BLUE)))))
+
 
 
 
@@ -361,27 +361,27 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 
         outer-pane
         (doto (fx/vbox (fx/text label) lights-pane)
-          (fx/set-padding 20 20 0 20))
-        ]
+          (fx/set-padding 20 20 0 20))]
+
     (ignite lights 10 10)
 
-    [outer-pane lights] ))
+    [outer-pane lights]))
 
 
 (defn- set-active [monitor-pane]
     (let [
           {:keys [MID lights-pane]} (.getUserData monitor-pane)
-          active (boolean (@current-MIDs-atom MID))
-          ]
-        (.setVisible lights-pane active)
-        ))
+          active (boolean (@current-MIDs-atom MID))]
+
+        (.setVisible lights-pane active)))
+
 
 
 (defn- clamp [low val high]
     (let [
           val (if (< val low) low val)
-          val (if (> val high) high val)
-          ]
+          val (if (> val high) high val)]
+
         val))
 
 
@@ -420,8 +420,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
                           [prev-sticky-prosent (dec prev-sticky-countdown)]))
 
                   sticky-prosent
-                  (clamp 0 sticky-prosent 100)
-                  ]
+                  (clamp 0 sticky-prosent 100)]
+
                 (when update?
                     (ignite meter-lights prosent sticky-prosent))
 
@@ -447,8 +447,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           outer-pane
           (doto
               (fx/hbox texts lights-pane)
-              (.setUserData {:MID MID :lights-pane lights-pane}))
-          ]
+              (.setUserData {:MID MID :lights-pane lights-pane}))]
+
         (add-consumer MID outer-pane (create-monitor-channel MID meter-lights))
 
         outer-pane))
@@ -461,16 +461,16 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           radio-button
           (doto (fx/radiobutton)
               (.setToggleGroup togglegroup)
-              (.setGraphic monitor-pane)
-              )
-          ]
+              (.setGraphic monitor-pane))]
+
+
         (doto (fx/hbox radio-button monitor-pane)
             (.setAlignment fx/Pos_CENTER)
             (fx/set-padding 0 0 0 20)
             (.setUserData {:MID MID
                            :lights-pane (-> monitor-pane .getUserData :lights-pane)
-                           :radiobutton radio-button})
-            )))
+                           :radiobutton radio-button}))))
+
 
 
 
@@ -486,8 +486,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
           (-> monitors-vbox .getChildren)
 
           monitor-MIDs-set
-          (set (map #(-> % .getUserData :MID) monitors))
-          ]
+          (set (map #(-> % .getUserData :MID) monitors))]
+
         ;; add monitors for MIDs
         (loop [MIDs @all-MIDs-atom]
             (when-let[m (first MIDs)]
@@ -506,13 +506,13 @@ It there a need / purpose for for this, though, as long as whatever data they ar
             (when-let [m (first monitors)]
                 (let [
                       {:keys [MID radiobutton]} (.getUserData m)
-                      selected (= @selected-MID-atom MID)
-                      ]
+                      selected (= @selected-MID-atom MID)]
+
                     (set-active m)
                     (.setSelected radiobutton selected))
 
-                (recur (rest monitors))))
-        ))
+                (recur (rest monitors))))))
+
 
 
 
@@ -546,8 +546,8 @@ It there a need / purpose for for this, though, as long as whatever data they ar
         (fx/hbox refresh-button)
 
         pane
-        (fx/borderpane :top top :center monitors-vbox)
-        ]
+        (fx/borderpane :top top :center monitors-vbox)]
+
 
       [pane refresh-button-action]))
 
@@ -586,9 +586,9 @@ It there a need / purpose for for this, though, as long as whatever data they ar
                 :title "audio input selector"
                 :scene (fx/scene pane)
                 :sizetoscene true
-                :onhidden #(del-singleton :input-selector-stage)
-                )
-            ]
+                :onhidden #(del-singleton :input-selector-stage))]
+
+
           (refresh-button-action)
           (.setUserData stage {:refresh-button-action refresh-button-action})
           stage)))

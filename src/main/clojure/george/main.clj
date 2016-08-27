@@ -17,8 +17,8 @@
               (symbol LAUNCHER_NS)
               (require
                   :verbose
-                  :reload
-                  ))
+                  :reload))
+
 
 
           '-main)

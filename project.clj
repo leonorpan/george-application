@@ -19,9 +19,14 @@
                  [org.fxmisc.richtext/richtextfx "0.6.10"  :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.clojure/core.async "0.2.374"]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
+
+                 ;; https://github.com/clojure/tools.namespace
+                 [org.clojure/tools.namespace "0.3.0-alpha3"]
+                 ;; https://github.com/clojure/java.classpath
+                 [org.clojure/java.classpath "0.2.3"]
                  ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
-                 [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]]
-;               [no.andante.george/george-javafx "0.1.0-SNAPSHOT"]
+                 [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
+                 [no.andante.george/george-javafx "0.1.0-SNAPSHOT"]]
 
 
   :repositories [
@@ -29,20 +34,20 @@
 
 
   :deploy-repositories [
-                        ["snapshots" :clojars]
+                          ["snapshots" :clojars]
                         ["releases" :clojars]]
 
 
   :source-paths      ["src/main/clojure"]
   :java-source-paths ["src/main/java"]
   :javac-options     ["-target" "1.8" "-source" "1.8"]
+                      ;"-Xlint:unchecked"]
+
 
   :test-paths ["src/test/clojure"]
   :resource-paths ["src/main/resources"]
 
   :target-path "target/%s"
-
-  :main ^:skip-aot george.app.Loader
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
   ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
@@ -65,8 +70,10 @@
             ;; And here is the original Java-version - for (visual) comparison
             "starsj" ["run" "-m" "george.example.Stars"]
 
-            "graph" ["run" "-m" "george.sandbox.graph"]})
+            "graph" ["run" "-m" "george.sandbox.graph"]}
 
-
-
-;   :manifest {"Main-Class" "george.Main"}
+  :profiles {
+             :uberjar {
+                       ;:aot :all
+                       ;:main george.app.Loader}})
+                       :manifest {"Main-Class" "george.app.Loader"}}})

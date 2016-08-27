@@ -3,7 +3,7 @@
 (ns
   george.example.stars
   (:require
-    [george.javafx :as fx]
+    [george.javafx.core :as fx]
     :reload)
     (:import [java.util Random]
              [javafx.scene.paint Color]

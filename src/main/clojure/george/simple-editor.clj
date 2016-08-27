@@ -4,8 +4,8 @@
         [clojure.string :as s]
         [clojure.java.io :as cio]
 
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
+        [george.javafx.java :as j] :reload
+        [george.javafx.core :as fx] :reload
         [george.javafx-classes :as fxc] :reload
         [george.output :as output] :reload))
 

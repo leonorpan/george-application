@@ -1,0 +1,17 @@
+# types
+
+# directories
+target/
+checkouts/
+.idea/libraries/
+
+# files
+.idea/codeStyleSettings.xml
+.idea/replstate.xml
+.idea/uiDesigner.xml
+.idea/misc.xml
+.idea/vcs.xml
+.idea/modules.xml
+.lein-repl-history
+.nrepl-port
+george-app-jvm.iml

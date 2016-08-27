@@ -1,8 +1,8 @@
 (ns george.turtle
     (:require
-        [george.java :as j] :reload
-        [george.javafx :as fx] :reload
-        ))
+        [george.javafx.java :as j] :reload
+        [george.javafx.core :as fx] :reload))
+
 
 (fx/import-classes!)
 
@@ -13,8 +13,8 @@
                -5. 5.
                 -3. 0.
                -5 -5.
-               :fill fx/ANTHRECITE)
-    )
+               :fill fx/ANTHRECITE))
+
 
 
 ;; Will hold a reference to the one (and only) screen
@@ -27,15 +27,15 @@
           root (fx/group)
           stage
                (fx/now (fx/stage
-                   :title "Turtle - Graphics"
-                   :size [600 600]
-                   :scene (fx/scene root :fill fx/WHITESMOKE)
-                   :onhidden #(reset! screen-singleton nil)))
-          ]
+                        :title "Turtle - Graphics"
+                        :size [600 600]
+                        :scene (fx/scene root :fill fx/WHITESMOKE)
+                        :onhidden #(reset! screen-singleton nil)))]
+
         (doto root
             (-> .layoutXProperty (. bind (-> stage .widthProperty (. divide 2))))
-            (-> .layoutYProperty (. bind (-> stage .heightProperty (. divide 2))))
-            )
+            (-> .layoutYProperty (. bind (-> stage .heightProperty (. divide 2)))))
+
         {:root root :stage stage}))
 
 
@@ -75,8 +75,8 @@
      (down pen true))
     ([pen b]
      (swap! pen assoc :down b)
-        pen)
- )
+     pen))
+
 
 (defn up [pen]
     (down pen false))
@@ -86,9 +86,9 @@
     (let [new-angle (+ (angle pen) degrees)]
         (fx/synced-keyframe
             (* (/ (Math/abs degrees) (* 3 360)) 1000)  ;; 3 rotations pr second
-            [(. (:node @pen) rotateProperty) new-angle]
-            )
-        pen ))
+            [(. (:node @pen) rotateProperty) new-angle])
+
+        pen))
 
 
 (defn left [pen degrees]
@@ -97,29 +97,29 @@
 
 (defn forward
     [pen distance]
-     (let [ang (angle pen)
-           x (x pen)
-           y (y pen)
-           line (if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
-           rad (Math/toRadians ang)
-           x-fac (Math/cos rad)
-           y-fac (Math/sin rad)
-           new-x (+ x (* distance x-fac))
-           new-y (+ y (* distance y-fac))
-           node (:node @pen)
-           ]
-         (when line
-                 (add-node (:screen @pen) line)
-                 (fx/later (. node toFront)))
+    (let [ang (angle pen)
+          x (x pen)
+          y (y pen)
+          line (if (:down @pen) (fx/line :x1 x :y1 y :color (Color/web (:color @pen))))
+          rad (Math/toRadians ang)
+          x-fac (Math/cos rad)
+          y-fac (Math/sin rad)
+          new-x (+ x (* distance x-fac))
+          new-y (+ y (* distance y-fac))
+          node (:node @pen)]
 
-         (fx/synced-keyframe
-             (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
-             [(. node layoutXProperty) new-x]
-             [(. node layoutYProperty) new-y]
-             (if line [(. line endXProperty) new-x])
-             (if line [(. line endYProperty) new-y])
-             )
-             pen ))
+        (when line
+                (add-node (:screen @pen) line)
+                (fx/later (. node toFront)))
+
+        (fx/synced-keyframe
+            (* (/ (Math/abs distance) 600) 1000)  ;; 600 px per second
+            [(. node layoutXProperty) new-x]
+            [(. node layoutYProperty) new-y]
+            (if line [(. line endXProperty) new-x])
+            (if line [(. line endYProperty) new-y]))
+
+        pen))
 
 
 
@@ -127,8 +127,8 @@
 ;; If a screen doesn't exist, then one will be created.
 (defn pen []
         (let [screen (screen)
-              node  (pen-node)
-              ]
+              node  (pen-node)]
+
             (add-node screen node)
             (Thread/sleep 300)
             (atom {:screen screen :node node :down true :color "black"})))
@@ -156,18 +156,18 @@
 
 (defn- load-via-tempfile-in-ns [code-str ns-str]
     (binding [*ns* (create-ns (symbol ns-str))]
-    (let [temp-file (java.io.File/createTempFile "code_" ".clj")]
-        (spit temp-file code-str)
-        (prn temp-file)
-        (load-file (str temp-file))
-        )))
+     (let [temp-file (java.io.File/createTempFile "code_" ".clj")]
+         (spit temp-file code-str)
+         (prn temp-file)
+         (load-file (str temp-file)))))
+
 
 
 (defn- run [code]
     (load-via-tempfile-in-ns code "george.turtle"))
 
 (def sample-code
-"(doto (pen)
+ "(doto (pen)
   (forward 100)
   (left 120)
   (color \"red\")
@@ -199,8 +199,8 @@
                (fx/now (fx/stage
                            :title "Turtle - Code"
                            :size [400 600]
-                           :scene (fx/scene root :fill fx/WHITESMOKE)))
-          ]
+                           :scene (fx/scene root :fill fx/WHITESMOKE)))]
+
         stage))
 
 ;(new-code-stage)

@@ -1,9 +1,9 @@
 (ns dev.andante.db.test
     (:require
         [clojure.repl :refer [doc]]
-        [george.java :as j]
+        [george.javafx.java :as j]
         :reload
-        [george.javafx :as fx]
+        [george.javafx.core :as fx]
         :reload)
 
     (:import [javafx.scene Node Scene]

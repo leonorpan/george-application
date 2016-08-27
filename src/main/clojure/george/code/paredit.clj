@@ -31,8 +31,8 @@
                  {:parse-tree parse-tree :buffer buffer}
                  {:text t,
                   :offset (min (-> codearea .getSelection .getStart) (. codearea getCaretPosition)),
-                  :length (- (-> codearea .getSelection .getEnd) (-> codearea .getSelection .getStart))
-                  })))
+                  :length (- (-> codearea .getSelection .getEnd) (-> codearea .getSelection .getStart))})))
+
 
 
 
@@ -57,8 +57,8 @@
     (when (< 0 (:length pe))
         (. codearea selectRange
                       (:offset pe)
-                      (+ (:offset pe) (:length pe))
-                      )))
+                      (+ (:offset pe) (:length pe)))))
+
 
 
 (comment def os-x-charmap
@@ -70,8 +70,8 @@
    "ß" "s" ;;paredit splice
    "®" "r" ;; raise expr
    "Í" "S" ;; split
-   "Ô" "J" ;;join
-   })
+   "Ô" "J"}) ;;join
+
 
 
 
@@ -109,9 +109,9 @@
          keyText
          (if (#{"Left" "Right"} keyText)
              keyText
-             (str keyChar)))
-     ]
-    ))
+             (str keyChar)))]))
+
+
 
 
 
@@ -121,14 +121,14 @@
       (keyReleased [this e] nil)
 
       (keyTyped [this e]
-          (when (#{"(" ")" "[" "]" "{" "}" "\""} (str (.getKeyChar e) ))
+          (when (#{"(" ")" "[" "]" "{" "}" "\""} (str (.getKeyChar e)))
               (.consume e)))
 
       (keyPressed [this e]
           (let [k (convert-key-event e)
                 p (exec-paredit k w)]
-              (when p (.consume e))))
-      ))
+              (when p (.consume e))))))
+
 
 
 (comment defn input-method-event-handler [w]
@@ -167,13 +167,13 @@
              "]"  :paredit-close-square
              "{"  :paredit-open-curly
              "}"  :paredit-close-curly
-             "\"" :paredit-doublequote
+             "\"" :paredit-doublequote})
              ;"\b"  :paredit-backward-delete
-             })
+
         (nonconsuming-commands
-            {
+            {})))
              ;"\b"  :paredit-backward-delete
-             })))
+
 
 (def codes-map
 
@@ -193,15 +193,15 @@
              #{:ALT :SHIFT :S}          :paredit-split-sexp
              #{:ALT :SHIFT :J}          :paredit-join-sexps
              #{:ALT :RIGHT}             :paredit-expand-right
-             #{:ALT :LEFT}              :paredit-expand-left
+             #{:ALT :LEFT}              :paredit-expand-left})
              ; #{:CTRL :SHIFT :K} :paredit-kill not implemented in paredit.clj
-             })
+
         (consuming-commands
-            {
+            {})))
              ;; Not able to handle these probably yet. TODO: Maybe later ...
              ;#{:BACK_SPACE}  :paredit-backward-delete
              ;#{:DELETE} :paredit-forward-delete
-             })))
+
 
 
 

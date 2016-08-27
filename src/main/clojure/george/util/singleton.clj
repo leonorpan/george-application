@@ -1,9 +1,9 @@
 (ns
-  ^{:author "Terje Dahl" }
+  ^{:author "Terje Dahl"}
   george.util.singleton
-  (:refer-clojure :exclude [get remove])  ;; https://gist.github.com/ghoseb/287710
+  (:refer-clojure :exclude [get remove]))  ;; https://gist.github.com/ghoseb/287710
 
-  )
+
 
 
 
