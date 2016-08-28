@@ -60,6 +60,10 @@
             ;; starts main directly
             "main" ["run" "-m" "george.app.main"]
 
+            ;; starts turtle environement directly
+            "turtle" ["run" "-m" "george.app.applet.turtle"]
+            ;; starts general environment directly
+            "general" ["run" "-m" "george.app.applet.general"]
 
             ;; Simple george.example of staring Clojure from Java
             "example" ["run" "-m" "george.example.app" "4 5 6"]
@@ -77,3 +81,10 @@
                        ;:aot :all
                        ;:main george.app.Loader}})
                        :manifest {"Main-Class" "george.app.Loader"}}})
+
+;; TODO next:
+;; - consolidate environments.
+;;   - look at conections between input and output.
+;;   - ensure correct *ns* for turtle vs general.
+;; - Fix Launcher and Environment layouts - choose best layout and placement of turtle/general and use that.
+;; - avoid ":reload" of namespaces  (multiple reloads seems to slow down loading, and causes multiple calls to other parts)

@@ -1,27 +1,41 @@
-(ns george.launcher
+(ns george.app.launcher
 
-    (require
-        [clojure.repl :refer [doc]]
+  (require
+    [clojure.repl :refer [doc]]
 
-        [george.javafx.core :as fx]
-        :reload
+    [george.javafx.core :as fx]
+    :reload
 
-        [george.repl.input :as input]
-        :reload
-        [george.editor :as editor]
-        :reload
-        [george.output :as output]
-        :reload)
+    [george.repl.input :as input]
+    :reload
+    [george.editor :as editor]
+    :reload
+    [george.output :as output]
+    :reload
+    [george.app.applet-loader :as applets-loader] :reload)
 
-    (:import [javafx.scene.image ImageView Image]
-             [javafx.scene.paint Color]
-             [javafx.geometry Pos]))
+  (:import [javafx.scene.image ImageView Image]
+           [javafx.scene.paint Color]
+           [javafx.geometry Pos]))
 
+
+(defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
+  (fx/button name
+             :width button-width
+             :onaction main-fn
+             :tooltip description))
 
 
 (defn- launcher-scene []
     (let [
           b-width 150
+
+          applet-info-list
+          (applets-loader/load-applets)
+          _ (println "  ## applet-info-seq:" applet-info-list)
+
+          applet-buttons
+          (map #(applet-button % b-width) applet-info-list)
 
           output-button
           (fx/button
@@ -55,14 +69,23 @@
           (ImageView. (Image. "graphics/George_logo.png"))
 
           scene
-            (fx/scene
-                (fx/vbox
-                    logo input-button output-button code-button
-                    :spacing 20
-                    :padding 20
-                    :alignment Pos/TOP_CENTER)
-                :fill Color/WHITE ;; Doesn't take effect! :-(
-                :size [180 220])]
+          (fx/scene
+
+             (doto
+               (apply fx/vbox
+                      (flatten [logo applet-buttons input-button output-button code-button
+                                :spacing 20
+                                :padding 20
+                                :alignment Pos/TOP_CENTER]))
+               (.setBackground (fx/color-background Color/WHITE)))
+
+             :fill Color/WHITE ;; Doesn't take effect! Root panes background covers it! :-(
+             :size [180 (+ 80 ;; logo
+                           (* 48  ;; each button
+                             (+ (count applet-buttons)
+                                3)))])] ;; extra buttons
+
+
 
 
         scene))
@@ -84,7 +107,9 @@
 
 
 (defn show-launcher-stage []
+
     (let [
+
              scene
              (launcher-scene)
 
@@ -93,31 +118,27 @@
                        :scene scene
                        :location [100 50]
                        :sizetoscene true
-                       :title "George"
+                       :title "George launcher"
                        :ontop true
                        :resizable false
                        ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
                        :oncloserequest (launcher-close-handler)))]
-
-
         stage))
 
 
 
 
-;;;; dev ;;;;
-
-
 (defn -main
-    "Launches George (launcher) as a stand-alone app."
-    [& args]
-    (println "george.launcher/-main"
-             (if (empty? args)
-                 ""
-                 (str " args: " (apply str (interpose " " args)))))
-    (fx/now (show-launcher-stage)))
+  "Launches George (launcher) as a stand-alone app."
+  [& args]
+  (println "george.app.launcher/-main"
+           (if (empty? args)
+             ""
+             (str " args: " (apply str (interpose " " args)))))
+  (fx/now (show-launcher-stage)))
+
 
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.laucher/-main" (-main))
+;(println "WARNING: Running george.app.launcher/-main" (-main))

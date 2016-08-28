@@ -8,7 +8,7 @@
 
 
 
-  (:import (george Versions)
+  (:import (george.app Versions)
            (java.util Date UUID)
            (java.sql Timestamp)))
 

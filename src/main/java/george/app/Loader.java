@@ -1,5 +1,6 @@
 package george.app;
 
+import george.app.Versions; // just to include it in the compile, for now.
 
 /* This class locates the newest version of the JAR, and loads it.  It is pure Java, to avoid touching any Clojure RT with class loaders etc. */
 
