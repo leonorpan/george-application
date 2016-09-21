@@ -78,7 +78,7 @@
             (fx/stage
                 :style :utility
                 :location [70 80]
-                :title "Turtle :: library"
+                :title "Turtle Geometry - library"
                 :scene (fx/scene (library-pane) :size [300 300])
                 :sizetoscene true
                 :onhidden #(singleton/remove ::library-stage)))))
@@ -108,7 +108,7 @@
 
           pane (fx/hbox
 
-                   (fx/button "Turtle screen"
+                   (fx/button "Screen"
                               :width button-width
                               :onaction #(tr/screen)
                               :tooltip "Open/show a new Turtle screen")
@@ -153,7 +153,7 @@
         :style :utility
         :ontop true
         :location [300 17]
-        :title "Turtle Geometry"
+        :title "George - Turtle Geometry"
         :scene (fx/scene (toolbar-pane))
         :sizetoscene true
         :onhidden #(singleton/remove ::toolbar-stage)))))

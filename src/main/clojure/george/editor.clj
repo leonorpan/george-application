@@ -4,7 +4,6 @@
         [george.javafx.java :as j]
         [george.javafx.core :as fx]
         [george.javafx.util :as fxu]
-        [george.code.highlight :as dah]
         [george.code.core :as gcode]
         [george.core.core :as gcc]
         )
@@ -148,7 +147,7 @@
                      :minwidth 60
                      :width 60
                      :onaction open-file-fn
-                     :tooltip "Select  and open an existing (Clojure) file ...")
+                     :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" gcc/SHORTCUT_KEY))
 
 
           file-pane
@@ -160,7 +159,7 @@
                          :minwidth 70
                          :width 70
                          :onaction save-file-as-fn
-                         :tooltip "Save as a new (Clojure) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.")
+                         :tooltip (format "Save as a new (Clojure/Turtle) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.  %s-SHIFT-S" gcc/SHORTCUT_KEY))
 
               :insets [0 0 10 0]
               :spacing 10)

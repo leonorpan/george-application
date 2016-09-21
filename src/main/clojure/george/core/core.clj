@@ -543,12 +543,12 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
             ;; first print the content of StringWriter to output-stage
             (let [s (str this)]
                 (if (= typ :err)
-                    (. standard-err print s)
-                    (. standard-out print s))
+                    (.print standard-err  s)
+                    (.print standard-out s))
                 (output typ s))
             ;; then flush the buffer of the StringWriter
-            (let [sb (. this getBuffer)]
-                (. sb delete 0 (. sb length))))))
+            (let [sb (.getBuffer this)]
+                (.delete  sb 0 (.length sb))))))
 
 
 (defn wrap-outs []
@@ -587,7 +587,7 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
 
 
-(defn output [typ obj]  ;; type is one of :in :ns :res :out :err
+(defn output [typ obj]  ;; type is one of :in :ns :res :out :err :system
     ;; TODO: maybe crop old lines from beginning for speed?
     (if-let[oa (get-outputarea)]
         (fx/later

@@ -4,7 +4,6 @@
     [clojure.repl :refer [doc]]
     [george.javafx.core :as fx]
     [george.editor :as editor]
-    [george.output :as output]
     [george.app.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
@@ -111,7 +110,7 @@
                        :scene scene
                        :location [90 20]
                        :sizetoscene true
-                       :title "George launcher"
+                       :title "George - launcher"
                        :ontop true
                        :resizable false
                        ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?

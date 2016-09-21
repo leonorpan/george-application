@@ -1,13 +1,11 @@
 (ns george.simple-editor
     (:require
         [clojure.repl :refer [doc]]
-        [clojure.string :as s]
         [clojure.java.io :as cio]
 
         [george.javafx.java :as j]
         [george.javafx.core :as fx]
-        [george.javafx-classes :as fxc]
-        [george.output :as output]))
+        [george.javafx-classes :as fxc]))
 
 
 

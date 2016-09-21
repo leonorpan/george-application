@@ -586,7 +586,7 @@
           scene (fx/scene root :size [600 600] :fill fx/WHITESMOKE :depthbuffer true)
           stage
           (fx/now (fx/stage
-                    :title "Turtle :: screen"
+                    :title "Turtle Geometry - screen"
                     :sizetoscene true
                     :location [300 110]
                     :scene scene
