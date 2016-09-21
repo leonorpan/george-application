@@ -1,7 +1,7 @@
 (ns george.app.main
   (:require
-    [george.app.applet-loader :as applets] :reload
-    [george.app.launcher :as launcher] :reload))
+    [george.app.applet-loader :as applets]
+    [george.app.launcher :as launcher] ))
 
 
 (defn -main [& args]

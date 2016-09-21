@@ -2,10 +2,7 @@
     (:require
         [clojure.repl :refer [doc]]
         [george.javafx.java :as j]
-        :reload
-        [george.javafx.core :as fx]
-        :reload
-        )
+        [george.javafx.core :as fx])
     (:import [javafx.scene Parent Group Node SnapshotParameters Cursor Scene]
              [javafx.scene.layout Pane StackPane FlowPane]
              [javafx.scene.text Text]

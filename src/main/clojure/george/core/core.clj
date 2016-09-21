@@ -5,12 +5,13 @@
         [clojure.repl :as cr]
         [clojure.pprint :refer [pprint pp] :as cpp]
         [george.javafx.core :as fx]
-        :reload
+
         [george.javafx.java :as fxj]
-        :reload
+
 
         [george.code.core :as gcode]
-        [clojure.string :as s])
+        [clojure.string :as s]
+        [george.core.history :as hist])
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
@@ -50,12 +51,14 @@
 
 
 (defn- post-eval
-    "processes input and result, possibly updating RT-state and/or history"
+    "Processes input and result, possibly updating RT-state and/or history.
+    Intended used for updating namespace-instepctor etc."
     [source read-res eval-res current-ns prev-ns]
     (when (var? eval-res)
         (alter-meta! eval-res #(assoc % :source source)))
 
-    (doseq [token read-res] (println "  " token (type token))))
+        (doseq [token (if (seq? read-res) read-res [read-res])]
+            (println "  " token (type token))))
 
 
 
@@ -215,8 +218,9 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                                             (output nil (str " call res: " eval-res "   (history store)\n"))
                                             (output nil (str "   source: " source \newline))))
 
-                                    (post-eval source read-res eval-res  *ns* ns))
+        ;                            (post-eval source read-res eval-res  *ns* ns)
 
+                                    )
 
                                 ;; Catch and re-throw the eval-exception,
                                 ;; adding start and end-point in code
@@ -257,7 +261,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 
 
-(defn- input-scene []
+#_(defn- input-scene []
     (let [
 
           ns-label
@@ -338,6 +342,161 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 
 
+(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear?]
+    (let [input (gcode/text code-area)]
+        (if (s/blank? input)
+            (println)
+            (fxj/thread
+                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
+                    (when (not= new-ns (.getText ns-textfield))
+                        (fx/thread (.setText ns-textfield new-ns))
+                        (output-ns (str "-> " new-ns)))
+                    ;; handle history and clearing
+                    (hist/append-history repl-uuid input)
+                    (reset! current-history-index-atom -1)
+                    (when clear? (fx/later (.clear code-area))))))))
+
+
+(defn- input-scene [ns]
+    (let [
+
+          repl-uuid (hist/uuid)
+
+          current-history-index-atom (atom -1)
+
+          ns-label
+          (doto
+              (fx/label (or ns "user"))
+              ( .setStyle "
+                    -fx-font: 12 'Source Code Pro Regular';
+                    -fx-text-fill: gray;
+                "))
+
+
+          code-area
+          (doto (gcode/->codearea)
+              #_( .setStyle "
+                -fx-font: 14 'Source Code Pro Medium';
+                -fx-padding: 5 5;
+                /* -fx-border-radius: 4; */
+                "))
+
+
+
+          do-history-fn
+          (fn [direction global?]
+              (hist/do-history code-area repl-uuid current-history-index-atom direction global?))
+
+          do-run-fn
+          (fn [clear?]
+              (do-run code-area repl-uuid current-history-index-atom ns-label clear?))
+
+          prev-button
+          (doto
+              (fx/button
+                  (str  \u25C0)  ;; up: \u25B2
+                  :onaction #(do-history-fn hist/PREV false)
+                  :tooltip (format
+                               "Previous 'local' history.          %s-LEFT
+Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
+          ; (-> .getStyleClass (.add "default-button"))
+          ;(.setId "repl-prev-button")
+
+
+
+          next-button
+          (doto
+              (fx/button
+                  (str \u25B6)  ;; down \u25BC
+                  :onaction #(do-history-fn hist/NEXT false)
+                  :tooltip (format
+                               "Next 'local' history.          %s-RIGHT
+Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
+          ; (-> .getStyleClass (.add "default-button"))
+          ;(.setId "repl-next-button")
+
+
+
+          run-button
+          (fx/button
+              "Eval"
+              :width 130
+              :onaction #(do-run-fn false)
+              :tooltip (format
+                           "Run code, then clear.          %s-ENTER
+Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+
+
+          button-box
+          (fx/hbox
+              prev-button
+              next-button
+              (fx/region :hgrow :always)
+              run-button
+              :spacing 3
+              :alignment fx/Pos_TOP_RIGHT
+              :insets [5 0 0 0])
+
+          border-pane
+          (fx/borderpane
+              :center code-area
+              :top ns-label
+              :bottom button-box
+              :insets 10)
+
+          scene
+          (doto
+              (fx/scene border-pane :size [500 200])
+              (fx/add-stylesheets "styles/codearea.css"))
+
+
+          key-pressed-handler
+          (fx/key-pressed-handler{
+                                  #{:CTRL :LEFT} #(do-history-fn hist/PREV false)
+                                  #{:SHIFT :CTRL :LEFT} #(do-history-fn hist/PREV true)
+
+                                  #{:CTRL :RIGHT} #(do-history-fn hist/NEXT false)
+                                  #{:SHIFT :CTRL :RIGHT} #(do-history-fn hist/NEXT true)
+
+                                  #{:CTRL :ENTER} #(do-run-fn true)
+                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)})]
+
+
+
+        (.addEventFilter border-pane KeyEvent/KEY_PRESSED key-pressed-handler)
+        ;; TODO: ensure code-area alsways gets focus back when focus in window ...
+        ;; TODO: colorcode also when history is the same
+        ;; TODO: nicer tooltips.  (monospace and better colors)
+
+        scene))
+
+
+(defn new-input-stage [& [ns]]
+    ;; TODO: consolidate/fix integrations/dependencies
+    ;; TODO: add interupt-posibility (button) to/for run-thread
+
+    (let [
+          repl-nr
+          (hist/next-repl-nr)
+
+          stage
+          (fx/now
+              (doto (fx/stage
+                        :title (format "Input %s" repl-nr)
+                        :scene (input-scene ns)
+                        :sizetoscene true
+                        ;(. centerOnScreen)
+                        :location [800 200]
+                        )
+
+                  ;(.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))
+                  ;(.setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))
+                  ))]
+
+
+        stage))
+
+
 ;;;; API ;;;;
 
 
@@ -351,7 +510,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
         (read-eval-print code)))
 
 
-(defn input-stage []
+#_(defn input-stage []
     (let [bounds (. (fx/primary-screen) getVisualBounds)]
         (fx/now (fx/stage
                  :style :utility
@@ -421,6 +580,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           :err (->OutputStyleSpec "RED")
           :in (->OutputStyleSpec "BLUE")
           :ns (->OutputStyleSpec "BROWN")
+          :system (->OutputStyleSpec "#bbbbbb")
           :res (->OutputStyleSpec "GREEN")}
          typ
          (->OutputStyleSpec "ORANGE")))
@@ -435,8 +595,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
              (.insertText oa start (str obj))
              (.setStyle oa start (.getLength oa) (output-style typ)))))
     ;; else:  make sure these always also appear in stout
-    (if (#{:in :res} typ)
-        (. standard-out print (str obj))))
+    (when (#{:in :res} typ)
+        (.print standard-out (str obj))))
 
 
 
@@ -518,15 +678,15 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 
 (defn- output-stage []
-    (let [bounds (. (fx/primary-screen) getVisualBounds)
+    (let [bounds (.getVisualBounds (fx/primary-screen))
           size [1000 300]];[700 300]
 
         (fx/now
             (fx/stage
                 :style :utility
                 :title "Output"
-                :location [(. bounds getMinX)
-                           (-> bounds .getMaxY (- (second size)))]
+                :location [(+ (.getMinX bounds) 20)
+                           (- (-> bounds .getMaxY (- (second size))) 20)]
                 :size size
                 :scene (output-scene)))))
 
@@ -912,22 +1072,21 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
               :onaction show-or-create-output-stage
               :tooltip "Open/show output-window")
 
-          input-button
-          (fx/button
-              "Input"
-              :width button-width
-              :onaction input-stage
-              :tooltip "Open a new input window / REPL")
+          ;input-button
+          ;(fx/button
+          ;    "Input"
+          ;    :width button-width
+          ;    :onaction input-stage
+          ;    :tooltip "Open a new input window / REPL")
 
 
           logo
           (fx/imageview "graphics/George_logo.png")]
 
 
-
         (fx/scene
             (doto (fx/hbox
-                   logo namespace-button output-button input-button
+                   logo namespace-button output-button ;input-button
                    :spacing 20
                    :padding 20
                    :alignment Pos/CENTER_LEFT)

@@ -3,15 +3,10 @@
   george.core.visual
   (:require
     [george.javafx.core :as fx]
-    :reload
     [george.javafx.java :as fxj]
-    :reload
     [george.javafx.util :as fxu]
-    :reload
-    [george.javafx.3d :as fx3d]
-    :reload)
+    [george.javafx.3d :as fx3d])
     ;[george.turtle.core :as tr]
-    ;:reload
 
 
   (:import (javafx.scene DepthTest PerspectiveCamera CacheHint)

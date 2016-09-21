@@ -1,10 +1,10 @@
 (ns
   ^{:author "Terje Dahl"}
-  george.repl.history
+  george.core.history
     (:require [clojure.java.io :as cio]
               [clojure.edn :as edn]
 
-              [george.javafx.java :as j] :reload)
+              [george.javafx.java :as j])
 
 
 
@@ -17,7 +17,7 @@
 
 (def HISTORY_FILE (cio/file Versions/APPDATA_DIR "repl" "history.edn"))
 (.mkdirs (.getParentFile HISTORY_FILE))
-(println "HISTORY_FILE:" HISTORY_FILE)
+;(println "HISTORY_FILE:" HISTORY_FILE)
 
 
 (defonce ^:private history-atom (atom []))
@@ -51,13 +51,15 @@
   (let [item {:repl-uuid repl-uuid
               :timestamp (Timestamp. (.getTime (Date.)))
               :content   content}
-        _ (println "item:" item)]
+        ;_ (println "item:" item)
+        ]
 
     (swap! history-atom #(-> % (prune 100) (conj item)))
     (j/thread
-      (println "writing history to file ...")
+      ;(println "writing history to file ...")
       (spit HISTORY_FILE (pr-str @history-atom))
-      (println " ... done"))))
+      ;(println " ... done")
+      )))
 
 
 

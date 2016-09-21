@@ -2,17 +2,10 @@
 
   (require
     [clojure.repl :refer [doc]]
-
     [george.javafx.core :as fx]
-    :reload
-
-    [george.repl.input :as input]
-    :reload
     [george.editor :as editor]
-    :reload
     [george.output :as output]
-    :reload
-    [george.app.applet-loader :as applets-loader] :reload)
+    [george.app.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
@@ -37,32 +30,32 @@
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
 
-          output-button
-          (fx/button
-              "Output"
-              :width b-width
-              :onaction output/show-output-stage
-              :tooltip "Open/show output-window")
+          ;output-button
+          ;(fx/button
+          ;    "Output"
+          ;    :width b-width
+          ;    :onaction output/show-output-stage
+          ;    :tooltip "Open/show output-window")
 
 
-          input-button
-          (fx/button
-              "Input"
-              :width b-width
-              :onaction #(do
-                            ;(. output-button fire)
-                            (input/new-input-stage))
-              :tooltip "Open a new input window / REPL")
+          ;input-button
+          ;(fx/button
+          ;    "Input"
+          ;    :width b-width
+          ;    :onaction #(do
+          ;                  ;(. output-button fire)
+          ;                  (input/new-input-stage))
+          ;    :tooltip "Open a new input window / REPL")
 
 
-          code-button
-          (fx/button
-              "Code"
-              :width b-width
-              :onaction #(do
-                            ;(. output-button fire)
-                            (editor/new-code-stage))
-              :tooltip "Open a new code editing window. \n(Can be used to open and save files.)")
+          ;code-button
+          ;(fx/button
+          ;    "Code"
+          ;    :width b-width
+          ;    :onaction #(do
+          ;                  ;(. output-button fire)
+          ;                  (editor/new-code-stage))
+          ;    :tooltip "Open a new code editing window. \n(Can be used to open and save files.)")
 
 
           logo
@@ -73,7 +66,7 @@
 
              (doto
                (apply fx/vbox
-                      (flatten [logo applet-buttons input-button output-button code-button
+                      (flatten [logo applet-buttons
                                 :spacing 20
                                 :padding 20
                                 :alignment Pos/TOP_CENTER]))
@@ -83,7 +76,7 @@
              :size [180 (+ 80 ;; logo
                            (* 48  ;; each button
                              (+ (count applet-buttons)
-                                3)))])] ;; extra buttons
+                                0)))])] ;; extra buttons
 
 
 
@@ -116,7 +109,7 @@
              stage
              (fx/now (fx/stage
                        :scene scene
-                       :location [100 50]
+                       :location [90 20]
                        :sizetoscene true
                        :title "George launcher"
                        :ontop true

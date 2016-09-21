@@ -8,9 +8,9 @@
         [paredit.core :as pe]
         [paredit.parser :as pep]
         [george.javafx.core :as fx]
-        :reload
+
         [george.code.highlight :as highlight]
-        :reload
+
         [george.code.codearea :as ca])
     (:import [org.fxmisc.richtext StyledTextArea]))
 

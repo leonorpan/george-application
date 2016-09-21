@@ -3,7 +3,7 @@
   george.namespace.core
   (:require
     [clojure.pprint :refer [pprint pp]]
-    [george.javafx.core :as fx] :reload))
+    [george.javafx.core :as fx]))
 
 
 

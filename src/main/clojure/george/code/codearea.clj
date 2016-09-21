@@ -1,7 +1,7 @@
 (ns
   george.code.codearea
   (:require
-    [george.javafx.core :as fx] :reload
+    [george.javafx.core :as fx]
 
 
             )

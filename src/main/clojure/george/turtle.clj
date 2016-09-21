@@ -1,7 +1,7 @@
 (ns george.turtle
     (:require
-        [george.javafx.java :as j] :reload
-        [george.javafx.core :as fx] :reload))
+        [george.javafx.java :as j]
+        [george.javafx.core :as fx]))
 
 
 (fx/import-classes!)

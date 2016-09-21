@@ -6,11 +6,8 @@
         [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop sliding-buffer]]
 
         [george.javafx.core :as fx]
-        :reload
         [george.code.reader :as my]
-        :reload
         [george.code.tokenizer :as tok]
-        :reload
         [george.code.codearea :as ca])
     (:import
         [java.util Collections]

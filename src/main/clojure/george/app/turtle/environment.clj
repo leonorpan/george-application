@@ -4,15 +4,10 @@
     (:require
         [clojure.java.io :refer [file] :as cio]
         [george.javafx.core :as fx]
-        :reload
         [george.app.turtle.core :as tr]
-        :reload
         [george.core.core :as gcc]
-        :reload
         [george.util.singleton :as singleton]
-        :reload
         [george.util.prefs :as prf]
-        :reload
         [george.editor :as editor])
     (:import (java.util.prefs Preferences)
              (java.io File)))
@@ -99,7 +94,7 @@
   (let [current-ns (:ns (meta #'prep-user-ns))]
     (binding [*ns* nil]
       ;; prep a user namespace
-      (ns user.turtle (:require [george.app.turtle.core :refer :all] :reload))
+      (ns user.turtle (:require [george.app.turtle.core :refer :all]))
       ;; switch back to this namespace
       (ns current-ns))))
 
@@ -112,37 +107,37 @@
           150
 
           pane (fx/hbox
-                   ;(fx/imageview "graphics/George_logo.png")
 
-                 (fx/button "Library"
-                            :width button-width
-                            :onaction #(library-stage)
-                            :tooltip "Open/show the library navigator (your files)")
+                   (fx/button "Turtle screen"
+                              :width button-width
+                              :onaction #(tr/screen)
+                              :tooltip "Open/show a new Turtle screen")
+
+                 ;(fx/button "Library"
+                 ;           :width button-width
+                 ;           :onaction #(library-stage)
+                 ;           :tooltip "Open/show the library navigator (your files)")
+
+                   (fx/button "Input"
+                              :width button-width
+                              :onaction #(gcc/new-input-stage "user.turtle")
+                              :tooltip "Open a new input window / REPL")
+
+                   (fx/button "Output"
+                              :width button-width
+                              :onaction gcc/show-or-create-output-stage
+                              :tooltip "Open/show output-window")
 
                  (fx/button "Editor"
                             :width button-width
                             :onaction #(editor/new-code-stage :namespace "user.turtle")
                             :tooltip "Open a new code editor")
 
-                 (fx/button "Input"
-                            :width button-width
-                            :onaction gcc/input-stage
-                            :tooltip "Open a new input window / REPL")
 
-                 (fx/button "Output"
-                            :width button-width
-                            :onaction gcc/show-or-create-output-stage
-                            :tooltip "Open/show output-window")
-
-                 (fx/button "Commands"
-                            :width button-width
-                            :onaction #(println "missing IMPL (Commands)")
-                            :tooltip "Open/show a panel with useful turtle commands")
-
-                 (fx/button "Screen"
-                            :width button-width
-                            :onaction #(tr/screen)
-                            :tooltip "Open/show a new Turtle screen")
+                 ;(fx/button "Commands"
+                 ;           :width button-width
+                 ;           :onaction #(println "missing IMPL (Commands)")
+                 ;           :tooltip "Open/show a panel with useful turtle commands")
 
                  :spacing 10
                  :padding 10)]
@@ -157,7 +152,7 @@
       (fx/stage
         :style :utility
         :ontop true
-        :location [70 0]
+        :location [300 17]
         :title "Turtle Geometry"
         :scene (fx/scene (toolbar-pane))
         :sizetoscene true

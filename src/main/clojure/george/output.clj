@@ -4,8 +4,8 @@
         [clojure.repl :refer [doc]]
         [clojure.string :as s]
 
-        [george.javafx.java :as j] :reload
-        [george.javafx.core :as fx] :reload)
+        [george.javafx.java :as j]
+        [george.javafx.core :as fx])
 
     (:import [javafx.collections ListChangeListener]
 
@@ -36,8 +36,8 @@
             ;; first print the content of StringWriter to output-stage
             (let [s (str this)]
                 (if (= typ :err)
-                    (. standard-err print s)
-                    (. standard-out print s))
+                    (.print standard-err s)
+                    (.print standard-out s))
                 (output typ s))
             ;; then flush the buffer of the StringWriter
             (let [sb (. this getBuffer)]

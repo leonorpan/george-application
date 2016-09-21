@@ -4,11 +4,8 @@
 
   (:require
       [george.javafx.core :as fx]
-      :reload
       [george.javafx.java :as fxj]
-      :reload
-      [george.javafx.util :as fxu]
-      :reload)
+      [george.javafx.util :as fxu])
 
 
   (:import (javafx.scene.paint PhongMaterial Color)
@@ -358,11 +355,13 @@
 
 (def ^:private current-turtle-atom (atom nil))
 
+
+(declare screen)
+
+
 (defn- current-turtle []
-    (let []
-
-
-
+    (if-not @current-turtle-atom
+        (do (screen) (recur))
         @current-turtle-atom))
 
 
@@ -589,6 +588,7 @@
           (fx/now (fx/stage
                     :title "Turtle :: screen"
                     :sizetoscene true
+                    :location [300 110]
                     :scene scene
                     :onhidden #(reset! screen-singleton nil)))
 

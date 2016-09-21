@@ -4,7 +4,7 @@
 (defproject no.andante.george/george-app-jvm "0.6.0-SNAPSHOT"
 
   :description "George Client (source/jvm)"
-  :url "http://george.andante.no"
+  :url "http://www.george.andante.no"
   :license "Copyright 2016 Terje Dahl"
 
   :plugins [

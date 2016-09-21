@@ -1,12 +1,13 @@
 (ns george.editor
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-        [george.javafx.java :as j] :reload
-        [george.javafx.core :as fx] :reload
-        [george.javafx.util :as fxu] :reload
-        [george.code.highlight :as dah] :reload
-        [george.code.core :as gcode] :reload
-        [george.repl.input :as input] :reload)
+        [george.javafx.java :as j]
+        [george.javafx.core :as fx]
+        [george.javafx.util :as fxu]
+        [george.code.highlight :as dah]
+        [george.code.core :as gcode]
+        [george.core.core :as gcc]
+        )
 
     (:import [javafx.beans.property StringProperty]
              [javafx.scene.control OverrunStyle]
@@ -14,15 +15,18 @@
 
 
 (defn load-from-file [file ns-str]
+    ;(println "  ## load-from-file  ns:" ns-str)
   (binding [*ns* (create-ns (symbol ns-str))]
+      ;(println "  ## *ns*:" *ns*)
       (println)
-      (printf "(load-file \"%s\")\n" file)
+      (gcc/output :system (format "(load-file \"%s\")\n" file))
       (println)
       (load-file (str file))))
 
 
 
 (defn load-via-tempfile [code-str ns-str]
+    (println "  ## load-via-tempfile  ns:" ns-str)
     (let [temp-file (java.io.File/createTempFile "code_" ".clj")]
       (spit temp-file code-str)
       (load-from-file temp-file ns-str)))
@@ -118,7 +122,7 @@
           file-label
           (doto
               (fx/label "<unsaved file>")
-              (. setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
+              (.setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn
           #(save-file (gcode/text codearea) file-meta file-label chrome-title)
@@ -161,17 +165,19 @@
               :insets [0 0 10 0]
               :spacing 10)
 
+          load-fn
+          #(j/thread
+              (println (if-let [f (:file @file-meta)]
+                           (do (save-file-fn)
+                               (load-from-file f (:namespace kwargs)))
+                           (load-via-tempfile (gcode/text codearea) (:namespace kwargs)))))
           load-button
           (fx/button
               "Load"
               :minwidth 140
-              :tooltip (format "Load/reload file.   %s-L" input/SHORTCUT_KEY)
-              :onaction
-              #(j/thread
-                  (println (if-let [f (:file @file-meta)]
-                               (do (save-file-fn)
-                                   (load-from-file f (:namespace kwargs)))
-                               (load-via-tempfile (gcode/text codearea) (:namespace kwargs))))))
+              :tooltip (format "Load/reload file.   %s-L" gcc/SHORTCUT_KEY)
+              :onaction load-fn)
+
           pane
           (fx/borderpane
               :center codearea
@@ -192,9 +198,9 @@
 
         (-> codearea
             .textProperty
-            (. addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
+            (.addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
 
-        [pane load-button]))
+        [pane load-fn open-file-fn save-file-as-fn save-file-fn]))
 
 
 
@@ -218,13 +224,19 @@
                   ;:onhidden #(println "... closed")
 
 
-        [root load-button]
-        (apply code-editor-pane (cons (. stage titleProperty) args))]
+        [root load-fn open-file-fn save-file-as-fn save-file-fn]
+        (apply code-editor-pane (cons (.titleProperty stage) args))]
 
       ;; replace empty group with pane bound to stages title)
-      (. scene setRoot root)
-      (. scene setOnKeyPressed
-         (fx/key-pressed-handler {#{:L :CTRL} #(. load-button fire)}))
+      (doto scene
+      (.setRoot root)
+      (.setOnKeyPressed
+         (fx/key-pressed-handler {
+                                  #{:L :CTRL} load-fn
+                                  #{:O :CTRL} open-file-fn
+                                  #{:S :CTRL :SHIFT} save-file-as-fn
+                                  #{:S :CTRL} save-file-fn
+                                  })))
 
       stage))
 

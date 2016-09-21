@@ -1,6 +1,6 @@
 (ns george.app.applet.turtle
   (:require
-    [george.app.turtle.environment :as turtle] :reload))
+    [george.app.turtle.environment :as turtle]))
 
 
 (defn info []

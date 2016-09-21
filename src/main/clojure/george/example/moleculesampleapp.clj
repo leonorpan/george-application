@@ -3,8 +3,7 @@
 
   (:require
     [george.javafx.core :as fx]
-    :reload
-    [george.javafx.java :as fxj] :reload)
+    [george.javafx.java :as fxj])
 
 
 

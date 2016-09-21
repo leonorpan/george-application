@@ -2,11 +2,8 @@
   george.code.core
   (:require
       [george.code.highlight :as highlight]
-      :reload
       [george.code.codearea :as ca]
-      :reload
     [george.code.paredit :as paredit]
-    :reload
     [george.javafx.core :as fx])
   (:import [org.fxmisc.richtext StyledTextArea]))
 

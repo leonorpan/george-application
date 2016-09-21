@@ -3,9 +3,9 @@
   george.core.overlayed
   (:require
     [george.javafx.core :as fx]
-    :reload
+
     [george.javafx.java :as fxj]
-    :reload)
+    )
 
   (:import (javafx.scene.layout StackPane)
            (javafx.scene Node)

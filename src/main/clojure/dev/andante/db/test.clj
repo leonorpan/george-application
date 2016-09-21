@@ -2,9 +2,7 @@
     (:require
         [clojure.repl :refer [doc]]
         [george.javafx.java :as j]
-        :reload
-        [george.javafx.core :as fx]
-        :reload)
+        [george.javafx.core :as fx])
 
     (:import [javafx.scene Node Scene]
              [javafx.scene.shape Rectangle]
