@@ -81,11 +81,11 @@
 
 (defn- save-channel [file-meta file-label chrome-title]
     (let [c (chan (sliding-buffer 1))]  ;; we only need to save latest update
-        (go (while true)
-            (<! (timeout 5000))  ;; save latest update every 5 seconds
-            (let [data (<! c)]
-                ;(println "save-channel got data ...")
-                (save-file data file-meta file-label chrome-title)))
+        (go (while true
+                (<! (timeout 5000))  ;; save latest update every 5 seconds
+                (let [data (<! c)]
+                    ;(println "save-channel got data ...")
+                    (save-file data file-meta file-label chrome-title))))
       c))
 
 
@@ -93,6 +93,7 @@
 (defn- codearea-changelistener [save-chan file-meta file-label chrome-title]
     (reify ChangeListener
         (changed [_ obs old-code new-code]
+            ;(println "  ## code changed ...")
             (swap! file-meta assoc :changed true)
             (update-file-label file-meta file-label chrome-title)
             (>!! save-chan new-code))))
@@ -242,5 +243,5 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.editor/new-code-stage" (new-code-stage))
+(println "WARNING: Running george.editor/new-code-stage" (new-code-stage))
 
