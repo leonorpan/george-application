@@ -243,5 +243,5 @@
 
 ;;; DEV ;;;
 
-(println "WARNING: Running george.editor/new-code-stage" (new-code-stage))
+;(println "WARNING: Running george.editor/new-code-stage" (new-code-stage))
 

@@ -16,4 +16,4 @@
 
 
 ;; DEV
-(println "WARNING: Running george.app.main/-main" (-main))
+;(println "WARNING: Running george.app.main/-main" (-main))

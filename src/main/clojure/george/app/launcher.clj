@@ -99,9 +99,7 @@
 
 
 (defn show-launcher-stage []
-
     (let [
-
              scene
              (launcher-scene)
 
@@ -116,8 +114,6 @@
                        ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
                        :oncloserequest (launcher-close-handler)))]
         stage))
-
-
 
 
 (defn -main
