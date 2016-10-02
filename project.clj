@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-app-jvm "0.6.0-SNAPSHOT"
+(defproject no.andante.george/george-app-jvm "0.6.1-SNAPSHOT"
 
   :description "George Client (source/jvm)"
   :url "http://www.george.andante.no"
@@ -73,6 +73,9 @@
             "stars" ["run" "-m" "george.example.stars"]
             ;; And here is the original Java-version - for (visual) comparison
             "starsj" ["run" "-m" "george.example.Stars"]
+
+            ;; Something cool
+            "clocks" ["run" "-m" "george.example.arcclocks"]
 
             "graph" ["run" "-m" "george.sandbox.graph"]}
 
