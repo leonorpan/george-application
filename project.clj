@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-app-jvm "0.6.1-SNAPSHOT"
+(defproject no.andante.george/george-app-jvm "0.6.1"
 
   :description "George Client (source/jvm)"
   :url "http://www.george.andante.no"

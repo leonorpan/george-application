@@ -4,7 +4,7 @@
     (:require
         [clojure.java.io :refer [file] :as cio]
         [george.javafx.core :as fx]
-        [george.app.turtle.core :as tr]
+        [george.app.turtle.turtle :as tr]
         [george.core.core :as gcc]
         [george.util.singleton :as singleton]
         [george.util.prefs :as prf]
@@ -94,7 +94,7 @@
   (let [current-ns (:ns (meta #'prep-user-ns))]
     (binding [*ns* nil]
       ;; prep a user namespace
-      (ns user.turtle (:require [george.app.turtle.core :refer :all]))
+      (ns user.turtle (:require [george.app.turtle.turtle :refer :all]))
       ;; switch back to this namespace
       (ns current-ns))))
 

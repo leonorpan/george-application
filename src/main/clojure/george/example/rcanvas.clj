@@ -1,4 +1,4 @@
-(ns george.app.turtle.rcanvas
+(ns george.example.rcanvas
     ;; inspired by http://dlsc.com/2014/04/10/javafx-tip-1-resizable-canvas/
     ;; but it seems to work even without the overrides !?!
     (:require [george.javafx.core :as fx])

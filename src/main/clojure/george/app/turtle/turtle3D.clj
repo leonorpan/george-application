@@ -1,6 +1,6 @@
 (ns
   ^{:author "Terje Dahl"}
-  george.app.turtle.core
+  george.app.turtle.turtle3D
 
   (:require
       [george.javafx.core :as fx]

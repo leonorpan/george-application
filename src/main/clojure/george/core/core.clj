@@ -55,10 +55,10 @@
     Intended used for updating namespace-instepctor etc."
     [source read-res eval-res current-ns prev-ns]
     (when (var? eval-res)
-        (alter-meta! eval-res #(assoc % :source source)))
+        (alter-meta! eval-res #(assoc % :source source))
 
         (doseq [token (if (seq? read-res) read-res [read-res])]
-            (println "  " token (type token))))
+            (println "  " token (type token)))))
 
 
 
@@ -216,11 +216,11 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                                         :default
                                         (do
                                             (output nil (str " call res: " eval-res "   (history store)\n"))
-                                            (output nil (str "   source: " source \newline))))
+                                            (output nil (str "   source: " source \newline)))))
 
         ;                            (post-eval source read-res eval-res  *ns* ns)
 
-                                    )
+
 
                                 ;; Catch and re-throw the eval-exception,
                                 ;; adding start and end-point in code
@@ -486,12 +486,12 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
                         :scene (input-scene ns)
                         :sizetoscene true
                         ;(. centerOnScreen)
-                        :location [800 200]
-                        )
+                        :location [800 200])))]
+
 
                   ;(.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))
                   ;(.setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))
-                  ))]
+
 
 
         stage))
@@ -632,7 +632,7 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
     (let [
           outputarea
               (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
-                  (.setFont (fx/SourceCodePro "Regular" 16))
+                  (.setFont (fx/SourceCodePro "Regular" 14))
                   (.setStyle "-fx-padding: 0; -fx-background-color: WHITESMOKE;")
                   (.setUseInitialStyleForInsertion true)
                   (-> .getUndoManager .forgetHistory)
@@ -688,6 +688,7 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
                 :location [(+ (.getMinX bounds) 20)
                            (- (-> bounds .getMaxY (- (second size))) 20)]
                 :size size
+                :sizetoscene false
                 :scene (output-scene)))))
 
 

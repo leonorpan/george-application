@@ -1,18 +1,15 @@
 (ns
   george.code.codearea
   (:require
-    [george.javafx.core :as fx]
-
-
-            )
-    (:import [org.fxmisc.richtext StyledTextArea LineNumberFactory]
-             [java.util.function BiConsumer IntFunction Function]
-             [java.util Collections]
-             [javafx.scene.text Text]
-             [javafx.scene.paint Color]
-             [org.reactfx.value Val]
-             [javafx.geometry Pos]
-             [javafx.beans.property SimpleObjectProperty]))
+    [george.javafx.core :as fx])
+  (:import [org.fxmisc.richtext StyledTextArea LineNumberFactory]
+           [java.util.function BiConsumer IntFunction Function]
+           [java.util Collections]
+           [javafx.scene.text Text]
+           [javafx.scene.paint Color]
+           [org.reactfx.value Val]
+           [javafx.geometry Pos]
+           [javafx.beans.property SimpleObjectProperty]))
 
 
 (defrecord
@@ -35,9 +32,9 @@
       "-fx-fill: " (if c c "#404042") "; "
       "-fx-font-weight: " (if w w "normal") "; "
       "-fx-underline: " (if u u "false") "; "
-      "-fx-background-fill: " (if b b "null") "; "
+      "-fx-background-fill: " (if b b "null") "; ")))
       ;"-fx-effect: " (if h "dropshadow(one-pass-box, slategray, 5, 1, 0, 0)" "null") "; "
-      )))
+
 
 
 (defn- apply-specs
@@ -48,9 +45,9 @@
     (if (= Collections/EMPTY_LIST specs)
       (. text setStyle (style DEFAULT_SPEC))
       (doseq [spec specs]
-        (. text setStyle (style spec)))))
+        (. text setStyle (style spec))))))
   ;(.setCursor (if h Cursor/DEFAULT nil))
-  )
+
 
 
 
@@ -81,9 +78,9 @@
                            (reify Function
                                (apply [_ errorlineset]
                                    ;; linenumber is 0-based, while errorlinest is 1-based
-                                   (boolean (get errorlineset (inc linenumber))))))
+                                   (boolean (get errorlineset (inc linenumber))))))]
 
-                  ]
+
 
                 (-> mark .visibleProperty
                     (. bind
@@ -113,8 +110,8 @@
                         (Val/map errorlineset
                                  (reify Function
                                      (apply [_ errorlineset]
-                                         (not (empty? errorlineset )))))
-                  ]
+                                         (not (empty? errorlineset)))))]
+
 
                 (-> background .visibleProperty
                     (. bind
@@ -142,8 +139,8 @@
                       current-line
                       (reify Function
                           (apply [_ cl]
-                              (= cl linenumber))))
-                  ]
+                              (= cl linenumber))))]
+
 
                 (-> triangle .visibleProperty
                     (. bind
@@ -175,8 +172,8 @@
                                  (. errorbackgroundfactory apply line)
                                  (. errormarkfactory apply line)
                                  (. arrowfactory apply line)
-                                 :alignment Pos/CENTER_LEFT)))
-        ]
+                                 :alignment Pos/CENTER_LEFT)))]
+
     (doto codearea
       (. setParagraphGraphicFactory  graphicfactory))))
 
@@ -192,7 +189,7 @@
         (doto
             (proxy [StyledTextArea IErrorLines] [DEFAULT_SPEC (style-biconsumer)]
                 (errorlines [] lines))
-            (. setFont (fx/SourceCodePro "Medium" 18))
+            (. setFont (fx/SourceCodePro "Medium" 16))
             (. setStyle "
             -fx-padding: 0;
             -fx-background-color: WHITESMOKE;")
