@@ -3,8 +3,8 @@
     :doc "A simple library for setting/getting preferences for user or system"}
   george.util.prefs
   (:refer-clojure :exclude [get])  ;; https://gist.github.com/ghoseb/287710
-  (:import [java.util.prefs Preferences])
-  )
+  (:import [java.util.prefs Preferences]))
+
 
 ;; http://docs.oracle.com/javase/8/docs/api/java/util/prefs/Preferences.html
 
@@ -23,5 +23,5 @@
   ([node k]
    (get node k "nil"))
   ([node k default-v]
-   (.get node (str k) (str default-v)))
-  )
+   (.get node (str k) (str default-v))))
+

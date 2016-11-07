@@ -1,17 +1,18 @@
 (ns george.code.tokenizer
     (:require
 
-        [clojure.core.async :refer [go thread  chan >! >!! <! <!! go-loop]]
+        [clojure.core.async :refer [go thread chan >! >!! <! <!! go-loop]]
 
         [clojure.tools.reader.impl.commons :refer
-            [number-literal? match-number parse-symbol read-past skip-line]]
+         [number-literal? match-number parse-symbol read-past skip-line]]
 
         [clojure.repl :refer [doc]]
-              [clojure.pprint :refer [pp pprint]]
-              [clojure.java.io :as cio]
-              )
+        [clojure.pprint :refer [pp pprint]]
 
-    )
+        [clojure.java.io :as cio]))
+
+
+
 
 
 
@@ -19,8 +20,8 @@
     read-char
     unread-char
     peek-char
-    macros
-    )
+    macros)
+
 
 
 
@@ -60,19 +61,19 @@
                     -1))
             (unread
                 ([ch]
-                    (proxy-super unread (int ch))
-                    (swap! indx dec)
-                    nil)
+                 (proxy-super unread (int ch))
+                 (swap! indx dec)
+                 nil)
                 ([^chars cbuf off len]
                  (throw
                      ;; TODO: convert this to multiple calls to unread(ch), if necessary
                      (Exception. "LineNumberingPushbackReader can't unread multiple chars!"))
 
                  (proxy-super unread cbuf off len)
-                    (reset! indx (- @indx (- len off)))))
+                 (reset! indx (- @indx (- len off)))))
             (getIndex []
-                @indx)
-        )))
+                @indx))))
+
 
 
 (defn- repr [value]
@@ -130,36 +131,36 @@
 
 (defn- read-unicode-char
     ([^String token offset length base]
-        (let [l (+ offset length)]
-            (when-not (== (count token) l)
-                (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
-            (loop [i offset uc 0]
-                (if (== i l)
-                    (char uc)
-                    (let [d (Character/digit (int (nth token i)) (int base))]
-                        (if (== d -1)
-                            (throw (IllegalArgumentException. (str "Invalid digit: " (nth token i))))
-                            (recur (inc i) (long (+ d (* uc base))))))))))
+     (let [l (+ offset length)]
+        (when-not (== (count token) l)
+            (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
+        (loop [i offset uc 0]
+            (if (== i l)
+                (char uc)
+                (let [d (Character/digit (int (nth token i)) (int base))]
+                    (if (== d -1)
+                        (throw (IllegalArgumentException. (str "Invalid digit: " (nth token i))))
+                        (recur (inc i) (long (+ d (* uc base))))))))))
 
     ([rdr initch base length exact?]
-        (loop [i 1 uc (Character/digit (int initch) (int base))]
-            (if (== uc -1)
-                (throw (IllegalArgumentException. (str "Invalid digit: " initch)))
-                (if-not (== i length)
-                    (let [ch (peek-char rdr)]
-                        (if (or (whitespace? ch)
-                                (macros ch)
-                                (nil? ch))
-                            (if exact?
-                                (throw (IllegalArgumentException.
-                                           (str "Invalid character length: " i ", should be: " length)))
-                                (char uc))
-                            (let [d (Character/digit (int ch) (int base))]
-                                (read-char rdr)
-                                (if (== d -1)
-                                    (throw (IllegalArgumentException. (str "Invalid digit: " ch)))
-                                    (recur (inc i) (long (+ d (* uc base))))))))
-                    (char uc))))))
+     (loop [i 1 uc (Character/digit (int initch) (int base))]
+        (if (== uc -1)
+            (throw (IllegalArgumentException. (str "Invalid digit: " initch)))
+            (if-not (== i length)
+                (let [ch (peek-char rdr)]
+                    (if (or (whitespace? ch)
+                            (macros ch)
+                            (nil? ch))
+                        (if exact?
+                            (throw (IllegalArgumentException.
+                                       (str "Invalid character length: " i ", should be: " length)))
+                            (char uc))
+                        (let [d (Character/digit (int ch) (int base))]
+                            (read-char rdr)
+                            (if (== d -1)
+                                (throw (IllegalArgumentException. (str "Invalid digit: " ch)))
+                                (recur (inc i) (long (+ d (* uc base))))))))
+                (char uc))))))
 
 
 
@@ -181,8 +182,8 @@
     (if (identical? \return ch)
         (let [c (peek-char rdr)]
             (when (or (identical? \formfeed c) (identical? \newline c))
-                (read-char rdr))
-                \newline)
+              (read-char rdr))
+            \newline)
         ch))
 
 
@@ -256,11 +257,11 @@
 
 (defn- read-keyword [rdr _]
     (let [
-             start-index (dec (. rdr getIndex))
-             ch (read-char rdr)
+          start-index (dec (. rdr getIndex))
+          ch (read-char rdr)
 
-         res
-        (if (whitespace? ch)
+          res
+          (if (whitespace? ch)
             (TokenError. INVALID_TOKEN "Whitespace not allowed in keyword")
             ;; else
             (let [token (read-token rdr ch) s (parse-symbol token)]
@@ -278,10 +279,10 @@
                                     ;; then
                                     (keyword (str ns) name)
                                     ;; else
-                                    (TokenError. INVALID_TOKEN (str "Invalid token: ':" token "' (resolve-ns returned 'nil')")))))))))
+                                    (TokenError. INVALID_TOKEN (str "Invalid token: ':" token "' (resolve-ns returned 'nil')")))))))))]
 
              ; we only care about the )
-            ]
+
         (Token. start-index (. rdr getIndex) res)))
 
 
@@ -296,7 +297,7 @@
     (let [c (read-unicode-char token 1 4 16) ic (int c)]
         (if (and (> ic upper-limit) (< ic lower-limit)) ;; TODO: what/why is this?!?
             (TokenError. INVALID_CHAR (str "Invalid character constant: \\u" (Integer/toString ic 16)))
-            c )))
+            c)))
 
 
 (defn- parse-octal [token token-len]
@@ -320,13 +321,13 @@
                     (TokenError. EOF "EOF while reading character")
                     ;; else
                     (let [
-                             token
-                                 (if (or (macro-terminating? ch) (whitespace? ch))
-                                     (str ch)
-                                     (read-token rdr ch))
-                             token-len
-                                 (count token)
-                        ]
+                          token
+                          (if (or (macro-terminating? ch) (whitespace? ch))
+                              (str ch)
+                              (read-token rdr ch))
+                          token-len
+                          (count token)]
+
                         (cond
                             (== 1 token-len)        (Character/valueOf (nth token 0))
                             (= token "newline")     \newline
@@ -337,8 +338,8 @@
                             (= token "return")      \return
                             (.startsWith token "u") (parse-unicode token)
                             (.startsWith token "o") (parse-octal token token-len)
-                            :else  (TokenError. INVALID_CHAR (str "Unsupported character: \\" token)))))
-        ]
+                            :else  (TokenError. INVALID_CHAR (str "Unsupported character: \\" token)))))]
+
         (Token. start-index (. rdr getIndex) value)))
 
 
@@ -374,9 +375,9 @@
 
 (defn- read-string* [rdr _]
     (let [
-             start-index (dec (. rdr getIndex))
+             start-index (dec (. rdr getIndex))]
 
-             ]
+
         (loop [sb (StringBuilder.) ch (read-char rdr)]
             (case ch
 
@@ -453,8 +454,8 @@
                         (TokenError. INVALID_ARG (str "Arg literal must be %, %& or %integer.  Found: " sb))
 
                         :else
-                        (recur (.append sb ch) (read-char rdr))))
-            ]
+                        (recur (.append sb ch) (read-char rdr))))]
+
             (Token. start-index (. rdr getIndex) token)))
 
 
@@ -494,9 +495,9 @@
                             (TokenError. INVALID_TOKEN (str "Invalid token: " token " (at 'read-token')")))
 
                         (catch Exception e
-                            (throw e))
+                            (throw e))))))))
 
-                        ))))))
+
 
 
 
@@ -525,11 +526,11 @@
                                   (let [res (f rdr ch)]
                                       (if-not (identical? res rdr)
                                           res))
-                                  (read-symbol rdr ch))
-                          ]
+                                  (read-symbol rdr ch))]
+
                         (if res (conj! tokens res))
-                        (recur))
-                    )))))
+                        (recur)))))))
+
 
 
 (defn tokenize-str [clj-str]
@@ -600,14 +601,14 @@
             start-stack (list)
             paired []
             unpaired []
-            lst delim-tokens
-        ]
+            lst delim-tokens]
+
         (if-not lst
             [paired (concat unpaired start-stack)]
             (let [
                     [start-stack a-pair] (push-or-pair start-stack (first lst))
-                    paired (if a-pair (conj paired a-pair) paired)
-                ]
+                    paired (if a-pair (conj paired a-pair) paired)]
+
                 (recur start-stack paired unpaired (next lst))))))
 
 

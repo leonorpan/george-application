@@ -5,8 +5,8 @@
     [george.javafx.core :as fx]
     [george.javafx.java :as fxj]
     [george.javafx.util :as fxu]
-    [george.javafx.3d :as fx3d])
-    ;[george.turte.george.app.turtle.turtle3D :as tr]
+    [george.javafx.3d :as fx3d]
+    [george.app.turtle.turtle3D :as tr])
 
 
   (:import (javafx.scene DepthTest PerspectiveCamera CacheHint)

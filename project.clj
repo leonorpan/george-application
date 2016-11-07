@@ -1,11 +1,12 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-app-jvm "0.6.1"
+(defproject no.andante.george/george-application-jvm "0.6.2-SNAPSHOT"
 
-  :description "George Client (source/jvm)"
-  :url "http://www.george.andante.no"
-  :license "Copyright 2016 Terje Dahl"
+  :description "George - the desktop application - JVM version"
+  :url "https://bitbucket.org/andante-george/george-application-jvm"
+    :license {:name "Eclipse Public License"
+              :url "http://www.eclipse.org/legal/epl-v10.html"}
 
   :plugins [
             [lein-tar "3.2.0"]]
@@ -47,6 +48,8 @@
   :test-paths ["src/test/clojure"]
   :resource-paths ["src/main/resources"]
 
+  :main no.andante.george.GeorgeApplication
+  :aot [no.andante.george.GeorgeApplication]
   :target-path "target/%s"
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
@@ -81,9 +84,9 @@
 
   :profiles {
              :uberjar {
-                       ;:aot :all
+                       :aot :all
                        ;:main george.app.Loader}})
-                       :manifest {"Main-Class" "george.app.Loader"}}})
+                       :manifest {"Main-Class" "no.andante.george.GeorgeApplication"}}})
 
 ;; TODO next:
 ;; - consolidate environments.

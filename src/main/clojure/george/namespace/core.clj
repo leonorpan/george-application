@@ -20,7 +20,7 @@
     (loop [ns nss cnt 0]
       (when (next nss))
       (fx/add root (fx/text (str (first ns))))
-      (recur (next nss)))
+      (recur (next nss) (inc cnt)))
 
     root))
 

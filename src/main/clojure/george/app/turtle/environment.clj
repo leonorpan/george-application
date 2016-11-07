@@ -8,7 +8,7 @@
         [george.core.core :as gcc]
         [george.util.singleton :as singleton]
         [george.util.prefs :as prf]
-        [george.editor :as editor])
+        [george.app.code :as code] :reload)
     (:import (java.util.prefs Preferences)
              (java.io File)))
 
@@ -111,27 +111,33 @@
                    (fx/button "Screen"
                               :width button-width
                               :onaction #(tr/screen)
-                              :tooltip "Open/show a new Turtle screen")
+                              :tooltip "Open/show the Turtle screen")
 
-                 ;(fx/button "Library"
-                 ;           :width button-width
-                 ;           :onaction #(library-stage)
-                 ;           :tooltip "Open/show the library navigator (your files)")
-
-                   (fx/button "Input"
+                   (fx/button "Code"
                               :width button-width
-                              :onaction #(gcc/new-input-stage "user.turtle")
-                              :tooltip "Open a new input window / REPL")
+                              :onaction #(code/new-code-stage :namespace "user.turtle")
+                              :tooltip "Open a new code editor")
 
                    (fx/button "Output"
                               :width button-width
                               :onaction gcc/show-or-create-output-stage
                               :tooltip "Open/show output-window")
 
-                 (fx/button "Editor"
-                            :width button-width
-                            :onaction #(editor/new-code-stage :namespace "user.turtle")
-                            :tooltip "Open a new code editor")
+                 ;(fx/button "Library"
+                 ;           :width button-width
+                 ;           :onaction #(library-stage)
+                 ;           :tooltip "Open/show the library navigator (your files)")
+
+                 ;  (fx/button "Input"
+                 ;             :width button-width
+                 ;             :onaction #(gcc/new-input-stage "user.turtle")
+                 ;             :tooltip "Open a new input window / REPL")
+
+
+                 ;(fx/button "Editor"
+                 ;           :width button-width
+                 ;           :onaction #(editor/new-code-stage :namespace "user.turtle")
+                 ;           :tooltip "Open a new code editor"
 
 
                  ;(fx/button "Commands"
@@ -174,4 +180,4 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.turtle.environment/-main" (-main))
+;(println "WARNING: Running george.app.turtle.environment/-main" (-main))

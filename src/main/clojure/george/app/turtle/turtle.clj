@@ -188,7 +188,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (set-heading* inst new-angle)))
 
 
-(defn- Turtle [name]
+(defn- turtle-impl [name]
     (let [state
           (atom {:pen-down true
                  :pen-color "black"})
@@ -246,7 +246,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-turtle []
-    (doto (Turtle "Tom") .sayHello))
+    (doto (turtle-impl "Tom") .sayHello))
 
 #_(defn- get-create-resize-screen
     "Returns existing singleton screen and brings it to front.

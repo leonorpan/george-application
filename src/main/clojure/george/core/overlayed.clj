@@ -4,8 +4,8 @@
   (:require
     [george.javafx.core :as fx]
 
-    [george.javafx.java :as fxj]
-    )
+    [george.javafx.java :as fxj])
+
 
   (:import (javafx.scene.layout StackPane)
            (javafx.scene Node)
@@ -13,9 +13,8 @@
 
 
 (defn- the-root []
-  (let [
-        some-text]))
-"Hello Word!
+  (let [some-text
+        "Hello Word!
 This is a printout.
 It covers a textfield and a button.
 Bla bla bla bla bla
@@ -45,10 +44,10 @@ asølkdfja sfd"
                          a-textfield
                          a-button)
 
-                       a-textarea))
+                       a-textarea))]
 
 
-    pane
+    pane))
 
 
 (defn- the-stage []

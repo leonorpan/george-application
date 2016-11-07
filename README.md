@@ -62,6 +62,9 @@ The next time it will be a lot faster, though.
 
 ***
 
-Copyright Terje Dahl 2016<br>
-<br>
+## License
+
+Copyright © 2016 Terje Dahl
+
+Distributed under the Eclipse Public License version 1.0.
 

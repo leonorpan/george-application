@@ -3,7 +3,7 @@
   (require
     [clojure.repl :refer [doc]]
     [george.javafx.core :as fx]
-    [george.editor :as editor]
+    [george.app.code :as code]
     [george.app.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
@@ -64,18 +64,18 @@
           (fx/scene
 
              (doto
-               (apply fx/vbox
+               (apply fx/hbox
                       (flatten [logo applet-buttons
                                 :spacing 20
-                                :padding 20
-                                :alignment Pos/TOP_CENTER]))
+                                :padding 10
+                                :alignment Pos/BASELINE_LEFT]))
                (.setBackground (fx/color-background Color/WHITE)))
 
-             :fill Color/WHITE ;; Doesn't take effect! Root panes background covers it! :-(
-             :size [180 (+ 80 ;; logo
-                           (* 48  ;; each button
-                             (+ (count applet-buttons)
-                                0)))])] ;; extra buttons
+             :fill Color/WHITE)] ;; Doesn't take effect! Root panes background covers it! :-(
+             ;:size [180 (+ 80 ;; logo
+             ;              (* 48  ;; each button
+             ;                (+ (count applet-buttons)
+             ;                   0)))])] ;; extra buttons
 
 
 
@@ -106,9 +106,8 @@
              stage
              (fx/now (fx/stage
                        :scene scene
-                       :location [90 20]
-                       :sizetoscene true
-                       :title "George - launcher"
+                       :location [50 5]
+                       :title "George"
                        :ontop true
                        :resizable false
                        ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
