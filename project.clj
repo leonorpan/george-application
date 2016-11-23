@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application-jvm "0.6.3-SNAPSHOT"
+(defproject no.andante.george/george-application-jvm "0.6.3"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application-jvm"
@@ -27,7 +27,7 @@
                  [org.clojure/java.classpath "0.2.3"]
                  ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.1-SNAPSHOT"]]
+                 [no.andante.george/george-javafx "0.1.1"]]
 
 
   :repositories [
@@ -48,8 +48,11 @@
   :test-paths ["src/test/clojure"]
   :resource-paths ["src/main/resources"]
 
-  :main no.andante.george.GeorgeApplication
-  :aot [no.andante.george.GeorgeApplication]
+  ;:main no.andante.george.GeorgeApplication
+  ;:aot [no.andante.george.GeorgeApplication]
+  :main george.app.Loader
+  :aot [george.app.Loader]
+
   :target-path "target/%s"
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
@@ -86,7 +89,8 @@
              :uberjar {
                        :aot :all
                        ;:main george.app.Loader}})
-                       :manifest {"Main-Class" "no.andante.george.GeorgeApplication"}}})
+                       ;:manifest {"Main-Class" "no.andante.george.GeorgeApplication"}
+                       :manifest {"Main-Class" "george.app.Loader"}}})
 
 ;; TODO next:
 ;; - consolidate environments.
