@@ -3,7 +3,7 @@
     george.app.turtle.environment
     (:require
         [clojure.java.io :refer [file] :as cio]
-        [george.javafx.core :as fx]
+        [george.javafx :as fx]
         [george.app.turtle.turtle :as tr]
         [george.core.core :as gcc]
         [george.util.singleton :as singleton]

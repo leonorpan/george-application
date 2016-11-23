@@ -5,7 +5,7 @@
       [clojure.pprint :refer [pprint pp] :as cpp]
       [clojure.data :as data]
       [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-      [george.javafx.core :as fx])
+      [george.javafx :as fx])
 
 
   (:import

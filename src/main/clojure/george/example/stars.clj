@@ -3,16 +3,16 @@
 (ns
   george.example.stars
   (:require
-    [george.javafx.core :as fx])
-    (:import [java.util Random]
-             [javafx.scene.paint Color]
-             [javafx.animation AnimationTimer]
-             [javafx.stage Stage]
-             [javafx.scene Node Scene CacheHint]
-             [com.sun.javafx.perf PerformanceTracker]
-             [java.security AccessControlException]
-             [javafx.scene.control Label]
-             [javafx.scene.shape Rectangle]))
+    [george.javafx :as fx])
+  (:import [java.util Random]
+           [javafx.scene.paint Color]
+           [javafx.animation AnimationTimer]
+           [javafx.stage Stage]
+           [javafx.scene Node Scene CacheHint]
+           [com.sun.javafx.perf PerformanceTracker]
+           [java.security AccessControlException]
+           [javafx.scene.control Label]
+           [javafx.scene.shape Rectangle]))
 
 
 ;; primitive math is faster

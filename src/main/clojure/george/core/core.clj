@@ -4,7 +4,7 @@
     (:require
         [clojure.repl :as cr]
         [clojure.pprint :refer [pprint pp] :as cpp]
-        [george.javafx.core :as fx]
+        [george.javafx :as fx]
 
         [george.javafx.java :as fxj]
 

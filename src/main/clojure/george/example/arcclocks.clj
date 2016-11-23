@@ -2,7 +2,7 @@
     "A Clojure implementation of
     https://jaxenter.com/tutorial-a-glimpse-at-javafxs-canvas-api-105696.html
     "
-    (:require [george.javafx.core :as fx]
+    (:require [george.javafx :as fx]
               [clojure.string :as cs])
     (:import (javafx.animation AnimationTimer)
              (javafx.scene.canvas Canvas GraphicsContext)

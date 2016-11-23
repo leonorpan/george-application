@@ -2,7 +2,7 @@
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
         [george.javafx.java :as j]
-        [george.javafx.core :as fx]
+        [george.javafx :as fx]
         [george.javafx.util :as fxu]
         [george.code.core :as gcode]
         [george.core.core :as gcc])

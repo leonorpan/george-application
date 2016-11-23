@@ -2,7 +2,7 @@
   ^{:author "Terje Dahl"}
   george.core.visual
   (:require
-    [george.javafx.core :as fx]
+    [george.javafx :as fx]
     [george.javafx.java :as fxj]
     [george.javafx.util :as fxu]
     [george.javafx.3d :as fx3d]

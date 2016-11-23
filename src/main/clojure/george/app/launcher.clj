@@ -2,7 +2,7 @@
 
   (require
     [clojure.repl :refer [doc]]
-    [george.javafx.core :as fx]
+    [george.javafx :as fx]
     [george.app.code :as code]
     [george.app.applet-loader :as applets-loader])
 

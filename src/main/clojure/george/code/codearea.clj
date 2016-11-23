@@ -1,7 +1,7 @@
 (ns
   george.code.codearea
   (:require
-    [george.javafx.core :as fx])
+    [george.javafx :as fx])
   (:import [org.fxmisc.richtext StyledTextArea LineNumberFactory]
            [java.util.function BiConsumer IntFunction Function]
            [java.util Collections]

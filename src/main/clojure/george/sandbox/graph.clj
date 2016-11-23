@@ -1,7 +1,7 @@
 (ns
   george.sandbox.graph
   "An edge/node graph example based on   http://stackoverflow.com/questions/30679025/graph-visualisation-like-yfiles-in-javafx "
-    (:require [george.javafx.core :as fx]
+    (:require [george.javafx :as fx]
               [clojure.pprint :refer [pprint]]
               [george.javafx.java :as j])
 

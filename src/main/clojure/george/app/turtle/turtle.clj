@@ -13,7 +13,7 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     "
 
 
-    (:require [george.javafx.core :as fx]
+    (:require [george.javafx :as fx]
               [george.javafx.util :as fxu])
     (:import (javafx.scene.paint Color)
              (javafx.scene.canvas Canvas)

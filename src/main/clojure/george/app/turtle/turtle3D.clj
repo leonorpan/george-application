@@ -3,7 +3,7 @@
   george.app.turtle.turtle3D
 
   (:require
-      [george.javafx.core :as fx]
+      [george.javafx :as fx]
       [george.javafx.java :as fxj]
       [george.javafx.util :as fxu])
 

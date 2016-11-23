@@ -2,7 +2,7 @@
   george.example.moleculesampleapp
 
   (:require
-    [george.javafx.core :as fx]
+    [george.javafx :as fx]
     [george.javafx.java :as fxj])
 
 

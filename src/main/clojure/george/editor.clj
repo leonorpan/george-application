@@ -2,11 +2,11 @@
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
         [george.javafx.java :as j]
-        [george.javafx.core :as fx]
+        [george.javafx :as fx]
         [george.javafx.util :as fxu]
         [george.code.core :as gcode]
-        [george.core.core :as gcc]
-        )
+        [george.core.core :as gcc])
+
 
     (:import [javafx.beans.property StringProperty]
              [javafx.scene.control OverrunStyle]
@@ -229,14 +229,14 @@
 
       ;; replace empty group with pane bound to stages title)
       (doto scene
-      (.setRoot root)
-      (.setOnKeyPressed
-         (fx/key-pressed-handler {
-                                  #{:L :CTRL} load-fn
-                                  #{:O :CTRL} open-file-fn
-                                  #{:S :CTRL :SHIFT} save-file-as-fn
-                                  #{:S :CTRL} save-file-fn
-                                  })))
+       (.setRoot root)
+       (.setOnKeyPressed
+          (fx/key-pressed-handler {
+                                   #{:L :CTRL} load-fn
+                                   #{:O :CTRL} open-file-fn
+                                   #{:S :CTRL :SHIFT} save-file-as-fn
+                                   #{:S :CTRL} save-file-fn})))
+
 
       stage))
 

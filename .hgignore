@@ -1,4 +1,5 @@
 # types
+.*.iml
 
 # directories
 target/
@@ -14,4 +15,4 @@ checkouts/
 .idea/modules.xml
 .lein-repl-history
 .nrepl-port
-george-app-jvm.iml
+pom.xml

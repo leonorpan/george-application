@@ -1,10 +1,10 @@
 (ns
   george.code.core
   (:require
-      [george.code.highlight :as highlight]
-      [george.code.codearea :as ca]
-    [george.code.paredit :as paredit]
-    [george.javafx.core :as fx])
+     [george.code.highlight :as highlight]
+     [george.code.codearea :as ca]
+     [george.code.paredit :as paredit]
+     [george.javafx :as fx])
   (:import [org.fxmisc.richtext StyledTextArea]))
 
 
