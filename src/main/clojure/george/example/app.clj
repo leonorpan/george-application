@@ -5,9 +5,9 @@
     (println "   args:"
              (if (empty? args)
                  "NO ARGS"
-                 (apply str (interpose " " args))
-             )
-    ))
+                 (apply str (interpose " " args)))))
+
+
 
 (defn hello []
     "Hello from george.example.app/hello")

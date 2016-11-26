@@ -98,21 +98,36 @@
 
 
 
-(defn show-launcher-stage []
+(defn show-launcher-stage [stage]
     (let [
              scene
-             (launcher-scene)
+             (launcher-scene)]
 
-             stage
-             (fx/now (fx/stage
-                       :scene scene
-                       :location [50 5]
-                       :title "George"
-                       :ontop true
-                       :resizable false
-                       ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-                       :oncloserequest (launcher-close-handler)))]
-        stage))
+             ;stage
+             ;(fx/now (fx/stage
+             ;          :scene scene
+             ;          :location [50 5]
+             ;          :title "George"
+             ;          :ontop true
+             ;          :resizable false
+             ;          ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+             ;          :oncloserequest (launcher-close-handler)))]
+
+         (doto stage
+           (.setScene scene)
+           (.setX 50)
+           (.setY 5)
+           (.setTitle "George")
+           (.setAlwaysOnTop true)
+           (.setResizable false)
+           (fx/setoncloserequest (launcher-close-handler))
+           (.show))))
+
+
+
+
+(defn start [stage]
+  (show-launcher-stage stage))
 
 
 (defn -main
@@ -122,7 +137,7 @@
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
-  (fx/now (show-launcher-stage)))
+  (fx/now (show-launcher-stage (fx/stage :show false))))
 
 
 

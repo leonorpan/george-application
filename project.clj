@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application-jvm "0.6.3"
+(defproject no.andante.george/george-application-jvm "0.6.4-SNAPSHOT"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application-jvm"
@@ -48,10 +48,8 @@
   :test-paths ["src/test/clojure"]
   :resource-paths ["src/main/resources"]
 
-  ;:main no.andante.george.GeorgeApplication
-  ;:aot [no.andante.george.GeorgeApplication]
-  :main george.app.Loader
-  :aot [george.app.Loader]
+  :main no.andante.george.Main
+  :aot [no.andante.george.Main]
 
   :target-path "target/%s"
 
@@ -59,13 +57,6 @@
   ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
 
   :aliases {
-            ;; starts the Loader, which in turn starts Starter, which in turn starts main.
-            "loader" ["run" "-m" "george.app.Loader"]
-            ;; starts Starter, which in turn starts main.
-            "starter" ["run" "-m" "george.app.Starter"]
-            ;; starts main directly
-            "main" ["run" "-m" "george.app.main"]
-
             ;; starts turtle environement directly
             "turtle" ["run" "-m" "george.app.applet.turtle"]
             ;; starts general environment directly
@@ -89,8 +80,7 @@
              :uberjar {
                        :aot :all
                        ;:main george.app.Loader}})
-                       ;:manifest {"Main-Class" "no.andante.george.GeorgeApplication"}
-                       :manifest {"Main-Class" "george.app.Loader"}}})
+                       :manifest {"Main-Class" "no.andante.george.Main"}}})
 
 ;; TODO next:
 ;; - consolidate environments.

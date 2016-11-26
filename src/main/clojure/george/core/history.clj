@@ -31,10 +31,10 @@
 
 (defn- load-history []
   (when (.exists HISTORY_FILE)
-    (set! *data-readers* (assoc *data-readers* 'inst clojure.instant/read-instant-timestamp))
-    ;(println "reading history from file ...")
-    (reset! history-atom (edn/read-string (slurp HISTORY_FILE)))))
-    ;(println " ... done")
+    (binding [*data-readers* {'inst clojure.instant/read-instant-timestamp}]
+      ;(println "reading history from file ...")
+      (reset! history-atom (edn/read-string (slurp HISTORY_FILE))))))
+      ;(println " ... done")
 
 (load-history)
 
@@ -50,16 +50,16 @@
 (defn append-history [repl-uuid content]
   (let [item {:repl-uuid repl-uuid
               :timestamp (Timestamp. (.getTime (Date.)))
-              :content   content}
+              :content   content}]
         ;_ (println "item:" item)
-        ]
+
 
     (swap! history-atom #(-> % (prune 100) (conj item)))
     (j/thread
       ;(println "writing history to file ...")
-      (spit HISTORY_FILE (pr-str @history-atom))
+      (spit HISTORY_FILE (pr-str @history-atom)))))
       ;(println " ... done")
-      )))
+
 
 
 
