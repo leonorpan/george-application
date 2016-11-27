@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application-jvm "0.6.4-SNAPSHOT"
+(defproject no.andante.george/george-application-jvm "0.7.0-SNAPSHOT"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application-jvm"
@@ -15,10 +15,11 @@
 
   :dependencies [
                  [org.clojure/clojure "1.8.0"]
+                 [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.reader "1.0.0-alpha1"]
+                 [leiningen "2.7.1" :exclusions [org.clojure/clojure]]
                  [org.fxmisc.wellbehaved/wellbehavedfx "0.2"]
                  [org.fxmisc.richtext/richtextfx "0.6.10"  :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
-                 [org.clojure/core.async "0.2.374"]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
 
                  ;; https://github.com/clojure/tools.namespace
