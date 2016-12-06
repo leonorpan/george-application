@@ -9,7 +9,8 @@
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
-           (javafx.stage Screen)))
+           (javafx.stage Screen)
+           (javafx.application Platform)))
 
 
 (defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
@@ -78,24 +79,39 @@
              ;                (+ (count applet-buttons)
              ;                   0)))])] ;; extra buttons
 
-
-
-
         scene))
 
 
 (defn- launcher-close-handler []
-    (fx/event-handler-2 [_ e]
-        (if
-            (= -1
-                (fx/show-actions-dialog
-                    "Quit confirmation"
-                    nil
-                    "Do you want to quit George? (NOT IMPLEMENTED YET!) \n(TODO: handle open windows on exit!)"
-                    ["Quit"]
-                    true))
-            (. e consume))))
-            ;; else TODO: maybe do some exit-actions ...?
+  (fx/event-handler-2 [_ e]
+     (println "e:" e)
+     (let [is-non-exit-quit
+           (-> e .getSource .getUserData :non-exit-quit)
+           _ (println "is-non-exit-quit:" is-non-exit-quit)
+           buttons
+           ["Quit"]
+
+           button-index
+           (fx/show-actions-dialog
+             (str "Quit?" (if is-non-exit-quit "  (non-exiting)" ""))
+             nil
+             "Do you want to quit George?"
+             buttons true)]
+
+          (case button-index
+                0 (when-not is-non-exit-quit
+                    (Platform/exit))
+
+                (.consume e))))) ;; do nothing
+
+
+
+
+(defn- non-exit-quit [stage]
+  (fx/key-pressed-handler
+    {#{:ALT :Q}
+     #(do (println "non-exit-quit requested")
+          (.setUserData stage {:non-exit-quit true}))}))
 
 
 
@@ -103,8 +119,7 @@
     (let [
           visual-bounds (.getVisualBounds (Screen/getPrimary))
 
-             scene
-             (launcher-scene)]
+             scene (launcher-scene)]
 
              ;stage
              ;(fx/now (fx/stage
@@ -124,8 +139,10 @@
            (.setAlwaysOnTop true)
            (.setResizable false)
            (fx/setoncloserequest (launcher-close-handler))
-           (.show))))
+           (.show))
+         (.setOnKeyPressed scene (non-exit-quit stage))
 
+         stage))
 
 
 
