@@ -1,6 +1,6 @@
 (ns
     ^{:author "Terje Dahl"}
-    george.app.turtle.environment
+    george.app.environment
     (:require
         [clojure.java.io :refer [file] :as cio]
         [george.javafx :as fx]
@@ -90,8 +90,8 @@
     (singleton/put-or-create ::library-stage create-library-stage))
 
 
-(defn- prep-user-ns []
-  (let [current-ns (:ns (meta #'prep-user-ns))]
+(defn- prep-user-turtle-ns []
+  (let [current-ns (:ns (meta #'prep-user-turtle-ns))]
     (binding [*ns* nil]
       ;; prep a user namespace
       (ns user.turtle (:require [george.app.turtle.turtle :refer :all]))
@@ -101,73 +101,89 @@
 
 
 
-(defn- toolbar-pane []
-    (prep-user-ns)
-    (let [button-width
-          150
+(defn- toolbar-pane [is-turtle]
 
-          pane (fx/hbox
+   (when is-turtle
+     (prep-user-turtle-ns))
 
-                   (fx/button "Screen"
-                              :width button-width
-                              :onaction #(tr/screen)
-                              :tooltip "Open/show the Turtle screen")
+   (let [button-width
+         150
 
-                   (fx/button "Code"
-                              :width button-width
-                              :onaction #(code/new-code-stage :namespace "user.turtle")
-                              :tooltip "Open a new code editor")
+         user-ns-str
+         (if is-turtle "user.turtle" "user")
 
-                   (fx/button "Output"
-                              :width button-width
-                              :onaction gcc/show-or-create-output-stage
-                              :tooltip "Open/show output-window")
+         pane
+         (apply
+           fx/hbox
+           (filter
+             some?
+             (list
+                 (when is-turtle
+                      (fx/button "Screen"
+                                 :width button-width
+                                 :onaction #(tr/screen)
+                                 :tooltip "Open/show the Turtle screen"))
 
-                 ;(fx/button "Library"
-                 ;           :width button-width
-                 ;           :onaction #(library-stage)
-                 ;           :tooltip "Open/show the library navigator (your files)")
+                 (fx/button "Input"
+                            :width button-width
+                            :onaction
+                            #(gcc/new-input-stage user-ns-str)
+                            :tooltip "Open a new input window / REPL")
 
-                 ;  (fx/button "Input"
-                 ;             :width button-width
-                 ;             :onaction #(gcc/new-input-stage "user.turtle")
-                 ;             :tooltip "Open a new input window / REPL")
+                 (fx/button "Output"
+                            :width button-width
+                            :onaction gcc/show-or-create-output-stage
+                            :tooltip "Open/show output-window")
 
-
-                 ;(fx/button "Editor"
-                 ;           :width button-width
-                 ;           :onaction #(editor/new-code-stage :namespace "user.turtle")
-                 ;           :tooltip "Open a new code editor"
-
-
-                 ;(fx/button "Commands"
-                 ;           :width button-width
-                 ;           :onaction #(println "missing IMPL (Commands)")
-                 ;           :tooltip "Open/show a panel with useful turtle commands")
+                 (fx/button "Code"
+                            :width button-width
+                            :onaction #(code/new-code-stage :namespace user-ns-str)
+                            :tooltip "Open a new code editor")
 
                  :spacing 10
-                 :padding 10)]
+                 :padding 10)))]
 
-      pane))
+                ;(fx/button "Library"
+                ;           :width button-width
+                ;           :onaction #(library-stage)
+                ;           :tooltip "Open/show the library navigator (your files)")
 
 
-(defn- create-toolbar-stage []
-  (let []
 
+                ;(fx/button "Editor"
+                ;           :width button-width
+                ;           :onaction #(editor/new-code-stage :namespace "user.turtle")
+                ;           :tooltip "Open a new code editor"
+
+
+                ;(fx/button "Commands"
+                ;           :width button-width
+                ;           :onaction #(println "missing IMPL (Commands)")
+                ;           :tooltip "Open/show a panel with useful turtle commands")
+
+
+     pane))
+
+
+(defn- create-toolbar-stage [ide-type]
+  (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
         :style :utility
         :ontop true
         :location [300 17]
-        :title "George - Turtle Geometry"
-        :scene (fx/scene (toolbar-pane))
+        :title (if is-turtle
+                 "Turtle Geometry"
+                 "IDE")
+        :scene (fx/scene (toolbar-pane is-turtle))
         :sizetoscene true
-        :onhidden #(singleton/remove ::toolbar-stage)))))
+        :onhidden #(singleton/remove [::toolbar-stage ide-type])))))
 
 
 
-(defn toolbar-stage []
-    (singleton/put-or-create ::toolbar-stage create-toolbar-stage))
+(defn toolbar-stage [ide-type]
+    (singleton/put-or-create
+      [::toolbar-stage ide-type] #(create-toolbar-stage ide-type)))
 
 
 ;;;; main ;;;;
@@ -175,7 +191,8 @@
 (defn -main
   "Launches an input-stage as a stand-alone app."
   [& args]
-  (fx/later (toolbar-stage)))
+  (let [ide-type (#{:ide :turtle} (first args))]
+    (fx/later (toolbar-stage ide-type))))
 
 
 ;;; DEV ;;;

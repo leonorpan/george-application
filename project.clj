@@ -18,8 +18,9 @@
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  [leiningen "2.7.1" :exclusions [org.clojure/clojure]]
-                 [org.fxmisc.wellbehaved/wellbehavedfx "0.2"]
-                 [org.fxmisc.richtext/richtextfx "0.6.10"  :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
+                 ;[org.fxmisc.wellbehaved/wellbehavedfx "0.2"]
+                 [org.fxmisc.richtext/richtextfx "0.6.10"]
+                  ;:exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
 
                  ;; https://github.com/clojure/tools.namespace
@@ -28,7 +29,7 @@
                  [org.clojure/java.classpath "0.2.3"]
                  ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.1"]]
+                 [no.andante.george/george-javafx "0.1.2-SNAPSHOT"]]
 
 
   :repositories [

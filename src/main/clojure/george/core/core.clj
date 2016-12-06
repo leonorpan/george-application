@@ -15,7 +15,7 @@
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
-             (javafx.scene.control Tooltip ListCell ScrollPane)
+             (javafx.scene.control Tooltip ListCell ScrollPane CheckBox)
              (javafx.util Callback)
              (java.io StringWriter PrintStream OutputStreamWriter StringReader PushbackReader)
              (org.apache.commons.io.output WriterOutputStream)
@@ -387,14 +387,26 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           (fn [direction global?]
               (hist/do-history code-area repl-uuid current-history-index-atom direction global?))
 
+
+          clear-checkbox
+          (doto (CheckBox. "Clear on 'Eval'")
+            (.setTooltip (Tooltip. "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")))
+
           do-run-fn
-          (fn [clear?]
-              (do-run code-area repl-uuid current-history-index-atom ns-label clear?))
+          (fn [inverse-clear]  ;; do the oposite of clear-checkbox
+              (let [clear-checked
+                    (-> clear-checkbox .isSelected)
+                    do-clear
+                    (if inverse-clear (not clear-checked) clear-checked)]
+                ;(println "clear-checked:" clear-checked)
+                ;(println "inverse-clear:" inverse-clear)
+                ;(println "do-clear:" do-clear)
+                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear)))
 
           prev-button
           (doto
               (fx/button
-                  (str  \u25C0)  ;; up: \u25B2
+                  (str  \u25B2)  ;; up: \u25B2,  left: \u25C0
                   :onaction #(do-history-fn hist/PREV false)
                   :tooltip (format
                                "Previous 'local' history.          %s-LEFT
@@ -407,7 +419,7 @@ Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
           next-button
           (doto
               (fx/button
-                  (str \u25B6)  ;; down \u25BC
+                  (str \u25BC)  ;; down: \u25BC,  right: \u25B6
                   :onaction #(do-history-fn hist/NEXT false)
                   :tooltip (format
                                "Next 'local' history.          %s-RIGHT
@@ -423,14 +435,16 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
               :width 130
               :onaction #(do-run-fn false)
               :tooltip (format
-                           "Run code, then clear.          %s-ENTER
-Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+                           "Run code, then clear if checkbox ckecked.          %s-ENTER
+Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
 
           button-box
           (fx/hbox
               prev-button
               next-button
+              (fx/region :hgrow :always)
+              clear-checkbox
               (fx/region :hgrow :always)
               run-button
               :spacing 3
@@ -452,14 +466,14 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
           key-pressed-handler
           (fx/key-pressed-handler{
-                                  #{:CTRL :LEFT} #(do-history-fn hist/PREV false)
-                                  #{:SHIFT :CTRL :LEFT} #(do-history-fn hist/PREV true)
+                                  #{:CTRL :UP} #(do-history-fn hist/PREV false)
+                                  #{:SHIFT :CTRL :UP} #(do-history-fn hist/PREV true)
 
-                                  #{:CTRL :RIGHT} #(do-history-fn hist/NEXT false)
-                                  #{:SHIFT :CTRL :RIGHT} #(do-history-fn hist/NEXT true)
+                                  #{:CTRL :DOWN} #(do-history-fn hist/NEXT false)
+                                  #{:SHIFT :CTRL :DOWN} #(do-history-fn hist/NEXT true)
 
-                                  #{:CTRL :ENTER} #(do-run-fn true)
-                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn false)})]
+                                  #{:CTRL :ENTER} #(do-run-fn false)
+                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn true)})]
 
 
 
@@ -479,14 +493,16 @@ Run code, don't clear.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
           repl-nr
           (hist/next-repl-nr)
 
+          scene (input-scene ns)
+
           stage
           (fx/now
               (doto (fx/stage
                         :title (format "Input %s" repl-nr)
-                        :scene (input-scene ns)
+                        :scene scene
                         :sizetoscene true
                         ;(. centerOnScreen)
-                        :location [800 200])))]
+                        :location [(- 1000 (.getWidth scene)) 200])))]
 
 
                   ;(.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))

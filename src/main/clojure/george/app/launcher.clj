@@ -4,11 +4,12 @@
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
     [george.app.code :as code]
-    [george.app.applet-loader :as applets-loader])
+    [george.app.applet-loader :as applets-loader] :reload)
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
-           [javafx.geometry Pos]))
+           [javafx.geometry Pos]
+           (javafx.stage Screen)))
 
 
 (defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
@@ -100,6 +101,8 @@
 
 (defn show-launcher-stage [stage]
     (let [
+          visual-bounds (.getVisualBounds (Screen/getPrimary))
+
              scene
              (launcher-scene)]
 
@@ -115,8 +118,8 @@
 
          (doto stage
            (.setScene scene)
-           (.setX 50)
-           (.setY 5)
+           (.setX (-> visual-bounds .getMinX (+ 10)))
+           (.setY (-> visual-bounds .getMinY (+ 10)))
            (.setTitle "George")
            (.setAlwaysOnTop true)
            (.setResizable false)
