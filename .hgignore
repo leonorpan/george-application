@@ -16,3 +16,4 @@ checkouts/
 .lein-repl-history
 .nrepl-port
 pom.xml
+/.idea/.name

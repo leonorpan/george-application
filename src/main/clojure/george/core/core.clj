@@ -389,8 +389,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 
           clear-checkbox
-          (doto (CheckBox. "Clear on 'Eval'")
-            (.setTooltip (Tooltip. "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")))
+          (fx/checkbox "Clear on 'Eval'"
+            :tooltip "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")
 
           do-run-fn
           (fn [inverse-clear]  ;; do the oposite of clear-checkbox

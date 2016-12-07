@@ -1,7 +1,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application-jvm "0.7.0-SNAPSHOT"
+(defproject no.andante.george/george-application-jvm "0.7.0"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application-jvm"
@@ -29,7 +29,7 @@
                  [org.clojure/java.classpath "0.2.3"]
                  ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.2-SNAPSHOT"]]
+                 [no.andante.george/george-javafx "0.1.2"]]
 
 
   :repositories [
