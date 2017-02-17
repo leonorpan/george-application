@@ -10,7 +10,7 @@
   [applet-ns]
   (println "Verifying applet:" applet-ns)
 ;(try
-  (require applet-ns :reload)
+  (require applet-ns)
   (if-let [info-fn (ns-resolve applet-ns 'info)]
     (try
       (let [info (info-fn)]

@@ -1,10 +1,14 @@
+;; TODO:
+; - Quit-dialog needs to come to forefront of *all* applications.
+
+
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application-jvm "0.7.0"
+(defproject no.andante.george/george-application "0.7.1-SNAPSHOT"
 
   :description "George - the desktop application - JVM version"
-  :url "https://bitbucket.org/andante-george/george-application-jvm"
+  :url "https://bitbucket.org/andante-george/george-application"
     :license {:name "Eclipse Public License"
               :url "http://www.eclipse.org/legal/epl-v10.html"}
 

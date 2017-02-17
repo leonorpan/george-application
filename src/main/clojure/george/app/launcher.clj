@@ -4,7 +4,7 @@
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
     [george.app.code :as code]
-    [george.app.applet-loader :as applets-loader] :reload)
+    [george.app.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
@@ -133,13 +133,14 @@
 
          (doto stage
            (.setScene scene)
-           (.setX (-> visual-bounds .getMinX (+ 10)))
-           (.setY (-> visual-bounds .getMinY (+ 10)))
+           (.setX (-> visual-bounds .getMinX (+ 0)))
+           (.setY (-> visual-bounds .getMinY (+ 0)))
            (.setTitle "George")
-           (.setAlwaysOnTop true)
+           ;(.setAlwaysOnTop true)
            (.setResizable false)
            (fx/setoncloserequest (launcher-close-handler))
-           (.show))
+           (.show)
+           (.toFront))
          (.setOnKeyPressed scene (non-exit-quit stage))
 
          stage))

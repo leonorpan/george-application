@@ -8,7 +8,7 @@
         [george.core.core :as gcc]
         [george.util.singleton :as singleton]
         [george.util.prefs :as prf]
-        [george.app.code :as code] :reload)
+        [george.app.code :as code])
     (:import (java.util.prefs Preferences)
              (java.io File)))
 
@@ -166,17 +166,15 @@
 
 
 (defn- create-toolbar-stage [ide-type]
+  (println "  #!")
   (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
-        :style :utility
-        :ontop true
-        :location [300 17]
-        :title (if is-turtle
-                 "Turtle Geometry"
-                 "IDE")
+        :location [520 17]
+        :title (if is-turtle "Turtle Geometry" "IDE")
         :scene (fx/scene (toolbar-pane is-turtle))
         :sizetoscene true
+        :resizable false
         :onhidden #(singleton/remove [::toolbar-stage ide-type])))))
 
 

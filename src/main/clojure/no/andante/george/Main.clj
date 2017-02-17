@@ -12,7 +12,7 @@
 
 
 (defn -start [this ^javafx.stage.Stage stage]
-  (println "start called")
+  (println "Main.start() ...")
   (println "params are:" (-> this .getParameters .getRaw seq))
 
   ;(println "args are:"
