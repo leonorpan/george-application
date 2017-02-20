@@ -5,7 +5,7 @@
 ;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
 
 
-(defproject no.andante.george/george-application "0.7.1-SNAPSHOT"
+(defproject no.andante.george/george-application "0.7.1"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application"

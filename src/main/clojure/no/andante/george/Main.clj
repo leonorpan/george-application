@@ -20,8 +20,8 @@
   ;           "(no args)"
   ;           (str " args: " (apply str (interpose " " args))))))
 
-  (let [applet-info-seq (applets/load-applets)]
-       (doseq [a (doall applet-info-seq)] (println a)))
+  ;(let [applet-info-seq (applets/load-applets)]
+  ;     (doseq [a (doall applet-info-seq)] (println a)))
 
   (launcher/start stage))
 
