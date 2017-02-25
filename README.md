@@ -44,7 +44,7 @@ If you understand what that means, then you will also be able to do that based o
 
 In the listing bellow I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
 
-The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. <br />
+The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. \n
 The next time it will be a lot faster, though.
 
 
@@ -52,13 +52,13 @@ The next time it will be a lot faster, though.
 
 `<lein> deps` To preload and/or update all dependencies.
 
-`<lein> george.example` To run a simple george.example-script.<br />
+`<lein> george.example` To run a simple george.example-script.\n
 `<lein> examplej` To run a simple Java-class which in turn runs the same simple george.example-script.
 
 `<lein> repl` To start an interactive REPL.
 
 
-<br />
+\n
 
 ***
 
