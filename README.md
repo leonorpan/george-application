@@ -30,8 +30,6 @@ If you wish to build it, you will need to have a JDK installed and your paths se
 This project is set up to use [Leiningen](http://leiningen.org) to build and run the code.
 
 To get Boot on your system, simply run the "thin wrapper" by doing: `./lein.sh` or `lein.bat`.  
-  
-  
 This will download and install the latest version of Boot for your system.
 
 To update Leiningen, do `./lein.sh upgrade` or `lein.bat upgrade`.
