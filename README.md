@@ -1,14 +1,14 @@
 # George Client - jvm source
 
-This is the main application code that goes into George Client - native (Windows, Mac, Linux?)
+This is the main application code that goes into George Client - native (Windows, Mac, Linux?)  
 
-If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system. <br />
+If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.   
 Go here to [get George for Windows & Mac](http://www.george.andante.no).
 
 
 ## Download
 
-You will soon be able to download the source as a ZIP-file.  <br />
+You will soon be able to download the source as a ZIP-file.    
 (I just need to implement some support for this. Remind me, if you see this message.)
 
 However, if you would prefer to easily update the to the latest version, then use Mercurial and clone i stead, and/or use Atlassian's very useful tool 
@@ -17,7 +17,7 @@ SourceTree. (See the top of the [Overview](https://bitbucket.org/andante-george/
 
 ## Java
 
-To run this code you will need to have Java 8v40 or newer installed on your system.<br />
+To run this code you will need to have Java 8v40 or newer installed on your system.  
 (As of this writing I am on 8v74.)
 
 If you wish to build it, you will need to have a JDK installed and your paths set up.
