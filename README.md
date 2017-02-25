@@ -56,10 +56,6 @@ The next time it will be a lot faster, though.
 `<lein> examplej` To run a simple Java-class which in turn runs the same simple george.example-script.
 
 `<lein> repl` To start an interactive REPL.
-
-
-  
-  
   
   
   
