@@ -36,7 +36,7 @@ To update Leiningen, do `./lein.sh upgrade` or `lein.bat upgrade`.
 
 For help with Leiningen itself, do: `./lein.sh -h` or `lein.bat -h`.
 
-If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.<br />
+If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.  
 If you understand what that means, then you will also be able to do that based on the instruction you find on the Leiningen home and download pages.
 
 
@@ -44,7 +44,7 @@ If you understand what that means, then you will also be able to do that based o
 
 In the listing bellow I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
 
-The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. \n
+The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories.  
 The next time it will be a lot faster, though.
 
 
@@ -58,7 +58,8 @@ The next time it will be a lot faster, though.
 `<lein> repl` To start an interactive REPL.
 
 
-\n
+  
+  
 
 ***
 
