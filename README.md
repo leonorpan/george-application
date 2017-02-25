@@ -2,13 +2,13 @@
 
 This is the main application code that goes into George Client - native (Windows, Mac, Linux?)
 
-If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system. <br>
+If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system. <br />
 Go here to [get George for Windows & Mac](http://www.george.andante.no).
 
 
 ## Download
 
-You will soon be able to download the source as a ZIP-file.  <br>
+You will soon be able to download the source as a ZIP-file.  <br />
 (I just need to implement some support for this. Remind me, if you see this message.)
 
 However, if you would prefer to easily update the to the latest version, then use Mercurial and clone i stead, and/or use Atlassian's very useful tool 
@@ -17,7 +17,7 @@ SourceTree. (See the top of the [Overview](https://bitbucket.org/andante-george/
 
 ## Java
 
-To run this code you will need to have Java 8v40 or newer installed on your system.<br>
+To run this code you will need to have Java 8v40 or newer installed on your system.<br />
 (As of this writing I am on 8v74.)
 
 If you wish to build it, you will need to have a JDK installed and your paths set up.
@@ -36,7 +36,7 @@ To update Leiningen, do `./lein.sh upgrade` or `lein.bat upgrade`.
 
 For help with Leiningen itself, do: `./lein.sh -h` or `lein.bat -h`.
 
-If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.<br>
+If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.<br />
 If you understand what that means, then you will also be able to do that based on the instruction you find on the Leiningen home and download pages.
 
 
@@ -44,7 +44,7 @@ If you understand what that means, then you will also be able to do that based o
 
 In the listing bellow I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
 
-The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. <br>
+The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories. <br />
 The next time it will be a lot faster, though.
 
 
@@ -52,13 +52,13 @@ The next time it will be a lot faster, though.
 
 `<lein> deps` To preload and/or update all dependencies.
 
-`<lein> george.example` To run a simple george.example-script.<br>
+`<lein> george.example` To run a simple george.example-script.<br />
 `<lein> examplej` To run a simple Java-class which in turn runs the same simple george.example-script.
 
 `<lein> repl` To start an interactive REPL.
 
 
-<br>
+<br />
 
 ***
 
