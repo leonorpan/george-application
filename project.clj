@@ -1,20 +1,9 @@
-;; TODO:
-; - Quit-dialog needs to come to forefront of *all* applications.
-
-
-;; https://github.com/technomancy/leiningen/blob/stable/doc/MIXED_PROJECTS.md
-
-
 (defproject no.andante.george/george-application "0.7.2-SNAPSHOT"
 
   :description "George - the desktop application - JVM version"
   :url "https://bitbucket.org/andante-george/george-application"
-    :license {:name "Eclipse Public License"
-              :url "http://www.eclipse.org/legal/epl-v10.html"}
-
-  :plugins [
-            [lein-tar "3.2.0"]]
-            ;[lein-exec "0.3.6"] ;; https://github.com/kumarshantanu/lein-exec
+  :license {:name "Eclipse Public License"
+            :url "http://www.eclipse.org/legal/epl-v10.html"}
 
 
   :dependencies [
@@ -22,34 +11,34 @@
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  [leiningen "2.7.1" :exclusions [org.clojure/clojure]]
-                 ;[org.fxmisc.wellbehaved/wellbehavedfx "0.2"]
-                 [org.fxmisc.richtext/richtextfx "0.6.10"]
-                  ;:exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
+                 [org.fxmisc.wellbehaved/wellbehavedfx "0.1.1"]
+                 [org.fxmisc.richtext/richtextfx "0.6.10" :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
-
                  ;; https://github.com/clojure/tools.namespace
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
-                 ;[org.kovas/paredit.clj "0.20.1-SNAPSHOT" :exclusions [org.clojure/clojure]]  ;; https://github.com/kovasb/paredit-widget
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.2"]]
+                 [no.andante.george/george-javafx "0.1.3-SNAPSHOT"]]
 
+  :plugins [
+            ;; https://github.com/kumarshantanu/lein-sub
+            [lein-sub "0.3.0"]]
 
   :repositories [
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
 
 
-  :deploy-repositories [
-                          ["snapshots" :clojars]
-                        ["releases" :clojars]]
+  :sub ["george-javafx"]
 
+  :deploy-repositories [
+                        ["snapshots" :clojars]
+                        ["releases" :clojars]]
 
   :source-paths      ["src/main/clojure"]
   :java-source-paths ["src/main/java"]
   :javac-options     ["-target" "1.8" "-source" "1.8"]
                       ;"-Xlint:unchecked"]
-
 
   :test-paths ["src/test/clojure"]
   :resource-paths ["src/main/resources"]
@@ -79,18 +68,10 @@
 
             ;; Something cool
             "clocks" ["run" "-m" "george.example.arcclocks"]
-
             "graph" ["run" "-m" "george.sandbox.graph"]}
 
   :profiles {
              :uberjar {
                        :aot :all
-                       ;:main george.app.Loader}})
-                       :manifest {"Main-Class" "no.andante.george.Main"}}})
-
-;; TODO next:
-;; - consolidate environments.
-;;   - look at conections between input and output.
-;;   - ensure correct *ns* for turtle vs general.
-;; - Fix Launcher and Environment layouts - choose best layout and placement of turtle/general and use that.
-;; - avoid ":reload" of namespaces  (multiple reloads seems to slow down loading, and causes multiple calls to other parts)
+                       :main no.andante.george.Main
+                       :manifest {}}}) ;"Main-Class" "no.andante.george.Main"
