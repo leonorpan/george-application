@@ -2,19 +2,15 @@
     (:require
         [clojure.java.io :as cio]
         [clojure.string :as s]
-        [george.javafx.java :as fxj] :reload
-        [george.javafx.util :as fxu] :reload)
+        [george.javafx.java :as fxj]
+        [george.javafx.util :as fxu])
 
     (:import
         [javafx.animation
-         ScaleTransition SequentialTransition TranslateTransition
          Timeline KeyFrame KeyValue]
 
         [javafx.application
          Application Platform]
-
-        [javafx.beans.property
-         StringProperty]
 
         [javafx.beans.value
          ChangeListener WritableValue]
@@ -34,9 +30,6 @@
          Cursor Group Node Parent Scene
          SnapshotParameters SceneAntialiasing]
 
-        [javafx.scene.canvas
-         Canvas]
-
         [javafx.scene.control
          Alert Alert$AlertType
          Button ButtonType ButtonBar$ButtonData
@@ -48,10 +41,6 @@
          TextField TextArea TextInputDialog
          Tooltip
          ScrollPane CheckBox]
-
-
-        [javafx.scene.effect
-         Lighting]
 
         [javafx.scene.image
          Image ImageView]
@@ -75,9 +64,6 @@
 
         [javafx.scene.shape
          Circle Line Rectangle Shape StrokeLineCap StrokeType Polygon]
-
-        [javafx.scene.web
-         WebEngine WebView]
 
         [javafx.stage
          FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle Window]
@@ -690,7 +676,7 @@ It must return a string (which may be wrapped to fit the width of the list."
                    :depthbuffer  false
                    :fill         nil
                    ;:antialiasing SceneAntialiasing/BALANCED  ;; set to nil if not required
-                   :antialiasing nil}  ;; set to nil due to "upside-down bug on Mac/Linux
+                   :antialiasing nil}  ;; set to nil due to "upside-down" bug on Mac/Linux
 
                   [_ kwargs] (fxu/partition-args args default-kwargs)
                   size (:size kwargs)]

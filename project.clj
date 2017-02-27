@@ -35,13 +35,13 @@
                         ["snapshots" :clojars]
                         ["releases" :clojars]]
 
-  :source-paths      ["src/main/clojure"]
+  :source-paths      ["src/main/clojure" "george-javafx/src/main/clojure"]
   :java-source-paths ["src/main/java"]
   :javac-options     ["-target" "1.8" "-source" "1.8"]
                       ;"-Xlint:unchecked"]
 
   :test-paths ["src/test/clojure"]
-  :resource-paths ["src/main/resources"]
+  :resource-paths ["src/main/resources" "george-javafx/src/main/resources"]
 
   :main no.andante.george.Main
   :aot [no.andante.george.Main]
