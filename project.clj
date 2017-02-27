@@ -23,7 +23,9 @@
 
   :plugins [
             ;; https://github.com/kumarshantanu/lein-sub
-            [lein-sub "0.3.0"]]
+            [lein-sub "0.3.0"]
+            ;; https://github.com/weavejester/codox
+            [lein-codox "0.10.3"]]
 
   :repositories [
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
@@ -69,6 +71,16 @@
             ;; Something cool
             "clocks" ["run" "-m" "george.example.arcclocks"]
             "graph" ["run" "-m" "george.sandbox.graph"]}
+
+  :codox {
+          :doc-paths ["docs"]
+          :output-path "target/docs"
+          :namespaces [george.app.turtle.turtle]
+          :source-uri
+          ;"https://github.com/weavejester/codox/blob/{version}/codox.example/{filepath}#L{basename}-{line}"
+          "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
+          :html {:namespace-list :flat}}
+
 
   :profiles {
              :uberjar {

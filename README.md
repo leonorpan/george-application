@@ -1,9 +1,16 @@
 # George Client - jvm source
 
+
+
 This is the main application code that goes into George Client - native (Windows, Mac, Linux?)  
 
 If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.   
 Go here to [get George for Windows & Mac](http://www.george.andante.no).
+
+
+## Documentation
+
+To learn how to test and develop, contribute, and to see the API docs, see the [developer documentation](http://www.george.andante.no/docs).
 
 
 ## Download
