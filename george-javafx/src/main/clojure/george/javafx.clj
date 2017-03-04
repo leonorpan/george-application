@@ -249,33 +249,48 @@ and the body is called on 'changed'"
 
 
 
+(defn option-index
+  "returns the index of the selected option, or nil"
+  [result options]
+  (let [option-index (.indexOf options (-> result .get .getText))]
+    (if (= option-index -1) nil option-index)))
 
 
-;; http://code.makery.ch/blog/javafx-dialogs-official/
-(defn show-actions-dialog [title header message options include-cancel-button]
-    "returns index of selected option, else -1
 
-    ex: (show-actions-dialog \"Title\" nil \"Message\" [\"A\" \"B\"] true)
-    "
-    (let [
-             buttons
-             (mapv
-                 #(ButtonType. %)
-                 options)
-             buttons
-             (if include-cancel-button
-                 (conj buttons (ButtonType. "Cancel" ButtonBar$ButtonData/CANCEL_CLOSE))
-                 buttons)
-             result
-             (.showAndWait
-                 (doto (Alert. Alert$AlertType/CONFIRMATION)
-                     (.setTitle title)
-                     (.setHeaderText header)
-                     (.setContentText message)
-                     (-> .getButtonTypes (.setAll (into-array ButtonType buttons)))))]
+(defn alert [message & args]
+  "returns index of selected option, else nil
 
+  ex: (actions-dialog \"Message\" :title \"Title\" :options [\"A\" \"B\"] :cancel-option? true)
+  "
+  (let [
+        default-kwargs {
+                        :title "Alert"
+                        :header nil
+                        :options ["OK"]
+                        :mode :show-and-wait ;; :show-and-wait or :show
+                        :owner nil
+                        :cancel-option? false}
 
-        (.indexOf options (-> result .get .getText))))
+        [_ {:keys [options] :as kwargs}] (fxu/partition-args args default-kwargs)
+
+        buttons
+        (mapv #(ButtonType. %) options)
+        buttons
+        (if (:cancel-option? kwargs)
+            (conj buttons (ButtonType. "Cancel" ButtonBar$ButtonData/CANCEL_CLOSE))
+            buttons)
+
+        alert
+        (doto (Alert. Alert$AlertType/CONFIRMATION message (fxj/vargs* buttons))
+          (.setTitle (:title kwargs))
+          (.initOwner (:owner kwargs))
+          (.setHeaderText (:header kwargs)))]
+
+       (condp :mode kwargs
+         :show-and-wait (option-index (.showAndWait alert) options)
+         :show (option-index (.show alert) options)
+         alert))) ;default - simply return the dialog itself
+
 
 
 
