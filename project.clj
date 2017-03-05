@@ -19,7 +19,9 @@
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.3-SNAPSHOT"]]
+                 [no.andante.george/george-javafx "0.1.3-SNAPSHOT"]
+                 ;; https://github.com/clojure/tools.nrepl
+                 [org.clojure/tools.nrepl "0.2.12"]]
 
   :plugins [
             ;; https://github.com/kumarshantanu/lein-sub
