@@ -6,9 +6,7 @@
 
               [george.javafx.java :as j])
 
-
-
-  (:import (george.app Versions)
+  (:import (george.application Versions)
            (java.util Date UUID)
            (java.sql Timestamp)))
 

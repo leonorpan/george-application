@@ -1,4 +1,4 @@
-(ns george.app.turtle.turtle
+(ns george.application.turtle.turtle
 
     "George Turtle Geometry implements only the basic (procedural) single-turtle  functions of the original UCB Logo TG, not (for now) the obect-oriented multi-turtle environment of Python.
 
@@ -432,7 +432,7 @@ Returns turtle instance"
 
 
 ;;; DEV ;;;
-;(println "WARNING: Running george.app.turtle.turtle/-main" (-main))
+;(println "WARNING: Running george.application.turtle.turtle/-main" (-main))
 
 (comment do
   (println "heading:" (get-heading))

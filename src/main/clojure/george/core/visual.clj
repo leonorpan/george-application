@@ -6,7 +6,7 @@
     [george.javafx.java :as fxj]
     [george.javafx.util :as fxu]
     [george.javafx.3d :as fx3d]
-    [george.app.turtle.turtle3D :as tr])
+    [george.application.turtle.turtle3D :as tr])
 
 
   (:import (javafx.scene DepthTest PerspectiveCamera CacheHint)
@@ -124,7 +124,7 @@
 ;;;; main ;;;;
 
 (defn -main
-  "Launches an input-stage as a stand-alone app."
+  "Launches an input-stage as a stand-alone application."
   [& args]
   (fx/later (create-stage)))
 

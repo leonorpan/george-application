@@ -1,4 +1,4 @@
-(ns george.app.code
+(ns george.application.code
     (:require
         [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
         [george.javafx.java :as j]

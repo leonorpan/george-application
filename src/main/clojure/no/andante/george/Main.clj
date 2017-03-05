@@ -5,8 +5,8 @@
     :name no.andante.george.Main
     :extends javafx.application.Application)
 
-  (:require [george.app.applet-loader :as applets]
-            [george.app.launcher :as launcher]))
+  (:require [george.application.applet-loader :as applets]
+            [george.application.launcher :as launcher]))
 
 
 

@@ -699,7 +699,6 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
 
         (fx/now
             (fx/stage
-                :style :utility
                 :title "Output"
                 :location [(+ (.getMinX bounds) 20)
                            (- (-> bounds .getMaxY (- (second size))) 20)]
