@@ -1,4 +1,4 @@
-package george.app;
+package george.application;
 
 import java.io.File;
 import java.util.Arrays;

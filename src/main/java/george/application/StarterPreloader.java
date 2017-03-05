@@ -1,7 +1,7 @@
 // http://stackoverflow.com/questions/15126210/how-to-use-javafx-preloader-with-stand-alone-application-in-eclipse
 // https://docs.oracle.com/javase/8/docs/technotes/guides/deploy/preloaders.htm
 
-package george.app;
+package george.application;
 
 import javafx.animation.FadeTransition;
 import javafx.application.Preloader;
@@ -34,7 +34,7 @@ public class StarterPreloader extends Preloader {
 
     @Override
     public void start(Stage stage) throws Exception {
-        System.out.println("george.app.StarterPreloader.start");
+        System.out.println("george.application.StarterPreloader.start");
         this.stage = stage;
         stage.setTitle("Loading George ...");
         stage.setScene(createPreloaderScene());

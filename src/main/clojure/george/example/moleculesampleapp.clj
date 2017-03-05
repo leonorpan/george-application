@@ -237,7 +237,7 @@
 
 
 (defn -main
-  "Launches an input-stage as a stand-alone app."
+  "Launches an input-stage as a stand-alone application."
   [& args]
   (fx/later (start)))
 

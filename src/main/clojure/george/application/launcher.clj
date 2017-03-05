@@ -1,10 +1,9 @@
-(ns george.app.launcher
+(ns george.application.launcher
 
   (require
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
-    [george.app.code :as code]
-    [george.app.applet-loader :as applets-loader])
+    [george.application.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
@@ -82,86 +81,57 @@
         scene))
 
 
-(defn- launcher-close-handler []
+(defn- launcher-close-handler [launcher-stage]
   (fx/event-handler-2 [_ e]
-     (println "e:" e)
-     (let [is-non-exit-quit
-           (-> e .getSource .getUserData :non-exit-quit)
-           _ (println "is-non-exit-quit:" is-non-exit-quit)
-           buttons
-           ["Quit"]
-
+     (let [
            button-index
-           (fx/show-actions-dialog
-             (str "Quit?" (if is-non-exit-quit "  (non-exiting)" ""))
-             nil
+           (fx/alert
              "Do you want to quit George?"
-             buttons true)]
+             :title "Quit?"
+             :options ["Quit"]
+             :owner launcher-stage
+             :mode nil
+             :cancel-option? true)]
 
-          (case button-index
-                0 (when-not is-non-exit-quit
-                    (Platform/exit))
-
-                (.consume e))))) ;; do nothing
-
-
-
-
-(defn- non-exit-quit [stage]
-  (fx/key-pressed-handler
-    {#{:ALT :Q}
-     #(do (println "non-exit-quit requested")
-          (.setUserData stage {:non-exit-quit true}))}))
-
+          (if (= 0 button-index)
+              (fx/later (Platform/exit))
+              (.consume e))))) ;; do nothing
 
 
 (defn show-launcher-stage [stage]
     (let [
           visual-bounds (.getVisualBounds (Screen/getPrimary))
+          scene (launcher-scene)]
 
-             scene (launcher-scene)]
+      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q } #(.hide stage)}))
 
-             ;stage
-             ;(fx/now (fx/stage
-             ;          :scene scene
-             ;          :location [50 5]
-             ;          :title "George"
-             ;          :ontop true
-             ;          :resizable false
-             ;          ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-             ;          :oncloserequest (launcher-close-handler)))]
-
-         (doto stage
-           (.setScene scene)
-           (.setX (-> visual-bounds .getMinX (+ 0)))
-           (.setY (-> visual-bounds .getMinY (+ 0)))
-           (.setTitle "George")
-           ;(.setAlwaysOnTop true)
-           (.setResizable false)
-           (fx/setoncloserequest (launcher-close-handler))
-           (.show)
-           (.toFront))
-         (.setOnKeyPressed scene (non-exit-quit stage))
-
-         stage))
+      ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+      (doto stage
+        (.setScene scene)
+        (.setX (-> visual-bounds .getMinX (+ 0)))
+        (.setY (-> visual-bounds .getMinY (+ 0)))
+        (.setTitle "George")
+        (.setResizable false)
+        (fx/setoncloserequest (launcher-close-handler stage))
+        (.show)
+        (.toFront))))
 
 
-
+;; called from Main
 (defn start [stage]
   (show-launcher-stage stage))
 
 
 (defn -main
-  "Launches George (launcher) as a stand-alone app."
+  "Launches George (launcher) as a stand-alone application."
   [& args]
-  (println "george.app.launcher/-main"
+  (println "george.application.launcher/-main"
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
   (fx/now (show-launcher-stage (fx/stage :show false))))
 
 
-
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.app.launcher/-main" (-main))
+;(println "WARNING: Running george.application.launcher/-main" (-main))
