@@ -1,9 +1,9 @@
-(ns george.app.launcher
+(ns george.application.launcher
 
   (require
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
-    [george.app.applet-loader :as applets-loader])
+    [george.application.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
@@ -123,9 +123,9 @@
 
 
 (defn -main
-  "Launches George (launcher) as a stand-alone app."
+  "Launches George (launcher) as a stand-alone application."
   [& args]
-  (println "george.app.launcher/-main"
+  (println "george.application.launcher/-main"
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
@@ -134,4 +134,4 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.app.launcher/-main" (-main))
+;(println "WARNING: Running george.application.launcher/-main" (-main))

@@ -1,7 +1,7 @@
 (ns george.example.app)
 
 (defn -main [& args]
-    (println "Clojure: (george.example.app/-main ...): Hello World!")
+    (println "Clojure: (george.example.application/-main ...): Hello World!")
     (println "   args:"
              (if (empty? args)
                  "NO ARGS"
@@ -10,4 +10,4 @@
 
 
 (defn hello []
-    "Hello from george.example.app/hello")
+    "Hello from george.example.application/hello")

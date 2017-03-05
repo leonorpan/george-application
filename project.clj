@@ -55,12 +55,12 @@
 
   :aliases {
             ;; starts turtle environement directly
-            "turtle" ["run" "-m" "george.app.applet.turtle"]
+            "turtle" ["run" "-m" "george.application.applet.turtle"]
             ;; starts general environment directly
-            "general" ["run" "-m" "george.app.applet.general"]
+            "general" ["run" "-m" "george.application.applet.general"]
 
             ;; Simple george.example of staring Clojure from Java
-            "example" ["run" "-m" "george.example.app" "4 5 6"]
+            "example" ["run" "-m" "george.example.application" "4 5 6"]
             "examplej" ["run" "-m" "george.example.App" "1 2 3"]
 
             ;; Test of Clojure and JavaFX performance. See source.

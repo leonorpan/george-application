@@ -1,14 +1,14 @@
 (ns
     ^{:author "Terje Dahl"}
-    george.app.environment
+    george.application.environment
     (:require
         [clojure.java.io :refer [file] :as cio]
         [george.javafx :as fx]
-        [george.app.turtle.turtle :as tr]
+        [george.application.turtle.turtle :as tr]
         [george.core.core :as gcc]
         [george.util.singleton :as singleton]
         [george.util.prefs :as prf]
-        [george.app.code :as code])
+        [george.application.code :as code])
     (:import (java.util.prefs Preferences)
              (java.io File)))
 
@@ -94,7 +94,7 @@
   (let [current-ns (:ns (meta #'prep-user-turtle-ns))]
     (binding [*ns* nil]
       ;; prep a user namespace
-      (ns user.turtle (:require [george.app.turtle.turtle :refer :all]))
+      (ns user.turtle (:require [george.application.turtle.turtle :refer :all]))
       ;; switch back to this namespace
       (ns current-ns))))
 
@@ -187,7 +187,7 @@
 ;;;; main ;;;;
 
 (defn -main
-  "Launches an input-stage as a stand-alone app."
+  "Launches an input-stage as a stand-alone application."
   [& args]
   (let [ide-type (#{:ide :turtle} (first args))]
     (fx/later (toolbar-stage ide-type))))
@@ -195,4 +195,4 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.app.turtle.environment/-main" (-main))
+;(println "WARNING: Running george.application.turtle.environment/-main" (-main))
