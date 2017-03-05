@@ -1,6 +1,6 @@
 (ns
   ^{:author "Terje Dahl"}
-  george.app.turtle.turtle3D
+  george.application.turtle.turtle3D
 
   (:require
       [george.javafx :as fx]
@@ -662,7 +662,7 @@
 ;;;; main ;;;;
 
 (defn -main
-  "Launches an input-stage as a stand-alone app."
+  "Launches an input-stage as a stand-alone application."
   [& args]
   (fx/later (screen)))
 
