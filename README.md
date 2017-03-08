@@ -59,7 +59,8 @@ The next time it will be a lot faster, though.
 
 `<lein> deps` To preload and/or update all dependencies.
 
-`<lein> george.example` To run a simple george.example-script.\n
+`<lein> george.example` To run a simple george.example-script.
+
 `<lein> examplej` To run a simple Java-class which in turn runs the same simple george.example-script.
 
 `<lein> repl` To start an interactive REPL.
