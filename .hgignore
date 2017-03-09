@@ -1,10 +1,12 @@
 # types
 .*.iml
+.*.DS_Store
 
 # directories
 target/
 checkouts/
 .idea/libraries/
+.idea/
 
 # files
 .idea/codeStyleSettings.xml
@@ -17,3 +19,4 @@ checkouts/
 .nrepl-port
 pom.xml
 /.idea/.name
+.lein-env
