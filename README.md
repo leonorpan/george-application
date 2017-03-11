@@ -18,7 +18,7 @@ To learn how to test and develop, contribute, and to see the API docs, see the [
 You will soon be able to download the source as a ZIP-file.    
 (I just need to implement some support for this. Remind me, if you see this message.)
 
-However, if you would prefer to easily update the to the latest version, then use Mercurial and clone i stead, and/or use Atlassian's very useful tool 
+However, if you would prefer to easily update to the latest version, then use Mercurial and clone instead, and/or use Atlassian's very useful tool
 SourceTree. (See the top of the [Overview](https://bitbucket.org/andante-george/george-client-jvm/overview) page for links and instructions.)
 
 
@@ -49,7 +49,7 @@ If you understand what that means, then you will also be able to do that based o
 
 ## run/develop
 
-In the listing bellow I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
+In the listing below I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
 
 The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories.  
 The next time it will be a lot faster, though.
