@@ -73,5 +73,5 @@ The next time it will be a lot faster, though.
 
 Copyright © 2016 Terje Dahl
 
-Distributed under the Eclipse Public License version 1.0.
+Distributed under the [Eclipse Public License 1.0](https://opensource.org/licenses/eclipse-1.0.php).
 
