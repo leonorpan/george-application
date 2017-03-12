@@ -372,6 +372,7 @@ and the body is called on 'changed'"
     "default number of 'ticks' pr second"
     60)
 
+
 ;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *warn-on-reflection* true)
 
@@ -382,7 +383,7 @@ and the body is called on 'changed'"
         (let [
               ;;  replace [prop end] with [prop start end]
               keyvalues (map
-                         (fn [[prop end]] [prop (. ^WritableValue prop getValue) end])
+                         (fn [[prop end]] [prop (.getValue ^WritableValue prop) end])
                          (filter some? keyvalues))
 
               start-nano     ^long (System/nanoTime)
@@ -390,32 +391,36 @@ and the body is called on 'changed'"
               end-nano       (+ start-nano duration-nano)
               sleep-nano     ^long (/ NANO_PR_SEC DEFAULT_TICKS_PR_SEC)] ;; 60 fps
 
+          (when (> duration 0)
             (loop [current-nano start-nano
-                   next-nano    (+ current-nano sleep-nano)]
+                   next-nano (+ current-nano sleep-nano)]
+              (when (<= current-nano end-nano)
+                (later
+                  (doseq [[^WritableValue prop start end] keyvalues]
+                    ;;  cDv (* (/ cDt Dt) Dv)
+                    ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
+                    (.setValue prop
+                       (+ start (*
+                                  (/ (- current-nano start-nano) duration-nano)
+                                  (- end start))))))
 
-                (when (<= current-nano end-nano)
-                    (later (doseq [[^WritableValue prop start end] keyvalues]
-                                ;;  cDv (* (/ cDt Dt) Dv)
-                                ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
-                                (. prop  setValue
-                                   (+ start (*
-                                             (/ (- current-nano start-nano) duration-nano)
-                                             (- end start))))))
+                (let [sleep-milli (int (/ (- next-nano current-nano) NANO_PR_MILLI))]
+                  (if (> sleep-milli 0)
+                    (Thread/sleep sleep-milli)))
 
-                    (let [sleep-milli (int (/ (- next-nano current-nano) NANO_PR_MILLI))]
-                        (if (> sleep-milli 0)
-                            (Thread/sleep sleep-milli)))
-
-                    (recur next-nano (+ current-nano sleep-nano))))
+                (recur next-nano (+ current-nano sleep-nano))))
             ;; correct final value and "hold" until to ensure consistent state at end
             (now (doseq [[^WritableValue p _ e] keyvalues]
-                       (. p setValue e))))))
+                       (.setValue p  e)))))))
+
 
 (defn observablearraylist-t [t & lst]
     (FXCollections/observableArrayList (into-array t lst)))
 
+
 (defn observablearraylist [& lst]
     (FXCollections/observableArrayList (into-array lst)))
+
 
 (defn listview
     ([]
