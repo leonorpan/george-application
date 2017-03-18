@@ -1,4 +1,4 @@
-(defproject no.andante.george/george-application "0.7.2"
+(defproject no.andante.george/george-application "0.7.3-SNAPSHOT"
 
   :description "George - The desktop application (JVM)"
   :url "https://bitbucket.org/andante-george/george-application"
