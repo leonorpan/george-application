@@ -1,22 +1,27 @@
+;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+;  You must not remove this notice, or any other, from this software.
+
 (ns george.code.reader
 
     (:require
               [clojure.tools.reader.impl.commons :refer [
-                number-literal? match-number parse-symbol read-past skip-line
-                ]]
-              [clojure.tools.reader :as ctr]
-              [clojure.tools.reader.reader-types :as ctrt]
+                                                         number-literal? match-number parse-symbol read-past skip-line]]
 
-              )
+              [clojure.tools.reader :as ctr]
+              [clojure.tools.reader.reader-types :as ctrt])
+
+
 
     (:import (clojure.lang PersistentHashSet IMeta
                                              RT Symbol Reflector Var IObj
                                              PersistentVector IRecord Namespace)
              java.lang.reflect.Constructor
-             (java.util regex.Pattern List LinkedList))
+             (java.util regex.Pattern List LinkedList)))
 
 
-    )
+
 
 
 (def DEBUG true)
@@ -40,40 +45,40 @@
     unread
     peek-char
     macros
-    dispatch-macros
+    dispatch-macros)
 ;    ^:dynamic *read-eval*
 ;    ^:dynamic *data-readers*
 ;    ^:dynamic *default-data-reader-fn*
 ;    ^:dynamic *suppress-read*
 ;    default-data-readers
-    )
+
 
 (defn- starting-location [rdr]
     {
 ;        :starting-column (dec (.getColumnNumber rdr))
 ;        :starting-line (.getLineNumber rdr)
-        :starting-index (dec (.getIndex rdr))
-        })
+        :starting-index (dec (.getIndex rdr))})
+
 
 (defn- ending-location [rdr]
     {
 ;        :ending-column (dec (.getColumnNumber rdr))
 ;        :ending-line (.getLineNumber rdr)
-        :ending-index (.getIndex rdr)
-        })
+        :ending-index (.getIndex rdr)})
+
 
 
 (defn- step-start [location stp]
     "adds 'stp' from starting-column and starting-index"
     ;(update (update location :starting-column + stp) :starting-index + stp)
-    (update location :starting-index + stp)
-    )
+    (update location :starting-index + stp))
+
 
 (defn- step-end [location stp]
     "adds 'stp' from ending-column and ending-index"
     ;(update (update location :ending-column + stp) :ending-index + stp)
-    (update location :ending-index + stp)
-    )
+    (update location :ending-index + stp))
+
 
 
 
@@ -178,31 +183,31 @@
     "A wrapper to set meta on any type"
     ([v] (meta-number {} v))
     ([meta v]
-        (let [_meta (atom (merge {:type (type v)} meta))]
-            (proxy [java.lang.Number clojure.lang.IObj] []
-                    (meta [] @_meta)
-                    (withMeta [m] (meta-number (merge {:type (type v)} m) v))
-                    (intValue [] (.intValue v))
-                    (longValue [] (.longValue v))
-                    (floatValue [] (.floatValue v))
-                    (doubleValue [] (.doubleValue v))
-                    (byteValue [] (.byteValue v))
-                    (shortValue [] (.shortValue v))
-                    (toString [] (clojure.lang.RT/printString v))
-                ))))
+     (let [_meta (atom (merge {:type (type v)} meta))]
+         (proxy [java.lang.Number clojure.lang.IObj] []
+                 (meta [] @_meta)
+                 (withMeta [m] (meta-number (merge {:type (type v)} m) v))
+                 (intValue [] (.intValue v))
+                 (longValue [] (.longValue v))
+                 (floatValue [] (.floatValue v))
+                 (doubleValue [] (.doubleValue v))
+                 (byteValue [] (.byteValue v))
+                 (shortValue [] (.shortValue v))
+                 (toString [] (clojure.lang.RT/printString v))))))
+
 
 
 (defn- meta-value
     "A wrapper to set meta on any type"
     ([v] (meta-value {} v))
     ([meta v]
-        (let [_meta (atom (merge {:type (type v)} meta))]
-            (proxy [java.lang.Object clojure.lang.IObj IValue] []
-                (meta [] @_meta)
-                (withMeta [m] (meta-value (merge {:type (type v)} m) v))
-                (getValue [] v)
-                (toString [] (clojure.lang.RT/printString v))
-                ))))
+     (let [_meta (atom (merge {:type (type v)} meta))]
+         (proxy [java.lang.Object clojure.lang.IObj IValue] []
+             (meta [] @_meta)
+             (withMeta [m] (meta-value (merge {:type (type v)} m) v))
+             (getValue [] v)
+             (toString [] (clojure.lang.RT/printString v))))))
+
 
 (defn ^:private ns-name* [x]
     (if (instance? Namespace x)
@@ -248,9 +253,9 @@
             EOF
             "EOF while reading character (at 'read-dispatch')"
             (step-start (starting-location rdr) -1)
-            (ending-location rdr))
+            (ending-location rdr))))
 
-        ))
+
 
 (comment defn- read-dispatch [rdr _ _ _]
     (with-meta (meta-value (read-char rdr))
@@ -295,51 +300,51 @@
                 (Pattern/compile (str sb))
                 (if (nil? ch)
                     (throw-syntax-error EOF
-                        "EOF while reading regex"
-                    )
+                        "EOF while reading regex")
+
                     (do
-                        (.append sb ch )
+                        (.append sb ch)
                         (when (identical? \\ ch)
                             (let [ch (read-char rdr)]
                                 (if (nil? ch)
                                     (throw-syntax-error EOF
-                                        "EOF while reading regex")
-                                )
+                                        "EOF while reading regex"))
+
                                 (.append sb ch)))
                         (recur (read-char rdr))))))))
 
 (defn- read-unicode-char
     ([^String token offset length base]
-        (let [l (+ offset length)]
-            (when-not (== (count token) l)
-                (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
-            (loop [i offset uc 0]
-                (if (== i l)
-                    (char uc)
-                    (let [d (Character/digit (int (nth token i)) (int base))]
-                        (if (== d -1)
-                            (throw (IllegalArgumentException. (str "Invalid digit: " (nth token i))))
-                            (recur (inc i) (long (+ d (* uc base))))))))))
+     (let [l (+ offset length)]
+         (when-not (== (count token) l)
+             (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
+         (loop [i offset uc 0]
+             (if (== i l)
+                 (char uc)
+                 (let [d (Character/digit (int (nth token i)) (int base))]
+                     (if (== d -1)
+                         (throw (IllegalArgumentException. (str "Invalid digit: " (nth token i))))
+                         (recur (inc i) (long (+ d (* uc base))))))))))
 
     ([rdr initch base length exact?]
-        (loop [i 1 uc (Character/digit (int initch) (int base))]
-            (if (== uc -1)
-                (throw (IllegalArgumentException. (str "Invalid digit: " initch)))
-                (if-not (== i length)
-                    (let [ch (peek-char rdr)]
-                        (if (or (whitespace? ch)
-                                (macros ch)
-                                (nil? ch))
-                            (if exact?
-                                (throw (IllegalArgumentException.
-                                           (str "Invalid character length: " i ", should be: " length)))
-                                (char uc))
-                            (let [d (Character/digit (int ch) (int base))]
-                                (read-char rdr)
-                                (if (== d -1)
-                                    (throw (IllegalArgumentException. (str "Invalid digit: " ch)))
-                                    (recur (inc i) (long (+ d (* uc base))))))))
-                    (char uc))))))
+     (loop [i 1 uc (Character/digit (int initch) (int base))]
+         (if (== uc -1)
+             (throw (IllegalArgumentException. (str "Invalid digit: " initch)))
+             (if-not (== i length)
+                 (let [ch (peek-char rdr)]
+                     (if (or (whitespace? ch)
+                             (macros ch)
+                             (nil? ch))
+                         (if exact?
+                             (throw (IllegalArgumentException.
+                                        (str "Invalid character length: " i ", should be: " length)))
+                             (char uc))
+                         (let [d (Character/digit (int ch) (int base))]
+                             (read-char rdr)
+                             (if (== d -1)
+                                 (throw (IllegalArgumentException. (str "Invalid digit: " ch)))
+                                 (recur (inc i) (long (+ d (* uc base))))))))
+                 (char uc))))))
 
 (def ^:private ^:const upper-limit (int \uD7ff))
 (def ^:private ^:const lower-limit (int \uE000))
@@ -351,49 +356,49 @@
             start-location (starting-location rdr)
              ch (read-char rdr)]
         (with-meta (meta-value
-                (if-not (nil? ch)
-                    (let [token (if (or (macro-terminating? ch)
-                                        (whitespace? ch))
-                                    (str ch)
-                                    (read-token rdr ch))
-                          token-len (count token)]
-                        (cond
+                    (if-not (nil? ch)
+                        (let [token (if (or (macro-terminating? ch)
+                                            (whitespace? ch))
+                                        (str ch)
+                                        (read-token rdr ch))
+                              token-len (count token)]
+                            (cond
 
-                            (== 1 token-len)  (Character/valueOf (nth token 0))
+                                (== 1 token-len)  (Character/valueOf (nth token 0))
 
-                            (= token "newline") \newline
-                            (= token "space") \space
-                            (= token "tab") \tab
-                            (= token "backspace") \backspace
-                            (= token "formfeed") \formfeed
-                            (= token "return") \return
+                                (= token "newline") \newline
+                                (= token "space") \space
+                                (= token "tab") \tab
+                                (= token "backspace") \backspace
+                                (= token "formfeed") \formfeed
+                                (= token "return") \return
 
-                            (.startsWith token "u")
-                            (let [c (read-unicode-char token 1 4 16)
-                                  ic (int c)]
-                                (if (and (> ic upper-limit)
-                                        (< ic lower-limit))
+                                (.startsWith token "u")
+                                (let [c (read-unicode-char token 1 4 16)
+                                      ic (int c)]
+                                    (if (and (> ic upper-limit)
+                                            (< ic lower-limit))
                                     ;; TODO: unify these errors and add start and end
-                                    (throw-syntax-error INVALID_CHAR
-                                        "Invalid character constant: \\u" (Integer/toString ic 16)) c))
+                                        (throw-syntax-error INVALID_CHAR
+                                            "Invalid character constant: \\u" (Integer/toString ic 16)) c))
 
-                            (.startsWith token "o")
-                            (let [len (dec token-len)]
-                                (if (> len 3)
-                                    (throw-syntax-error INVALID_CHAR
-                                        "Invalid octal escape sequence length: " len)
-                                    (let [uc (read-unicode-char token 1 len 8)]
-                                        (if (> (int uc) 0377)
-                                            (throw-syntax-error INVALID_CHAR
-                                                "Octal escape sequence must be in range [0, 377]")
-                                            uc))))
+                                (.startsWith token "o")
+                                (let [len (dec token-len)]
+                                    (if (> len 3)
+                                        (throw-syntax-error INVALID_CHAR
+                                            "Invalid octal escape sequence length: " len)
+                                        (let [uc (read-unicode-char token 1 len 8)]
+                                            (if (> (int uc) 0377)
+                                                (throw-syntax-error INVALID_CHAR
+                                                    "Octal escape sequence must be in range [0, 377]")
+                                                uc))))
 
-                            :else (throw-syntax-error INVALID_CHAR
-                                      "Unsupported character: \\" token)))
-                    (throw-syntax-error EOF
-                        "EOF while reading character")))
-                (merge start-location (ending-location rdr))
-            )))
+                                :else (throw-syntax-error INVALID_CHAR
+                                          "Unsupported character: \\" token)))
+                        (throw-syntax-error EOF
+                            "EOF while reading character")))
+                (merge start-location (ending-location rdr)))))
+
 
 
 
@@ -415,8 +420,8 @@
             ch (peek-char rdr)
              ;; get it now, in case EOF due to unmatched ...
             end-location (ending-location rdr)
-            delim (char delim)
-         ]
+            delim (char delim)]
+
         (pdebug "start:" start-location)
         (pdebug "end:" end-location)
         (pdebug "ch:" ch)
@@ -443,9 +448,9 @@
                                 (str "EOF while reading, starting at: " start-location)
                                 start-location end-location)
 
-                          (recur (conj! a form)))
+                          (recur (conj! a form)))))))))
 
-                    ))))))
+
 
 
 
@@ -454,8 +459,8 @@
     (let [
             start-info (starting-location rdr)
             result (read-fn)
-            end-info (ending-location rdr)
-         ]
+            end-info (ending-location rdr)]
+
         [result (merge start-info end-info)]))
 
 
@@ -466,8 +471,8 @@
     (let [
             read-fn #(read-delimited \) rdr opts pending-forms)
             [the-list location-info]
-                (read-and-location read-fn rdr)
-          ]
+            (read-and-location read-fn rdr)]
+
         (with-meta
             (if (empty? the-list) '() (clojure.lang.PersistentList/create the-list))
             location-info)))
@@ -479,8 +484,8 @@
     (let [
             read-fn #(read-delimited \] rdr opts pending-forms)
             [the-vector location-info]
-            (read-and-location read-fn rdr)
-        ]
+            (read-and-location read-fn rdr)]
+
         (with-meta the-vector location-info)))
 
 
@@ -490,8 +495,8 @@
     (let [
             read-fn #(read-delimited \} rdr opts pending-forms)
             [the-map location-info] (read-and-location read-fn rdr)
-            cnt (count the-map)
-        ]
+            cnt (count the-map)]
+
         (when (odd? cnt)
             (throw-syntax-error UNMATCHED_KEY_VALUE_PAIR
                 "Map literal must contain an even number of forms"))  ;; TODO: add start and end
@@ -507,30 +512,30 @@
     (let [
              ;; step back start to account for '#' in the leading #{
              start-location (step-start (starting-location rdr) -1)
-             end-location0 (ending-location rdr)
-        ]
+             end-location0 (ending-location rdr)]
+
         (try
             (let[
                     the-set (PersistentHashSet/createWithCheck (read-delimited \} rdr opts pending-forms))
-                    end-location (ending-location rdr)
-                ]
+                    end-location (ending-location rdr)]
+
                 (with-meta the-set (merge start-location end-location)))
 
-                (catch Exception e
+            (catch Exception e
                     ; TODO: fix this!
-                    (when-let [d (.getData e)]
-                        (pdebug "ex-info!  data:" d " start-location:" start-location)
+                (when-let [d (.getData e)]
+                    (pdebug "ex-info!  data:" d " start-location:" start-location)
 
-                        (throw
-                            (throw-syntax-error (:error d)
-                                (.getMessage e)
-                                (merge d start-location end-location0))))
+                    (throw
+                        (throw-syntax-error (:error d)
+                            (.getMessage e)
+                            (merge d start-location end-location0))))
 
-                    (pdebug "message:" (.getMessage e) " cause:\n" (.getCause e))
-                    (throw e)
+                (pdebug "message:" (.getMessage e) " cause:\n" (.getCause e))
+                (throw e)))))
 
 
-                    ))))
+
 
 
 (defn- read-number
@@ -553,9 +558,9 @@
                         (throw-syntax-error  ; TODO: this is broken?!?
                             INVALID_NUMBER
                             (str "Invalid number format [" s "]")
-                            start-location (ending-location rdr))
+                            start-location (ending-location rdr))))
 
-                    ))
+
                 (recur (doto sb (.append ch)) (read-char rdr))))))
 
 
@@ -594,8 +599,8 @@
 (defn- read-string*
     [rdr _ opts pending-forms]
     (let [
-             start-location (starting-location rdr)
-             ]
+             start-location (starting-location rdr)]
+
         (loop [sb (StringBuilder.)
                ch (read-char rdr)]
             (case ch
@@ -603,8 +608,8 @@
 ;                       "EOF while reading string (got 'nil')"
 ;                       start-location (ending-location rdr))
                 nil (with-meta
-                    (meta-value (str sb))
-                    (merge start-location (ending-location rdr)))
+                     (meta-value (str sb))
+                     (merge start-location (ending-location rdr)))
 
                 \\ (recur (doto sb (.append (escape-char sb rdr)))
                        (read-char rdr))
@@ -638,14 +643,14 @@
 
                         (throw-syntax-error INVALID_TOKEN
                             (str "Invalid token: " token " (at 'read-token')")
-                             start-location (ending-location rdr))
-                    )
+                            start-location (ending-location rdr)))
+
 
                     (catch Exception e
                         (pdebug "e:" e)
-                        (throw e))
+                        (throw e)))))))
 
-                )))))
+
 
 
 (def ^:dynamic *alias-map*
@@ -670,44 +675,44 @@
              ; start-location (step-start (starting-location rdr) -1)
              start-location (starting-location rdr)
              ch (read-char rdr)]
-            (if (whitespace? ch)
+         (if (whitespace? ch)
                 ;; then
                 ;; TODO: unify these errors?
-                (throw-syntax-error INVALID_TOKEN
-                    "Whitespace not allowed in keyword"
-                    {:at :read-keyword  :e 1} start-location (ending-location rdr))
+             (throw-syntax-error INVALID_TOKEN
+                 "Whitespace not allowed in keyword"
+                 {:at :read-keyword  :e 1} start-location (ending-location rdr))
                 ;; else
-                (let [token (read-token rdr ch) s (parse-symbol token)]
-                    (if-not s
+             (let [token (read-token rdr ch) s (parse-symbol token)]
+                 (if-not s
                         ;; then
 ;                        (throw-syntax-error INVALID_TOKEN
 ;                            (str "Invalid token: ':" token "' (parse-symbol returned 'nil')")
 ;                            {:at :read-keyword :e 2} start-location (ending-location rdr))
                         ;; is EOF
-                        (wrap-keyword (keyword ":")
-                            start-location (ending-location rdr))
+                     (wrap-keyword (keyword ":")
+                         start-location (ending-location rdr))
                         ;; else
-                        (let [^String ns (s 0) ^String name (s 1)]
-                            (if-not (identical? \: (nth token 0))
+                     (let [^String ns (s 0) ^String name (s 1)]
+                         (if-not (identical? \: (nth token 0))
                                 ;; then
-                                (wrap-keyword (keyword ns name)
-                                    start-location (ending-location rdr))
+                             (wrap-keyword (keyword ns name)
+                                 start-location (ending-location rdr))
                                 ;; else
-                                (if-not ns
+                             (if-not ns
                                     ;; then
-                                    (wrap-keyword (keyword (str *ns*) (subs name 1))
-                                        start-location (ending-location rdr))
+                                 (wrap-keyword (keyword (str *ns*) (subs name 1))
+                                     start-location (ending-location rdr))
                                     ;; else
-                                    (if-let [ns (resolve-ns (symbol (subs ns 1)))]
+                                 (if-let [ns (resolve-ns (symbol (subs ns 1)))]
                                         ;; then
-                                        (wrap-keyword (keyword (str ns) name)
-                                            start-location (ending-location rdr))
+                                     (wrap-keyword (keyword (str ns) name)
+                                         start-location (ending-location rdr))
 
                                         ;; else
-                                        (throw-syntax-error INVALID_TOKEN
-                                            (str "Invalid token: ':" token "' (resolve-ns returned 'nil')")
-                                            {:at :read-keyword :e 3} start-location (ending-location rdr))
-                                    )))))))))
+                                     (throw-syntax-error INVALID_TOKEN
+                                         (str "Invalid token: ':" token "' (resolve-ns returned 'nil')")
+                                         {:at :read-keyword :e 3} start-location (ending-location rdr)))))))))))
+
 
 
 (defn- wrapping-reader
@@ -720,21 +725,21 @@
 (defn- read-meta
     "Read metadata and return the following object with the metadata applied"
     [rdr _ opts pending-forms]
-        (let [;[line column] (starting-line-col-info rdr)
-              start-location (starting-location rdr)
-              m (desugar-meta (read* rdr true nil opts pending-forms))]
-            (when-not (map? m)
+    (let [;[line column] (starting-line-col-info rdr)
+          start-location (starting-location rdr)
+          m (desugar-meta (read* rdr true nil opts pending-forms))]
+        (when-not (map? m)
                 ; TODO: add start and end, and perhaps unify these errors.
+            (throw-syntax-error INVALID_META
+                "Metadata must be Symbol, Keyword, String or Map"))
+        (let [o (read* rdr true nil opts pending-forms)]
+            (if (instance? IMeta o)
+                (let [m (conj m start-location)]
+                    (if (instance? IObj o)
+                        (with-meta o (merge (meta o) m))
+                        (reset-meta! o m)))
                 (throw-syntax-error INVALID_META
-                    "Metadata must be Symbol, Keyword, String or Map"))
-            (let [o (read* rdr true nil opts pending-forms)]
-                (if (instance? IMeta o)
-                    (let [m (conj m start-location)]
-                        (if (instance? IObj o)
-                            (with-meta o (merge (meta o) m))
-                            (reset-meta! o m)))
-                    (throw-syntax-error INVALID_META
-                         "Metadata can only be applied to IMetas")))))
+                     "Metadata can only be applied to IMetas")))))
 
 
 
@@ -1023,8 +1028,8 @@
 (defn- add-meta [form ret]
     (if (and (instance? IObj form)
             ;(seq (dissoc (meta form) :line :column :end-line :end-column :file :source))
-            (seq (dissoc (meta form) :source))
-            )
+            (seq (dissoc (meta form) :source)))
+
         (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
         ret))
 
@@ -1057,7 +1062,7 @@
             (list 'quote
                 (if (namespace form)
                     (let [maybe-class ((ns-map *ns*)
-                                          (symbol (namespace form)))]
+                                       (symbol (namespace form)))]
                         (if (class? maybe-class)
                             (symbol (.getName ^Class maybe-class) (name form))
                             (resolve-symbol form)))
@@ -1245,8 +1250,8 @@
 
 (defn indexing-pushback-stringreader [s]
     (let [indx (atom 0)
-          s-len (. s length)
-          ]
+          s-len (. s length)]
+
         (proxy [java.io.PushbackReader IIndex IUnread] [(java.io.StringReader. s) (if (== 0 s-len) 1 s-len)]
             (read []
                 (if (< @indx s-len)
@@ -1256,12 +1261,12 @@
                     -1))
             (unread
                 ([ch]
-                    (proxy-super unread (int ch))
-                    (swap! indx dec)
-                    nil)
+                 (proxy-super unread (int ch))
+                 (swap! indx dec)
+                 nil)
                 ([^chars cbuf off len]
-                    (proxy-super unread cbuf off len)
-                    (reset! indx (- @indx (- len off) ))))
+                 (proxy-super unread cbuf off len)
+                 (reset! indx (- @indx (- len off)))))
             (getIndex []
                 @indx)
            (unreadTo [i]
@@ -1272,8 +1277,8 @@
                                    (java.io.IOException.
                                       (str "Cannot unread past current index  [" i ">" i-prev "]"))))
                          len (- i-prev i)
-                         ss (.substring s i i-prev)
-                         ]
+                         ss (.substring s i i-prev)]
+
                     (. this  unread
                         (. ss toCharArray) 0 len))))))
 
@@ -1282,57 +1287,57 @@
 (defn ^:private read*
     ;; for initial call
     ([rdr eof-error? sentinel opts pending-forms]
-        (read* rdr eof-error? sentinel nil opts pending-forms))
+     (read* rdr eof-error? sentinel nil opts pending-forms))
     ;; for recursive calls
     ([rdr eof-error? sentinel return-on opts pending-forms]
-        (let [start-location (starting-location rdr)]
-            (try
-                (loop []
+     (let [start-location (starting-location rdr)]
+         (try
+             (loop []
                     ;(Thread/sleep 50)
-                    (if (seq pending-forms)
-                        (.remove ^List pending-forms 0)
-                        (let [ch (read-char rdr)]
+                 (if (seq pending-forms)
+                     (.remove ^List pending-forms 0)
+                     (let [ch (read-char rdr)]
                             ;(println "ch:" ch "return-on:" return-on)
-                            (cond
-                                (whitespace? ch) (recur)
+                         (cond
+                             (whitespace? ch) (recur)
 ;                                (nil? ch) (if eof-error? (reader-error "EOF") sentinel)
-                                (nil? ch)  sentinel
-                                (= ch return-on) READ_FINISHED
-                                (number-literal? rdr ch) (read-number rdr ch)
-                                :else (let [f (macros ch)]
-                                          (if f
-                                              (let [res (f rdr ch opts pending-forms)]
-                                                  (if (identical? res rdr)
-                                                      (recur)
-                                                      res))
-                                              (read-symbol rdr ch)))))))
-                (catch Exception e
-                    (throw e)
-                    (if (ex-info? e)
+                             (nil? ch)  sentinel
+                             (= ch return-on) READ_FINISHED
+                             (number-literal? rdr ch) (read-number rdr ch)
+                             :else (let [f (macros ch)]
+                                       (if f
+                                           (let [res (f rdr ch opts pending-forms)]
+                                               (if (identical? res rdr)
+                                                   (recur)
+                                                   res))
+                                           (read-symbol rdr ch)))))))
+             (catch Exception e
+                 (throw e)
+                 (if (ex-info? e)
 
-                        (let [d (ex-data e)]
-                            (if (= :reader-exception (:type d))
-                                (do
-                                    (pdebug "caught :reader-exception? data:" d)
-                                    (throw e))
-                                (do
-                                    (pdebug "caught syntax-exception (hopefully)!  data:" d)
-                                    (throw e ))
-                                ))
+                     (let [d (ex-data e)]
+                         (if (= :reader-exception (:type d))
+                             (do
+                                 (pdebug "caught :reader-exception? data:" d)
+                                 (throw e))
+                             (do
+                                 (pdebug "caught syntax-exception (hopefully)!  data:" d)
+                                 (throw e))))
+
                         ;; else (not ex-info)
-                        (do
-                            (pdebug "caught Exception")
-                            (throw
-                                (ex-info
-                                    (str (.getMessage e))
-                                    (merge {:type :reader-exception :error :general-exception :e 54}
-                                        start-location (ending-location rdr))
-                                    e)))
+                     (do
+                         (pdebug "caught Exception")
+                         (throw
+                             (ex-info
+                                 (str (.getMessage e))
+                                 (merge {:type :reader-exception :error :general-exception :e 54}
+                                     start-location (ending-location rdr))
+                                 e)))))))))
 
-                    )
-                ) ; end catch
-            ) ; end try
-        )))
+
+                 ; end catch
+             ; end try
+
 
 
 
@@ -1341,9 +1346,9 @@
 Does not do any form of evaluation."
     [rdr]
     ;(read* (indexing-pushback-stringreader s) false :eof nil {} (LinkedList.))
-    (read* rdr false :eof nil {} (LinkedList.))
+    (read* rdr false :eof nil {} (LinkedList.)))
     ;(read* rdr true nil nil {} (LinkedList.))
-    )
+
 
 
 (def test-code "(+ 2 3   )(+ 22
@@ -1365,15 +1370,15 @@ Does not do any form of evaluation."
             (print (type t) ": ")
             (print (map (fn [o] (str o " ")) t)))
         (print (str t)))
-        (println "       " (type t) "      " (meta t))
-    )
+    (println "       " (type t) "      " (meta t)))
+
 
 (defn- print-tokens [ts]
         (print-token ts)
         (doseq [t ts]
             (if (coll? t)
                 (print-tokens t) ; recur
-                (print-token t) )))
+                (print-token t))))
 
 
 (comment let [rdr (indexing-pushback-stringreader test-code)]
