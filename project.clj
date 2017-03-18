@@ -1,6 +1,6 @@
 (defproject no.andante.george/george-application "0.8.0-SNAPSHOT"
 
-  :description "George - the desktop application - JVM version"
+  :description "George - The desktop application (JVM)"
   :url "https://bitbucket.org/andante-george/george-application"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
