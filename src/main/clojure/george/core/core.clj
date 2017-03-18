@@ -5,13 +5,11 @@
         [clojure.repl :as cr]
         [clojure.pprint :refer [pprint pp] :as cpp]
         [george.javafx :as fx]
-
         [george.javafx.java :as fxj]
-
-
         [george.code.core :as gcode]
         [clojure.string :as s]
-        [george.core.history :as hist])
+        [george.core.history :as hist]
+        [george.application.repl :as repl])
 
     (:import (javafx.geometry Pos)
              (javafx.scene.paint Color)
@@ -21,7 +19,6 @@
              (org.apache.commons.io.output WriterOutputStream)
              (javafx.scene.text Text TextFlow)
              (clojure.lang LineNumberingPushbackReader ExceptionInfo)
-
              (javafx.scene.input KeyCode KeyEvent ScrollEvent)
              (javafx.scene.transform Scale)
              (org.fxmisc.richtext StyledTextArea)
@@ -33,6 +30,16 @@
 (defonce standard-out System/out)
 (defonce standard-err System/err)
 (declare output)
+
+
+;;;; general utils
+
+(defn pprint-str
+  "returns a pprint-formated str"
+  [data]
+  (cpp/write data :stream nil))
+  ;; is this better of worse than (with-out-str (cpp data))
+
 
 
 ;;;; input section ;;;;
@@ -87,12 +94,20 @@
 
 
 
-(defn- with-newline [obj]
+(defn- ^:deprecated with-newline [obj]
     "ensures that the txt ends with a new-line"
     (let [txt (if (nil? obj) "nil" (str obj))]
         (if (s/ends-with? txt "\n")
             txt
             (str txt "\n"))))
+
+
+(defn- ensure-newline [obj]
+  "ensures that the txt ends with a new-line"
+  (let [txt (if (nil? obj) "nil" (str obj))]
+    (if (= "\n" (last txt))
+      txt
+      (str txt \newline))))
 
 
 (defn- print-error
@@ -155,7 +170,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
     (println)
     (output-ns *ns*)
 
-    (output :in (with-newline code))
+    (output :in (ensure-newline code))
     (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
 
         ;; inspiration:
@@ -194,7 +209,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                             (try
                                 (let [eval-res (eval read-res)]
 
-                                    (output :res (with-newline eval-res))
+                                    (output :res (ensure-newline eval-res))
                                     ;; we made it this far without a read-exception or eval-exception
 
                                     ;(output nil (str "read-res: " read-res \newline))
@@ -247,119 +262,25 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
     read-eval-print-in-ns)
 
 
-(defn- run [code-area modified? ns-textfield]
-    (let [input (gcode/text code-area)]
-        (if (s/blank? input)
-            (println)
-            (fxj/thread
-                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                    (fx/thread (.setText ns-textfield new-ns)))))))
-
-                    ;; handle history and clearing
-
-
-
-
-
-#_(defn- input-scene []
-    (let [
-
-          ns-label
-          (doto
-              (fx/label "user")
-              ( .setStyle "
-                    -fx-font: 12 'Source Code Pro Regular';
-                    -fx-text-fill: gray;
-                "))
-
-
-          code-area
-          (gcode/->codearea)
-
-
-          #_(comment
-                prev-button
-                (doto (jfx/button (str  \u25B2) #(history-button-fn -1 false)) ;; small: \u25B4
-                    (-> .getStyleClass (.add "default-button"))
-                    (.setId "repl-prev-button")
-                    (gui/install-tooltip (format "Previous 'local' history.   %s-UP\nAccess 'global' history by using SHIFT-%s-UP" SHORTCUT_KEY SHORTCUT_KEY)))
-
-
-                next-button
-                (doto (jfx/button (str \u25BC) #(history-button-fn 1 false)) ;; small: \u25BE
-                    (-> .getStyleClass (.add "default-button"))
-                    (.setId "repl-next-button")
-                    (gui/install-tooltip (format "Next 'local' history.   %s-DOWN\nAccess 'global' history by using SHIFT-%s-DOWN" SHORTCUT_KEY SHORTCUT_KEY))))
-
-
-          run-button
-          (fx/button
-              "Run"
-              :width 150
-              :onaction #(run code-area false ns-label)
-              ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
-              :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY))
-
-
-          button-box
-          (fx/hbox
-              ;prev-button
-              ;next-button
-              (fx/region :hgrow :always)
-              run-button
-              :spacing 3
-              :alignment Pos/TOP_RIGHT
-              :insets [5 0 0 0])
-
-          border-pane
-          (fx/borderpane
-              :center code-area
-              :top ns-label
-              :bottom button-box
-              :insets 10)
-
-          scene
-          (doto
-              (fx/scene border-pane :size [500 200])
-              (fx/add-stylesheets "styles/codearea.css"))
-
-
-          key-handler
-          (fx/key-pressed-handler{
-                                    ;#{       :CTRL :UP}    #(history-button-fn -1 false)
-                                    ;#{:SHIFT :CTRL :UP}    #(history-button-fn -1 true)
-                                    ;#{       :CTRL :DOWN}  #(history-button-fn 1 false)
-                                    ;#{:SHIFT :CTRL :DOWN}  #(history-button-fn 1 true)
-                                    #{       :CTRL :ENTER} #(run code-area false ns-label)})]
-                                    ;#{:SHIFT :CTRL :ENTER} #(run code-area true ns-label)
-
-
-
-        (. border-pane addEventFilter KeyEvent/KEY_PRESSED key-handler)
-        ;; TODO: ensure code-area alsways gets focus back when focus in window ...
-
-        scene))
-
-
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear?]
-    (let [input (gcode/text code-area)]
+    (let [input (gcode/text code-area)
+          update-ns-fn #(fx/thread (.setText ns-textfield %))]
         (if (s/blank? input)
             (println)
             (fxj/thread
-                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                    (when (not= new-ns (.getText ns-textfield))
-                        (fx/thread (.setText ns-textfield new-ns))
-                        (output-ns (str "-> " new-ns)))
-                    ;; handle history and clearing
-                    (hist/append-history repl-uuid input)
-                    (reset! current-history-index-atom -1)
-                    (when clear? (fx/later (.clear code-area))))))))
+                (read-eval-print-in-ns
+                  input
+                  (.getText ns-textfield)
+                  update-ns-fn)
+                ;; handle history and clearing
+                (hist/append-history repl-uuid input)
+                (reset! current-history-index-atom -1)
+                (when clear? (fx/later (.clear code-area)))))))
 
 
 (defn- input-scene [ns]
     (let [
-
           repl-uuid (hist/uuid)
 
           current-history-index-atom (atom -1)
@@ -380,8 +301,6 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                 -fx-padding: 5 5;
                 /* -fx-border-radius: 4; */
                 "))
-
-
 
           do-history-fn
           (fn [direction global?]
@@ -414,8 +333,6 @@ Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
           ; (-> .getStyleClass (.add "default-button"))
           ;(.setId "repl-prev-button")
 
-
-
           next-button
           (doto
               (fx/button
@@ -428,7 +345,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
           ;(.setId "repl-next-button")
 
 
-
           run-button
           (fx/button
               "Eval"
@@ -437,7 +353,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
               :tooltip (format
                            "Run code, then clear if checkbox ckecked.          %s-ENTER
 Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
-
 
           button-box
           (fx/hbox
@@ -463,7 +378,6 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
               (fx/scene border-pane :size [500 200])
               (fx/add-stylesheets "styles/codearea.css"))
 
-
           key-pressed-handler
           (fx/key-pressed-handler{
                                   #{:CTRL :UP} #(do-history-fn hist/PREV false)
@@ -474,7 +388,6 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
 
                                   #{:CTRL :ENTER} #(do-run-fn false)
                                   #{:SHIFT :CTRL :ENTER} #(do-run-fn true)})]
-
 
 
         (.addEventFilter border-pane KeyEvent/KEY_PRESSED key-pressed-handler)
@@ -489,6 +402,7 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
     ;; TODO: consolidate/fix integrations/dependencies
     ;; TODO: add interupt-posibility (button) to/for run-thread
 
+    (fxj/thread (repl/ensure-serve! 0))
     (let [
           repl-nr
           (hist/next-repl-nr)
@@ -513,31 +427,48 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
         stage))
 
 
+
+(defn- process-response
+  "returns current-ns, for use in read-eval-print-in-ns loop"
+  [res current-ns update-ns-fn]
+  ;(pprint res)
+  (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
+    (when (not= ns current-ns)
+      (output :ns (ensure-newline (str " ns> " ns)))
+      (when update-ns-fn (update-ns-fn ns)))
+
+    (when-let [v (:value res)]
+      (output :res (ensure-newline (str " >>> " v))))
+
+    (when-let [st (:status res)]
+      (output :system (ensure-newline (str " ... " st))))
+
+    (when-let [o (:out res)]
+      (print o) (flush))
+
+    (when-let [ex (:root-ex res)]
+      (binding [*out* *err*] (println (str " ex: " ex))))
+
+    (when-let [er (:err res)]
+      (binding [*out* *err*] (println (str " er: " er))))
+
+    ns))
+
+
 ;;;; API ;;;;
 
 
-(defn read-eval-print-in-ns
-    "returns new ns as string"
-    [^String code ^String ns]
-    ;; useful?  Found in clojure.main/eval-opt
-    ;    (let [cl (.getContextClassLoader (Thread/currentThread))]
-    ;        (.setContextClassLoader (Thread/currentThread) (clojure.lang.DynamicClassLoader. cl)))
-    (binding [*ns* (create-ns (symbol ns)) *file* "'input'"]
-        (read-eval-print code)))
-
-
-#_(defn input-stage []
-    (let [bounds (. (fx/primary-screen) getVisualBounds)]
-        (fx/now (fx/stage
-                 :style :utility
-                 :title "Input"
-                 :scene (input-scene)
-                 :sizetoscene true
-                 :location [(-> bounds .getWidth (/ 2))
-                            (-> bounds .getHeight (/ 2) (- 300))]))))
-
-
-
+(defn read-eval-print-in-ns  ;; Uses nREPL
+  "returns nil"
+  [^String code ^String ns & [update-ns-fn]]
+  (output :in (ensure-newline (str " <<< " code)))
+  ;(output :out (ensure-newline (println "1:" ns ":" code)))
+  (repl/def-eval
+    (loop [responses (message-eval client (message :code code :ns ns))
+           current-ns ns]
+      (when-let [response (first responses)]
+        (let [new-ns (process-response response current-ns update-ns-fn)]
+          (recur (rest responses) new-ns))))))
 
 
 

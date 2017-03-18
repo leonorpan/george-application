@@ -10,7 +10,9 @@
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.reader "1.0.0-alpha1"]
-                 [leiningen "2.7.1" :exclusions [org.clojure/clojure]]
+                 ;; https://github.com/mmcgrana/clj-stacktrace
+                 [clj-stacktrace "0.2.8"]
+                 [leiningen "2.7.1" :exclusions [org.clojure/clojure clj-stacktrace]]
                  [org.fxmisc.wellbehaved/wellbehavedfx "0.1.1"]
                  [org.fxmisc.richtext/richtextfx "0.6.10" :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
@@ -19,7 +21,6 @@
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
-                 [no.andante.george/george-javafx "0.1.3-SNAPSHOT"]
                  ;; https://github.com/clojure/tools.nrepl
                  [org.clojure/tools.nrepl "0.2.12"]]
 
