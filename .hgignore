@@ -1,6 +1,5 @@
 # types
 .*.iml
-.*.DS_Store
 
 # directories
 target/
@@ -9,14 +8,8 @@ checkouts/
 .idea/
 
 # files
-.idea/codeStyleSettings.xml
-.idea/replstate.xml
-.idea/uiDesigner.xml
-.idea/misc.xml
-.idea/vcs.xml
-.idea/modules.xml
+.*.DS_Store
 .lein-repl-history
+.lein-env
 .nrepl-port
 pom.xml
-/.idea/.name
-.lein-env
