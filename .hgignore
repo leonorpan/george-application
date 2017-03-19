@@ -1,0 +1,15 @@
+# types
+.*.iml
+
+# directories
+target/
+checkouts/
+.idea/libraries/
+.idea/
+
+# files
+.*.DS_Store
+.lein-repl-history
+.lein-env
+.nrepl-port
+pom.xml
