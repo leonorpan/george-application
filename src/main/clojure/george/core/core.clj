@@ -35,6 +35,15 @@
 (declare output)
 
 
+(defonce ^:private input-vertical-offset (atom 0))
+
+(defonce ^:private input-horizontal-offset (atom 0))
+
+(defn next-input-vertical-offset [] (swap! input-vertical-offset inc))
+
+(defn next-input-horizontal-offset [] (swap! input-horizontal-offset inc))
+
+
 ;;;; input section ;;;;
 
 (def RT-state-atom (atom {}))
@@ -500,13 +509,18 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
         ;screen-WH [1024 560]  ;; Uncomment (and change) to mock "tiny" screen bounds
 
+        horizontal-offset (* (next-input-horizontal-offset) 5)
+        vertical-offset (* (next-input-vertical-offset) 20)
+
         stage
         (fx/now
           (doto (fx/stage
                   :title (format "Input %s" repl-nr)
                   :scene scene
                   :sizetoscene true
-                  :location [ (- (first screen-WH) (.getWidth scene) 30) 200])))]
+                  :location [ (- (.getWidth bounds) (.getWidth scene) 30 horizontal-offset) (+ 30  vertical-offset)]
+
+        )))]
 
        stage))
 
