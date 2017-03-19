@@ -657,12 +657,11 @@ It must return a string (which may be wrapped to fit the width of the list."
                     :insets 0
                     :padding 0
                     :alignment nil})]
-
         (doto (if vertical?
                   (VBox. (:spacing kwargs) (fxj/vargs-t* Node nodes))
                   (HBox. (:spacing kwargs) (fxj/vargs-t* Node nodes)))
             (BorderPane/setMargin (insets (:insets kwargs)))
-            (BorderPane/setAlignment (:alignment kwargs))
+            (.setAlignment  (:alignment kwargs))
             (.setStyle (format "-fx-padding: %s %s;" (:padding kwargs) (:padding kwargs))))))
 
 
