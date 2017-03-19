@@ -731,7 +731,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn screens []
     (Screen/getScreens))
 
-(defn primary-screen []
+(defn ^Screen primary-screen []
     (Screen/getPrimary))
 
 
