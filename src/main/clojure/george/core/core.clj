@@ -396,13 +396,13 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           (fx/checkbox "Clear on 'Eval'"
             :tooltip "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")
 
-        run-button
-        (fx/button
-          "Eval"
-          :width 130
-          :tooltip (format
-                     "Run code, then clear if checkbox ckecked.          %s-ENTER
-Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+          run-button
+          (fx/button
+            "Eval"
+            :width 130
+            :tooltip (format
+                       "Run code, then clear if checkbox ckecked.          %s-ENTER
+    Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
 
           do-run-fn
@@ -441,7 +441,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
           ;(.setId "repl-next-button")
 
 
-
           button-box
           (fx/hbox
               prev-button
@@ -478,7 +477,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
                                   #{:CTRL :ENTER} #(do-run-fn false)
                                   #{:SHIFT :CTRL :ENTER} #(do-run-fn true)})]
 
-    (.setOnAction run-button (fx/event-handler (do-run-fn false)))
+        (.setOnAction run-button (fx/event-handler (do-run-fn false)))
 
         (.addEventFilter border-pane KeyEvent/KEY_PRESSED key-pressed-handler)
         ;; TODO: ensure code-area alsways gets focus back when focus in window ...
@@ -498,7 +497,8 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
         scene (input-scene ns)
 
-        bounds (.getVisualBounds (fx/primary-screen))
+        screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
+        ;screen-WH [1024 560]  ;; Uncomment (and change) to mock "tiny" screen bounds
 
         stage
         (fx/now
@@ -506,9 +506,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
                   :title (format "Input %s" repl-nr)
                   :scene scene
                   :sizetoscene true
-                  :location [ (- (.getWidth bounds) (.getWidth scene) 30) 200]
-
-        )))]
+                  :location [ (- (first screen-WH) (.getWidth scene) 30) 200])))]
 
        stage))
 
