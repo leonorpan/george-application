@@ -489,28 +489,25 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
     ;; TODO: consolidate/fix integrations/dependencies
     ;; TODO: add interupt-posibility (button) to/for run-thread
 
-    (let [
-          repl-nr
-          (hist/next-repl-nr)
+  (let [
+        repl-nr
+        (hist/next-repl-nr)
 
-          scene (input-scene ns)
+        scene (input-scene ns)
 
-          stage
-          (fx/now
-              (doto (fx/stage
-                        :title (format "Input %s" repl-nr)
-                        :scene scene
-                        :sizetoscene true
-                        ;(. centerOnScreen)
-                        :location [(- 1000 (.getWidth scene)) 200])))]
+        bounds (.getVisualBounds (fx/primary-screen))
 
+        stage
+        (fx/now
+          (doto (fx/stage
+                  :title (format "Input %s" repl-nr)
+                  :scene scene
+                  :sizetoscene true
+                  :location [ (- (.getWidth bounds) (.getWidth scene) 30) 200]
 
-                  ;(.setX (-> (Screen/getPrimary) .getVisualBounds .getWidth (/ 2)))
-                  ;(.setY (-> (Screen/getPrimary) .getVisualBounds .getHeight (/ 2) (- 300)))
+        )))]
 
-
-
-        stage))
+       stage))
 
 
 ;;;; API ;;;;
