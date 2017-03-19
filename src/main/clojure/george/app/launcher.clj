@@ -11,6 +11,19 @@
            (javafx.stage Screen)
            (javafx.application Platform)))
 
+(defn- about []
+
+  (fx/stage
+            :style :utility
+            :size [400 300]
+            :scene (fx/scene
+                     (fx/vbox
+                       (fx/label
+                         "George: \n  Version: 0.7.3 \n\nClojure:\n  Version: 1.8.0\n")))
+
+
+            :sizetoscene false
+            :title "About George"))
 
 (defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
   (fx/button name
@@ -61,15 +74,31 @@
           logo
           (ImageView. (Image. "graphics/George_logo.png"))
 
+
+          ;; Set align BOTTOM_RIGHT
+          about-button
+          (doto
+            (fx/label "About")
+            (.setOnMouseClicked (fx/event-handler (about))))
+
+          about-box
+          (fx/vbox
+
+            (doto (javafx.scene.layout.Region.)
+              (javafx.scene.layout.VBox/setVgrow
+                (javafx.scene.layout.Priority/ALWAYS)))
+
+            about-button
+            :alignment Pos/BASELINE_LEFT)
+
           scene
           (fx/scene
-
              (doto
                (apply fx/hbox
-                      (flatten [logo applet-buttons
-                                :spacing 20
+                      (flatten [logo applet-buttons about-box
+                                :spacing 15
                                 :padding 10
-                                :alignment Pos/BASELINE_LEFT]))
+                                :alignment Pos/CENTER_LEFT]))
                (.setBackground (fx/color-background Color/WHITE)))
 
              :fill Color/WHITE)] ;; Doesn't take effect! Root panes background covers it! :-(
