@@ -15,12 +15,12 @@
 
   (fx/stage
             :style :utility
-            :size [400 300]
+            :size [250 200]
             :scene (fx/scene
                      (fx/vbox
+                       (ImageView. (Image. "graphics/George_logo.png"))
                        (fx/label
                          "George: \n  Version: 0.7.3 \n\nClojure:\n  Version: 1.8.0\n")))
-
 
             :sizetoscene false
             :title "About George"))
