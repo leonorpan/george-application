@@ -518,7 +518,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
                   :title (format "Input %s" repl-nr)
                   :scene scene
                   :sizetoscene true
-                  :location [ (- (.getWidth bounds) (.getWidth scene) 30 horizontal-offset) (+ 30  vertical-offset)]
+                  :location [ (- (first screen-WH) (.getWidth scene) 30 horizontal-offset) (+ 30  vertical-offset)]
 
         )))]
 
