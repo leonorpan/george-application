@@ -342,19 +342,23 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
 
 
-(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear?]
+(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button]
     (let [input (gcode/text code-area)]
         (if (s/blank? input)
             (println)
-            (fxj/thread
-                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                    (when (not= new-ns (.getText ns-textfield))
-                        (fx/thread (.setText ns-textfield new-ns))
-                        (output-ns (str "-> " new-ns)))
-                    ;; handle history and clearing
-                    (hist/append-history repl-uuid input)
-                    (reset! current-history-index-atom -1)
-                    (when clear? (fx/later (.clear code-area))))))))
+            (
+                (.setDisable eval-button true) ;; disable the button synchronously (not in thread)
+                (fxj/thread
+                    (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
+                        (when (not= new-ns (.getText ns-textfield))
+                            (fx/thread (.setText ns-textfield new-ns))
+                            (output-ns (str "-> " new-ns)))
+                        ;; handle history and clearing
+                        (hist/append-history repl-uuid input)
+                        (reset! current-history-index-atom -1)
+                        (when clear? (fx/later (.clear code-area)))
+                        ;; all state changes done, it is now safe to eval again
+                        (.setDisable eval-button false)))))))
 
 
 (defn- input-scene [ns]
@@ -392,6 +396,15 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           (fx/checkbox "Clear on 'Eval'"
             :tooltip "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")
 
+        run-button
+        (fx/button
+          "Eval"
+          :width 130
+          :tooltip (format
+                     "Run code, then clear if checkbox ckecked.          %s-ENTER
+Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
+
+
           do-run-fn
           (fn [inverse-clear]  ;; do the oposite of clear-checkbox
               (let [clear-checked
@@ -401,7 +414,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                 ;(println "clear-checked:" clear-checked)
                 ;(println "inverse-clear:" inverse-clear)
                 ;(println "do-clear:" do-clear)
-                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear)))
+                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button)))
 
           prev-button
           (doto
@@ -427,16 +440,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
           ; (-> .getStyleClass (.add "default-button"))
           ;(.setId "repl-next-button")
 
-
-
-          run-button
-          (fx/button
-              "Eval"
-              :width 130
-              :onaction #(do-run-fn false)
-              :tooltip (format
-                           "Run code, then clear if checkbox ckecked.          %s-ENTER
-Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
 
 
           button-box
@@ -475,7 +478,7 @@ Run code, then do the inverse of checkbox selection.   SHIFT-%s-ENTER" SHORTCUT_
                                   #{:CTRL :ENTER} #(do-run-fn false)
                                   #{:SHIFT :CTRL :ENTER} #(do-run-fn true)})]
 
-
+    (.setOnAction run-button (fx/event-handler (do-run-fn false)))
 
         (.addEventFilter border-pane KeyEvent/KEY_PRESSED key-pressed-handler)
         ;; TODO: ensure code-area alsways gets focus back when focus in window ...
