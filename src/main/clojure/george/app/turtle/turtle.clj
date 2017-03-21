@@ -115,11 +115,18 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (setPenColor [color]))
 
 
+(defn- get-heading* [inst]
+  (let [a (- (rem (.getRotate inst) 360.0))]
+    a))
+
+
+
 (defn- set-heading* [inst ang]
-  (let [duration (* (/ (Math/abs ang) (* 3 360.)) 1000)]
-      (fx/synced-keyframe
-             duration ;; 3 rotations pr second
-             [(.rotateProperty inst) (- ang)])))
+  (let [diff (- (get-heading* inst) ang)
+        duration (* (/ (Math/abs diff) (* 3 360.)) 1000)]
+    (fx/synced-keyframe
+           duration ;; 3 rotations pr second
+           [(.rotateProperty inst) (- ang)])))
 
 
 
@@ -130,10 +137,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         :default (rem a 360)))
 
 
-(defn- get-heading* [inst]
-  (let [a (- (rem (.getRotate inst) 360.0))]
-      ;(println "  ## get-heading*" a)
-      a))
 
 (defn- get-x* [inst]
     (let [x (.getTranslateX inst)]
