@@ -428,6 +428,26 @@ Returns turtle instance"
     (set-pen-color "black"))
 
 
+;(defmacro rep [n & body]
+;    `(dotimes [~'_ ~n]
+;       ~@body))
+
+(defmacro rep
+  "Repeatedly executes body (presumably for side-effects) from 0 through n-1."
+  [n & body]
+  `(let [n# (try (clojure.lang.RT/longCast ~n)
+                 (catch Exception ~'e
+                   (throw (IllegalArgumentException.
+                            (format "First argument to `rep` must be a number. Cannot convert '%s' to number." ~n)
+                            ~'e))))]
+     (dotimes [~'_ n#]
+       ~@body)))
+
+;(def frm '(rep 3 (print "hello, ") (println "world")))
+;(def frm '(rep "b" (print "hello, ") (println "world")))
+;(def frm '(rep  (print "hello, ") (println "world")))
+;(prn (macroexpand-1 frm))
+;(eval frm)
 
 
 
