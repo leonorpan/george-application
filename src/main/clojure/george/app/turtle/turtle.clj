@@ -286,6 +286,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                         :title "Turtle Geometry"
                         :scene (fx/scene root :size [w h] :fill fx/WHITESMOKE)
                         :resizable true
+                        :location [30 120]
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
 
           ;; not useful to bind now, as resizable is false
