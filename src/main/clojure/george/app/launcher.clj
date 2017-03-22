@@ -15,7 +15,7 @@
 
   (fx/stage
             :style :utility
-            :size [145 170]
+            :size [250 300]
             :scene (fx/scene
                      (fx/vbox
                        (ImageView. (Image. "graphics/George_logo.png"))
