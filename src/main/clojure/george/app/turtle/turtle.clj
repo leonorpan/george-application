@@ -104,25 +104,23 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (left [degrees])
     (right [degrees])
     (forward [distance])
-    (getX [])
-    (getY [])
     (getHeading [])
     (setHeading [angle])
-    (setXY[x y])
+    (getPosition [])
+    (setPosition [pos])
     (isPenDown [])
     (setPenDown [bool])
     (getPenColor [])
     (setPenColor [color]))
 
 
-(defn- get-heading* [inst]
+
+(defn- heading* [inst]
   (let [a (- (rem (.getRotate inst) 360.0))]
     a))
 
-
-
 (defn- set-heading* [inst ang]
-  (let [diff (- (get-heading* inst) ang)
+  (let [diff (- (heading* inst) ang)
         duration (* (/ (Math/abs diff) (* 3 360.)) 1000)]
     (fx/synced-keyframe
            duration ;; 3 rotations pr second
@@ -137,15 +135,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         :default (rem a 360)))
 
 
+(defn- position* [inst]
+  (let [x (.getTranslateX inst)
+        y (- (.getTranslateY inst))]
+    [x y]))
 
-(defn- get-x* [inst]
-    (let [x (.getTranslateX inst)]
-        x))
-
-(defn- get-y* [inst]
-    (let [y (- (.getTranslateY inst))]
-        ;(println "  ## get-y*" y)
-        y))
 
 (declare screen)
 
@@ -153,25 +147,29 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (fx/now (fx/add (-> screen .getUserData :root) node)))
 
 
-(defn- set-xy* [inst target-x target-y]
+(defn- set-position* [inst [target-x target-y]]
     (let []
 
       (fx/synced-keyframe
          250
-         [(.translateXProperty inst) target-x]
-         [(.translateYProperty inst) (- target-y)])))
+         (when target-x [(.translateXProperty inst) target-x])
+         (when target-y [(.translateYProperty inst) (- target-y)]))))
 
 
 (defn- do-forward* [inst dist]
-  (let [ang (get-heading* inst)
-        x (get-x* inst)
-        y (get-y* inst)
+  (let [ang (heading* inst)
+        [x y] (position* inst)
         [x-fac y-fac] (fxu/degrees->xy-factor ang)
         target-x (+ x (* dist x-fac))
         target-y (+ y (* dist y-fac))
         line
         (when (.isPenDown inst)
-              (fx/line :x1 x :y1 (- y) :color (Color/web (.getPenColor inst))))]
+              (fx/line :x1 x :y1 (- y)
+                       :color
+                       (let [c (.getPenColor inst)]
+                         (if (instance? String c)
+                             (Color/web c)
+                             c))))]
 
     (when line
         (add-node (screen) line)
@@ -187,7 +185,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- do-rotate* [inst deg]
     ;(println "  ## do-rotate* " deg)
-    (let [new-angle (+ (get-heading* inst) deg)]
+    (let [new-angle (+ (heading* inst) deg)]
         (set-heading* inst new-angle)))
 
 
@@ -211,26 +209,21 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             (forward [dist]
                 ;(println "  ## forward" dist)
                 (do-forward* this dist))
-            (getX []
-                (let [x (get-x* this)]
-                    ;(println "  ## getX" x)
-                    x))
-            (getY []
-                (let [y (get-y* this)]
-                    ;(println "  ## getY" y)
-                    y))
             (getHeading []
-                (let [a  (get-heading* this)]
+                (let [a  (heading* this)]
                     ;(println "  ## getHeading" a)
                     a))
             (setHeading [angle]
                 ;(println "  ## setHeading" angle)
                 (set-heading* this angle))
-            (setXY [x y]
+
+            (getPosition []
+              (let [p (position* this)]
+                ;(println "  ## getPosition" p)
+                p))
+            (setPosition [[x y]]
                 ;(println "  ## setXY" x y)
-                (set-xy* this x y))
-
-
+                (set-position* this [x y]))
             (isPenDown []
                 (:pen-down @state))
             (setPenDown [b]
@@ -247,7 +240,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         turt))
 
 
-
 (defn- create-turtle []
     (doto (turtle-impl "Tom") .sayHello))
 
@@ -260,7 +252,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 ;; TODO: implement CRUD ref. spec
-(defonce  workspace (atom {}))
+(defonce  data (atom {}))
 
 ;(def ^:private screen-singleton (atom nil))
 ;(def ^:private turtle-singleton (atom nil))
@@ -286,7 +278,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               ;_ (fx/add root up-and-over)
 
               stage (fx/stage
-                        :title "Turtle Geometry"
+                        :title "Turtle Screen"
                         :scene (fx/scene root :size [w h] :fill fx/WHITESMOKE)
                         :resizable true
                         :location [30 120]
@@ -346,7 +338,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn screen
-  "same as 'turtle', but with possibility to create different sized screen"
+  "same as 'turtle', but with possibility to create different sized screen."
     ([]
      (apply screen DEFAULT_SCREEN_SIZE))
 
@@ -362,70 +354,206 @@ Returns turtle instance"
 
 
 
-(defn left [degrees]
-    (.left (turtle) degrees))
+(defn left
+  "Turtle command.
+  Rotates the turtle counter-clockwise from current heading.
+  Negative number also possible, which will result in a clockwise rotation.
 
-(defn right [degrees]
-    (.right (turtle) degrees))
+  Ex.: (left 90)"
+  [degrees]
+  (.left (turtle) degrees))
 
-(defn forward [distance]
-    (.forward (turtle) distance))
+(defn right
+  "Turtle command.
+  Does the same as as 'left', but in opposite direction."
+  [degrees]
+  (.right (turtle) degrees))
 
-(defn get-heading []
-    (.getHeading (turtle)))
 
-(defn set-heading [angle]
-    (.setHeading (turtle) angle))
+(defn forward
+  "Tutle command.
+  Moves the turtle forward 'distance' in the direction the turtle is heading.
+  Negative number also possible, which results in the turtle moving backward.
 
-(defn set-xy [x y]
-  (.setXY (turtle) x y))
+  Ex.: (forward 50)"
+  [distance]
+  (.forward (turtle) distance))
 
-(defn set-position [pos]
-    (apply set-xy pos))
 
-(defn pen-up []
-    (.setPenDown (turtle) false))
+(defn heading
+  "Turtle command.
+  Returns the current heading (angle) of the turtle relative to positive X axis, rotation counter-clockwise.
+  The returned number will be a positive number from 0 to 359.
 
-(defn pen-down []
-    (.setPenDown (turtle) true))
+  Ex.: (heading)"
+  []
+  (.getHeading (turtle)))
 
-(defn is-pen-down []
-    (.isPenDown (turtle)))
 
-(defn get-pen-color []
-    (.getPenColor (turtle)))
+(defn set-heading
+  "Turtle command.
+  Rotates the turtle to the given heading.  See 'heading'.
 
-(defn set-pen-color [color]
-    (.setPenColor (turtle) color))
+  Ex.: (set-heading 90)"
+  [degrees]
+  (.setHeading (turtle) degrees))
 
-(defn show []
+
+
+(defn position
+  "Turtle command.
+  Returns the current position (coordinates) of the turtle relative to 'origo' (center of screen.) 'x' is right, 'y' is up.
+
+  The value is a 2-item vector: [x y]
+  The vector can be desctructed, or 'first' or 'second' can be called on it to get just the x or y value.
+
+  Ex.:
+  (position)
+  (let [p (position)] ...)
+  (let [[x y] (position)] ...) ;; destructing
+  (let [x (first (position))] ...)
+  "
+  []
+  (.getPosition (turtle)))
+
+
+(defn set-position
+  "Turtle command.
+  Moves the turtle to the given position.  (See 'position').
+  If x or y are \"falsy\" (i.e. 'nil' or 'false'), then that part is ignored.
+
+  Ex.:
+  (set-position [30 40])
+  (set-position [30 nil]) ;; y is changed, only x"
+  [[x y]]
+  (.setPosition (turtle) [x y]))
+
+
+(defn pen-up
+  "Pen command.
+  Picks up the pen, so when the turtle moves, no line will be drawn.
+
+  Ex.: (pen-up)"
+  []
+  (.setPenDown (turtle) false))
+
+
+(defn pen-down
+  "Pen command.
+  Sets down the pen, so when the turtle moves, a line will be drawn.
+
+  Ex.: (pen-down)"
+  []
+  (.setPenDown (turtle) true))
+
+
+(defn is-pen-down
+  "Pen command.
+  Returns 'true' or 'false'.
+
+  Ex.: (is-pen-down)"
+  []
+  (.isPenDown (turtle)))
+
+
+(defn pen-color
+  "Pen command.
+  Returns a string representing a \"web color\", or a JavaFX Color instance,
+  e.g. \"black\" or \"#ff0000\" (red) or
+    Color/CORNFLOWERBLUE or (Color/color 0 255 0 0).
+
+  Ex.: (pen-color)
+
+  For more on JavaFX Color, see:
+  http://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
+"
+  []
+  (.getPenColor (turtle)))
+
+
+(defn set-pen-color
+  "Pen command.
+  Sets the pen to the specified web color (String) or JavaFX Color.
+  See: 'pen-color'"
+  [color]
+  (.setPenColor (turtle) color))
+
+
+(defn show
+  "Turtle command.
+  Makes the turtle visible.
+
+  Ex. (show)"
+  []
   (.setVisible (turtle) true))
 
-(defn hide []
+
+(defn hide
+  "Turtle command.
+
+  Ex.: (hide)"
+  []
   (.setVisible (turtle) false))
 
-(defn is-showing []
-    (.isVisible (turtle)))
 
-(defn clear []
-    (let [root (-> (screen) .getUserData :root)
-          t (turtle)
-          filtered (filter #(= % t) (.getChildren root))]
-        (fx/later (-> root .getChildren (.setAll filtered)))))
+(defn is-showing
+  "Turtle command.
+  Returns 'true' or 'false'.
 
-
-(defn home []
-    (show)
-    (pen-up)
-    (set-heading 0)
-    (pen-down)
-    (set-position [0 0]))
+  Ex.: (is-showing)"
+  []
+  (.isVisible (turtle)))
 
 
-(defn reset []
-    (clear)
-    (home)
-    (set-pen-color "black"))
+(defn clear
+  "Removes all graphics from screen.
+
+  Ex.: (clear)"
+  []
+  (let [root (-> (screen) .getUserData :root)
+        t (turtle)
+        filtered (filter #(= % t) (.getChildren root))]
+      (fx/later (-> root .getChildren (.setAll filtered)))))
+
+
+(defn home
+  "Turtle command.
+  Moves the turte back to the center of the screen.
+  Makes the turtle visible, heading 0, postion [0 0], pen-down.
+
+  Ex.: (home)
+  "
+
+  []
+  (show)
+  (pen-up)
+  (set-heading 0)
+  (set-position [0 0])
+  (pen-down))
+
+
+
+(defn reset
+  "Combined screen and turtle command.
+  Clears the screen, and center the current turtle, leaving only one turtle.
+  Same as calling `(clear) (home)`
+
+  Ex.: (reset)"
+  []
+  (clear)
+  (home)
+  (set-pen-color "black"))
+
+
+
+(defn sleep
+  "Utility command.
+  Causes the thread to \"sleep\" for the number of milliseconds.
+  1 second = 1000 milliseconds
+
+  Ex.: (wait 2000)  ;; sleep for 2 seconds"
+  [milliseconds]
+  (Thread/sleep milliseconds))
 
 
 ;(defmacro rep [n & body]
@@ -433,7 +561,12 @@ Returns turtle instance"
 ;       ~@body))
 
 (defmacro rep
-  "Repeatedly executes body (presumably for side-effects) from 0 through n-1."
+  "Utility command.
+  Repeatedly executes body (presumably for side-effects) from 0 through n-1.
+
+  Ex.:
+  (rep 3
+       (forward 50) (left 120))"
   [n & body]
   `(let [n# (try (clojure.lang.RT/longCast ~n)
                  (catch Exception ~'e
@@ -458,14 +591,17 @@ Returns turtle instance"
 ;;; DEV ;;;
 ;(println "WARNING: Running george.app.turtle.turtle/-main" (-main))
 
-(comment do
-  (println "heading:" (get-heading))
+(defn run-sample
+  "A test program which uses most of the avilable turtle commands."
+  []
+  (reset)
+  (println "heading:" (heading))
   (left 60)
   (right 30)
   (left 45)
-  (println "heading:" (get-heading))
+  (println "heading:" (heading))
   (set-heading 120)
-  (println "heading:" (get-heading))
+  (println "heading:" (heading))
   (forward 30)
   (pen-up)
   (right 60)
@@ -473,29 +609,56 @@ Returns turtle instance"
   (pen-down)
   (Thread/sleep 1000)
   (set-pen-color "red")
-  (println "pen color:" (get-pen-color))
+  (println "pen color:" (pen-color))
   (forward 30)
 
-  (Thread/sleep 1000)
+  (sleep 2000)
 
   (reset)
 
   (defn square []
       (dotimes [_ 4]
-          (forward 50)
-          (left 90)))
+          (forward 50) (left 90)))
 
   ;(pen-up)
-  (set-xy -75 -120)
+  (set-position [-75 -120])
   (left 90)
   ;(pen-down)
 
-  (dotimes [_ 6]
-      (square)
-      (pen-up)
-      (right 45)
-      (forward 20)
-      (left 45)
-      (pen-down))
+  (set-pen-color Color/CORNFLOWERBLUE)
+  (rep 6
+       (square)
+       (pen-up)
+       (right 45)
+       (forward 20)
+       (left 45)
+       (pen-down))
 
   (hide))
+
+
+
+(def ordered-command-list
+  [#'forward
+   #'left
+   #'right
+   #'home
+   #'show
+   #'hide
+   #'pen-up
+   #'pen-down
+   #'heading
+   #'set-heading
+   #'position
+   #'set-position
+   #'clear
+   #'reset
+   #'turtle
+   #'screen
+   #'rep
+   #'sleep
+   #'run-sample])
+
+
+
+
