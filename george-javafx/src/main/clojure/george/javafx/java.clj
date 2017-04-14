@@ -6,6 +6,7 @@
     "Utility fuction for 'thread'."
     [exp]
     (doto (Thread. exp)
+        (.setDaemon true)
         (.start)))
 
 (defmacro thread
