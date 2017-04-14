@@ -370,7 +370,8 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                         (reset! current-history-index-atom -1)
                         (when clear? (fx/later (.clear code-area)))
                         ;; all state changes done, it is now safe to eval again
-                        (fx/later (.setDisable eval-button false))))))))
+                        (fx/later (.setDisable eval-button false))
+                        (fx/later (.requestFocus (-> code-area .getScene .getWindow)))))))))
 
 
 (defn- input-scene [ns]
