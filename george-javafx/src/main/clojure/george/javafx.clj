@@ -21,7 +21,7 @@
          ChangeListener WritableValue]
 
         [javafx.collections
-         FXCollections ListChangeListener]
+         FXCollections]
 
         [javafx.embed.swing JFXPanel]
 
@@ -29,21 +29,17 @@
          EventHandler]
 
         [javafx.geometry
-         Insets Orientation Pos VPos]
+         Insets Pos VPos]
 
         [javafx.scene
-         Cursor Group Node Parent Scene
-         SnapshotParameters SceneAntialiasing]
+         Group Node Parent Scene]
 
         [javafx.scene.control
          Alert Alert$AlertType
          Button ButtonType ButtonBar$ButtonData
          Label
          ListView RadioButton
-         Menu MenuBar MenuItem
-         OverrunStyle
-         Tab TabPane
-         TextField TextArea TextInputDialog
+         TextField TextArea
          Tooltip
          ScrollPane CheckBox]
 
@@ -51,31 +47,27 @@
          Image ImageView]
 
         [javafx.scene.input
-         Clipboard ClipboardContent Dragboard
-         TransferMode
-         MouseEvent
-         KeyEvent KeyCode]
+         MouseEvent]
 
         [javafx.scene.layout
          BorderPane HBox Priority Region StackPane VBox
-         Pane Border FlowPane
+         Border
          BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
 
         [javafx.scene.paint
          Color]
 
         [javafx.scene.text
-         Font FontWeight Text TextAlignment TextFlow]
+         Font Text]
 
         [javafx.scene.shape
-         Circle Line Rectangle Shape StrokeLineCap StrokeType Polygon]
+         Line Rectangle Polygon]
 
         [javafx.stage
-         FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle Window]
+         FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
 
         [javafx.util
-         Duration]
-        (clojure.lang Keyword)))
+         Duration]))
 
 
 
@@ -129,7 +121,7 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
 
 
 (defn color-background [color]
-    (Background. (into-array [(BackgroundFill. color nil nil)])))
+    (Background. (fxj/vargs (BackgroundFill. color nil nil))))
 
 
 (defn later*
@@ -159,7 +151,6 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
         (let [result (promise)]
             (later
                 (deliver result (try (expr) (catch Throwable e e (println e)))))
-                ;(deliver result (expr))
 
             @result)))
 
@@ -348,7 +339,7 @@ and the body is called on 'changed'"
     [onfinished-fn & KeyFrames]
     (let [t (Timeline. (fxj/vargs* KeyFrames))]
         (if onfinished-fn
-            (. t setOnFinished (event-handler (onfinished-fn))))
+            (.setOnFinished t  (event-handler (onfinished-fn))))
         t))
 
 
@@ -482,21 +473,22 @@ It must return a string (which may be wrapped to fit the width of the list."
     (-> p .getChildren (.setAll (fxj/vargs n))))
 
 
+(defn priority [kw]
+  ({:always Priority/ALWAYS
+    :never Priority/NEVER
+    :sometimes Priority/SOMETIMES} kw))
+
+
 (defn region
  "optional kwargs:
-    :hgrow :always/:never/:sometimes"
+    :hgrow :always/:never/:sometimes
+    :vgrow :always/:never/:sometimes"
 
-    [& {:keys [hgrow]
-              :or   {}}]
-
+    [& {:keys [hgrow vgrow] :or {}}]
 
     (doto (Region.)
-        (HBox/setHgrow
-            ({
-              :always Priority/ALWAYS
-              :never Priority/NEVER
-              :sometimes Priority/SOMETIMES}
-             hgrow))))
+        (HBox/setHgrow (priority hgrow))
+        (VBox/setVgrow (priority vgrow))))
 
 
 (defn radiobutton []
@@ -549,9 +541,9 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 
          (doto (Polygon. (fxj/vargs-t* Double/TYPE points))
-             (. setFill (:fill kwargs))
-             (. setStroke (:stroke kwargs))
-             (. setStrokeWidth (:strokewidth kwargs)))))
+             (.setFill (:fill kwargs))
+             (.setStroke (:stroke kwargs))
+             (.setStrokeWidth (:strokewidth kwargs)))))
 
 
 (defn rectangle [& args]
@@ -574,9 +566,9 @@ It must return a string (which may be wrapped to fit the width of the list."
                 (second location)
                 (first size)
                 (second size))
-          (. setFill (:fill kwargs))
-          (. setArcWidth arc)
-          (. setArcHeight arc))))
+          (.setFill (:fill kwargs))
+          (.setArcWidth arc)
+          (.setArcHeight arc))))
 
 
 (defn label
@@ -591,9 +583,9 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 (defn button [label & {:keys [onaction width minwidth tooltip]}]
     (let [b (Button. label)]
-        (if width (. b setPrefWidth (double width)))
-        (if minwidth (. b setMinWidth (double minwidth)))
-        (if onaction (. b setOnAction (event-handler (onaction))))
+        (if width (.setPrefWidth  b (double width)))
+        (if minwidth (.setMinWidth b  (double minwidth)))
+        (if onaction (.setOnAction b  (event-handler (onaction))))
         (if tooltip (set-tooltip b tooltip))
         b))
 
@@ -635,7 +627,7 @@ It must return a string (which may be wrapped to fit the width of the list."
     [s & {:keys [font]
           :or {}}]
     (doto (Text. s)
-        (. setFont font)))
+        (.setFont font)))
 
 
 (defn insets* [[top right bottom left]]
@@ -666,15 +658,20 @@ It must return a string (which may be wrapped to fit the width of the list."
               args {:spacing 0
                     :insets 0
                     :padding 0
-                    :alignment nil})]
-        (doto (if vertical?
-                  (VBox. (:spacing kwargs) (fxj/vargs-t* Node nodes))
-                  (HBox. (:spacing kwargs) (fxj/vargs-t* Node nodes)))
-            (BorderPane/setMargin (insets (:insets kwargs)))
-            (.setAlignment  (:alignment kwargs))
-            (.setStyle (format "-fx-padding: %s %s;" (:padding kwargs) (:padding kwargs))))))
+                    :alignment nil
+                    :background nil})
+          box
+          (doto (if vertical?
+                    (VBox. (:spacing kwargs) (fxj/vargs-t* Node nodes))
+                    (HBox. (:spacing kwargs) (fxj/vargs-t* Node nodes)))
+              (BorderPane/setMargin (insets (:insets kwargs)))
+              (.setAlignment  (:alignment kwargs))
+              (.setStyle (format "-fx-padding: %s %s;" (:padding kwargs) (:padding kwargs))))]
 
+      (when-let [b (:background kwargs)]
+          (.setBackground box b))
 
+      box))
 
 (defn hbox [& args]
     (apply box (cons false args)))
@@ -730,9 +727,10 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn centering-point-on-primary
     "returns [x y] for centering (stage) no primary screen"
     [scene-or-stage]
-    (let [prim-bounds (. (Screen/getPrimary) getVisualBounds)]
-        [ (-> prim-bounds .getWidth (/ 2) (- (/ (. scene-or-stage getWidth) 2)))
-          (-> prim-bounds .getHeight (/ 2) (- (/ (. scene-or-stage getHeight) 2)))]))
+    (let [prim-bounds (.getVisualBounds (Screen/getPrimary))]
+        [ (-> prim-bounds .getWidth (/ 2) (- (/ (.getWidth scene-or-stage ) 2)))
+          (-> prim-bounds .getHeight (/ 2) (- (/ (.getHeight scene-or-stage ) 2)))]))
+
 
 (defn imageview [rsc-str]
     (ImageView. (Image. rsc-str)))
@@ -828,7 +826,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn filechooser [& filters]
     (doto (FileChooser.)
         (-> .getExtensionFilters
-            (. addAll
+            (.addAll
                (fxj/vargs* filters)))))
 
 
@@ -836,59 +834,59 @@ It must return a string (which may be wrapped to fit the width of the list."
 (def sample-codes-map {
                        #{:S} #(println "S")
                        #{:S :SHIFT} #(println "SHIFT-S")
-                       #{:S :CTRL} #(println "CTRL-S")
+                       #{:S :SHORTCUT} #(println "CTRL-S")
                        #{:S :ALT} #(println "ALT-S")
-                       #{:S :SHIFT :CTRL} (event-handler (println "SHIFT-CTRL/CMD-S"))
-                       #{:CTRL :ENTER} (event-handler-2 [_ event] (println "CTRL/CMD-ENTER") (. event consume))})
+                       #{:S :SHIFT :SHORTCUT} (event-handler (println "SHIFT-CTRL/CMD-S"))
+                       #{:SHORTCUT :ENTER} (event-handler-2 [_ event] (println "CTRL/CMD-ENTER") (.consume event))})
 
 
 
 (def sample-chars-map {
                        "a" #(println "a")
                        "A" #(println "A")
-                       " " (event-handler-2 [_ e] (println "SPACE (consumed)") (. e consume))})
+                       " " (event-handler-2 [_ e] (println "SPACE (consumed)") (.consume e))})
 
 
 
 ;; TODO make macro that does this:
 ;; (condmemcall true (toUpperCase))
-;;  => (fn [inst] (if true (. inst  (toUpperCase)) inst)
+;;  => (fn [inst] (if true (.inst  (toUpperCase)) inst)
 ;; test:
-;; (doto "A" .toLowerCase (fn [inst] (if (= 1 2) (. inst  (toUpperCase)) inst)))
+;; (doto "A" .toLowerCase (fn [inst] (if (= 1 2) (.inst  (toUpperCase)) inst)))
 
 
 (defn key-pressed-handler
  "Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
 
 The keywords int the set must be uppercase and correspond to the constants of javafx.scene.input.KeyCode.
-Use :SHIFT :CTRL :ALT for plattform-independent handling of these modifiers (CTRL maps to Command on Mac).
+Use :SHIFT :SHORTCUT :ALT for plattform-independent handling of these modifiers (CTRL maps to Command on Mac).
 If the value is a function, then it will be run, and then the event will be consumed.
 If the value is an EventHandler, then it will be called with the same args as this handler, and it must itself consume the event if required.
 
 Example of codes-map:
 {   #{:S}              #(println \"S\")  ;; event consumed
     #{:S :SHIFT}       #(println \"SHIFT-S\")
-    #{:S :SHIFT :CTRL} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
-    #{:CTRL :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (. event consume))
+    #{:S :SHIFT :SHORTCUT} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
+    #{:SHORTCUT :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (.consume event ))
     }"
     [codes-map]
     (event-handler-2
         [inst event]
-        ;(println "  ## inst:" inst "  source:" (. event getSource))
+        ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
-              code (str (. event getCode))
-              shift (when (. event isShiftDown) "SHIFT")
-              shortcut (when (. event isShortcutDown) "CTRL")  ;; SHORTCUT CTRL/CMD  "C-"
-              alt (when (. event isAltDown) "ALT") ;;  "M-"
+              code (str (.getCode event))
+              shift (when (.isShiftDown event) "SHIFT")
+              shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
+              alt (when (.isAltDown event) "ALT") ;;  "M-"
               combo (set (map keyword (filter some? [code shift shortcut alt])))]
               ;_ (println "combo:" (str combo))
 
             (when-let [v (codes-map combo)]
                 (if (instance? EventHandler v)
-                    (. v handle event)
+                    (.handle v  event)
                     (do ;; else
                         (v)
-                        (. event consume)))))))
+                        (.consume event)))))))
 
 
 
@@ -909,9 +907,9 @@ Example of codes-map:
 
     (event-handler-2
         [inst event]
-        (let [ch-str (. event getCharacter)]
+        (let [ch-str (.getCharacter event)]
             (when-let [v (chars-map ch-str)]
                 (if (instance? EventHandler v)
-                    (. v handle event)
+                    (.handle v event)
                     (v))))))
 
