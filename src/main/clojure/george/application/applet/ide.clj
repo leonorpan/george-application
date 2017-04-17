@@ -3,15 +3,17 @@
 ;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;  You must not remove this notice, or any other, from this software.
 
-(ns
-  ^{:author "Terje Dahl" }
-  george.audio.core)
+(ns george.application.applet.ide
+  (:require
+    [george.application.environment :as ide]))
 
 
+(defn info []
+  {:george.application.applet/name "IDE"
+   :george.application.applet/description "An interactive development environment Clojure"
+   :george.application.applet/main '-main})
 
 
-
-
-
-
-
+(defn -main []
+  (println "george.application.applet.ide/-main")
+  (ide/-main :ide))

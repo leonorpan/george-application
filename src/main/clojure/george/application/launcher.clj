@@ -1,9 +1,15 @@
-(ns george.app.launcher
+;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+;  You must not remove this notice, or any other, from this software.
+
+
+(ns george.application.launcher
 
   (require
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
-    [george.app.applet-loader :as applets-loader])
+    [george.application.applet-loader :as applets-loader])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
@@ -152,9 +158,9 @@
 
 
 (defn -main
-  "Launches George (launcher) as a stand-alone app."
+  "Launches George (launcher) as a stand-alone application."
   [& args]
-  (println "george.app.launcher/-main"
+  (println "george.application.launcher/-main"
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
@@ -163,4 +169,4 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.app.launcher/-main" (-main))
+;(println "WARNING: Running george.application.launcher/-main" (-main))
