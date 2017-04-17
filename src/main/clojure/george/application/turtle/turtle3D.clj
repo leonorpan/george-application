@@ -1,6 +1,11 @@
+;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+;  You must not remove this notice, or any other, from this software.
+
 (ns
   ^{:author "Terje Dahl"}
-  george.app.turtle.turtle3D
+  george.application.turtle.turtle3D
 
   (:require
       [george.javafx :as fx]
@@ -324,28 +329,28 @@
                #{:DOWN}
                 #(c-forward camera (- FORWARD_STEP))
 
-               #{:CTRL :RIGHT}
+               #{:SHORTCUT :RIGHT}
                 #(c-sideways camera SLIDE_STEP)
-               #{:CTRL :LEFT}
+               #{:SHORTCUT :LEFT}
                 #(c-sideways camera (- SLIDE_STEP))
 
-               #{:CTRL :UP}
+               #{:SHORTCUT :UP}
                 #(c-elevate camera (- SLIDE_STEP))
-               #{:CTRL :DOWN}
+               #{:SHORTCUT :DOWN}
                 #(c-elevate camera SLIDE_STEP)
 
-               #{:SHIFT :CTRL :UP}
+               #{:SHIFT :SHORTCUT :UP}
                 #(c-tilt camera ROTATE_STEP)
-               #{:SHIFT :CTRL :DOWN}
+               #{:SHIFT :SHORTCUT :DOWN}
                 #(c-tilt camera (- ROTATE_STEP))
 
-               #{:CTRL :DIGIT2} #(c-transition :2D state)
-               #{:CTRL :DIGIT3} #(c-transition :3D state)
+               #{:SHORTCUT :DIGIT2} #(c-transition :2D state)
+               #{:SHORTCUT :DIGIT3} #(c-transition :3D state)
 
-               #{:CTRL :C}      #(print-camera-transforms camera)
-               #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
-               #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
-               #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))})]
+               #{:SHORTCUT :C}      #(print-camera-transforms camera)
+               #{:SHORTCUT :O}      #(.setVisible origo (not (.isVisible origo)))
+               #{:SHORTCUT :A}      #(.setVisible axis (not (.isVisible axis)))
+               #{:SHORTCUT :G}      #(.setVisible grid (not (.isVisible grid)))})]
 
 
 
@@ -662,7 +667,7 @@
 ;;;; main ;;;;
 
 (defn -main
-  "Launches an input-stage as a stand-alone app."
+  "Launches an input-stage as a stand-alone application."
   [& args]
   (fx/later (screen)))
 

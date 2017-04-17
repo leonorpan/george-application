@@ -1,4 +1,9 @@
-(ns george.app.turtle.turtle
+;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+;  You must not remove this notice, or any other, from this software.
+
+(ns george.application.turtle.turtle
 
     "George Turtle Geometry implements only the basic (procedural) single-turtle  functions of the original UCB Logo TG, not (for now) the obect-oriented multi-turtle environment of Python.
 
@@ -589,7 +594,7 @@ Returns turtle instance"
 
 
 ;;; DEV ;;;
-;(println "WARNING: Running george.app.turtle.turtle/-main" (-main))
+;(println "WARNING: Running george.application.turtle.turtle/-main" (-main))
 
 (defn run-sample
   "A test program which uses most of the avilable turtle commands."
