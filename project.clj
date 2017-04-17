@@ -1,4 +1,7 @@
-(defproject no.andante.george/george-application "0.7.4-SNAPSHOT"
+(def GEORGE_APPLICATION_VERSION (slurp "src/main/resources/george-version.txt"))
+
+
+(defproject no.andante.george/george-application  GEORGE_APPLICATION_VERSION
 
   :description "George - The desktop application (JVM)"
   :url "https://bitbucket.org/andante-george/george-application"
