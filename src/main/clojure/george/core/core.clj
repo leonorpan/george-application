@@ -1,33 +1,31 @@
+;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+;  You must not remove this notice, or any other, from this software.
+
 (ns
     ^{:author "Terje Dahl"}
     george.core.core
     (:require
-        [clojure.repl :as cr]
-        [clojure.pprint :refer [pprint pp] :as cpp]
+        [clojure.pprint :refer [pprint pp]]
         [george.javafx :as fx]
 
         [george.javafx.java :as fxj]
-
 
         [george.code.core :as gcode]
         [clojure.string :as s]
         [george.core.history :as hist])
 
     (:import (javafx.geometry Pos)
-             (javafx.scene.paint Color)
-             (javafx.scene.control Tooltip ListCell ScrollPane CheckBox)
-             (javafx.util Callback)
-             (java.io StringWriter PrintStream OutputStreamWriter StringReader PushbackReader)
+             (java.io StringWriter PrintStream OutputStreamWriter StringReader)
              (org.apache.commons.io.output WriterOutputStream)
-             (javafx.scene.text Text TextFlow)
+             (javafx.scene.text Text)
              (clojure.lang LineNumberingPushbackReader ExceptionInfo)
 
-             (javafx.scene.input KeyCode KeyEvent ScrollEvent)
-             (javafx.scene.transform Scale)
+             (javafx.scene.input  KeyEvent)
              (org.fxmisc.richtext StyledTextArea)
              (java.util.function BiConsumer)
-             (java.util Collections Random)
-             (javafx.scene.layout Pane)))
+             (java.util Collections)))
 
 
 (defonce standard-out System/out)
@@ -46,17 +44,11 @@
 
 ;;;; input section ;;;;
 
-(def RT-state-atom (atom {}))
 
 ;; from Versions.java in george-client
 (def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
 (def ^:const N \newline)
-
-
-
-
-
 
 
 (defn- post-eval
@@ -68,8 +60,6 @@
 
         (doseq [token (if (seq? read-res) read-res [read-res])]
             (println "  " token (type token)))))
-
-
 
 
 
@@ -252,103 +242,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
         (str *ns*)))
 
 
-(declare
-    read-eval-print-in-ns)
-
-
-(defn- run [code-area modified? ns-textfield]
-    (let [input (gcode/text code-area)]
-        (if (s/blank? input)
-            (println)
-            (fxj/daemon-thread
-                (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                    (fx/thread (.setText ns-textfield new-ns)))))))
-
-                    ;; handle history and clearing
-
-
-
-
-
-#_(defn- input-scene []
-    (let [
-
-          ns-label
-          (doto
-              (fx/label "user")
-              ( .setStyle "
-                    -fx-font: 12 'Source Code Pro Regular';
-                    -fx-text-fill: gray;
-                "))
-
-
-          code-area
-          (gcode/->codearea)
-
-
-          #_(comment
-                prev-button
-                (doto (jfx/button (str  \u25B2) #(history-button-fn -1 false)) ;; small: \u25B4
-                    (-> .getStyleClass (.add "default-button"))
-                    (.setId "repl-prev-button")
-                    (gui/install-tooltip (format "Previous 'local' history.   %s-UP\nAccess 'global' history by using SHIFT-%s-UP" SHORTCUT_KEY SHORTCUT_KEY)))
-
-
-                next-button
-                (doto (jfx/button (str \u25BC) #(history-button-fn 1 false)) ;; small: \u25BE
-                    (-> .getStyleClass (.add "default-button"))
-                    (.setId "repl-next-button")
-                    (gui/install-tooltip (format "Next 'local' history.   %s-DOWN\nAccess 'global' history by using SHIFT-%s-DOWN" SHORTCUT_KEY SHORTCUT_KEY))))
-
-
-          run-button
-          (fx/button
-              "Run"
-              :width 150
-              :onaction #(run code-area false ns-label)
-              ;                (gui/install-tooltip (format "Run code.   %s-ENTER\nPrevent clearing of code by using SHIFT-%s-ENTER" SHORTCUT_KEY SHORTCUT_KEY))
-              :tooltip (format "Run code.  %s-ENTER" SHORTCUT_KEY))
-
-
-          button-box
-          (fx/hbox
-              ;prev-button
-              ;next-button
-              (fx/region :hgrow :always)
-              run-button
-              :spacing 3
-              :alignment Pos/TOP_RIGHT
-              :insets [5 0 0 0])
-
-          border-pane
-          (fx/borderpane
-              :center code-area
-              :top ns-label
-              :bottom button-box
-              :insets 10)
-
-          scene
-          (doto
-              (fx/scene border-pane :size [500 200])
-              (fx/add-stylesheets "styles/codearea.css"))
-
-
-          key-handler
-          (fx/key-pressed-handler{
-                                    ;#{       :CTRL :UP}    #(history-button-fn -1 false)
-                                    ;#{:SHIFT :CTRL :UP}    #(history-button-fn -1 true)
-                                    ;#{       :CTRL :DOWN}  #(history-button-fn 1 false)
-                                    ;#{:SHIFT :CTRL :DOWN}  #(history-button-fn 1 true)
-                                    #{       :CTRL :ENTER} #(run code-area false ns-label)})]
-                                    ;#{:SHIFT :CTRL :ENTER} #(run code-area true ns-label)
-
-
-
-        (. border-pane addEventFilter KeyEvent/KEY_PRESSED key-handler)
-        ;; TODO: ensure code-area alsways gets focus back when focus in window ...
-
-        scene))
-
+(declare read-eval-print-in-ns)
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button]
@@ -370,8 +264,9 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                         (reset! current-history-index-atom -1)
                         (when clear? (fx/later (.clear code-area)))
                         ;; all state changes done, it is now safe to eval again
-                        (fx/later (.setDisable eval-button false))
-                        (fx/later (.requestFocus (-> code-area .getScene .getWindow)))))))))
+                        (fx/later
+                          (.setDisable eval-button false)
+                          (-> code-area .getScene .getWindow .requestFocus))))))))
 
 
 (defn- input-scene [ns]
@@ -386,24 +281,14 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
               (fx/label (or ns "user"))
               ( .setStyle "
                     -fx-font: 12 'Source Code Pro Regular';
-                    -fx-text-fill: gray;
-                "))
-
+                    -fx-text-fill: gray;"))
 
           code-area
-          (doto (gcode/->codearea)
-              #_( .setStyle "
-                -fx-font: 14 'Source Code Pro Medium';
-                -fx-padding: 5 5;
-                /* -fx-border-radius: 4; */
-                "))
-
-
+          (doto (gcode/->codearea))
 
           do-history-fn
           (fn [direction global?]
               (hist/do-history code-area repl-uuid current-history-index-atom direction global?))
-
 
           clear-checkbox
           (fx/checkbox "Clear on 'Eval'"
@@ -421,12 +306,9 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
           do-run-fn
           (fn [inverse-clear]  ;; do the oposite of clear-checkbox
               (let [clear-checked
-                    (-> clear-checkbox .isSelected)
+                    (.isSelected clear-checkbox)
                     do-clear
                     (if inverse-clear (not clear-checked) clear-checked)]
-                ;(println "clear-checked:" clear-checked)
-                ;(println "inverse-clear:" inverse-clear)
-                ;(println "do-clear:" do-clear)
                 (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button)))
 
           prev-button
@@ -437,9 +319,6 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                   :tooltip (format
                                "Previous 'local' history.          %s-LEFT
 Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
-          ; (-> .getStyleClass (.add "default-button"))
-          ;(.setId "repl-prev-button")
-
 
 
           next-button
@@ -450,8 +329,6 @@ Previous 'global' history.   SHIFT-%s-LEFT" SHORTCUT_KEY SHORTCUT_KEY)))
                   :tooltip (format
                                "Next 'local' history.          %s-RIGHT
 Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
-          ; (-> .getStyleClass (.add "default-button"))
-          ;(.setId "repl-next-button")
 
 
           button-box
@@ -481,14 +358,14 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
           key-pressed-handler
           (fx/key-pressed-handler{
-                                  #{:CTRL :UP} #(do-history-fn hist/PREV false)
-                                  #{:SHIFT :CTRL :UP} #(do-history-fn hist/PREV true)
+                                  #{:SHORTCUT :UP} #(do-history-fn hist/PREV false)
+                                  #{:SHIFT :SHORTCUT :UP} #(do-history-fn hist/PREV true)
 
-                                  #{:CTRL :DOWN} #(do-history-fn hist/NEXT false)
-                                  #{:SHIFT :CTRL :DOWN} #(do-history-fn hist/NEXT true)
+                                  #{:SHORTCUT :DOWN} #(do-history-fn hist/NEXT false)
+                                  #{:SHIFT :SHORTCUT :DOWN} #(do-history-fn hist/NEXT true)
 
-                                  #{:CTRL :ENTER} #(do-run-fn false)
-                                  #{:SHIFT :CTRL :ENTER} #(do-run-fn true)})]
+                                  #{:SHORTCUT :ENTER} #(do-run-fn false)
+                                  #{:SHIFT :SHORTCUT :ENTER} #(do-run-fn true)})]
 
         (.setOnAction run-button (fx/event-handler (do-run-fn false)))
 
@@ -511,7 +388,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         scene (input-scene ns)
 
         screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
-        ;screen-WH [1024 560]  ;; Uncomment (and change) to mock "tiny" screen bounds
 
         horizontal-offset (* (next-input-horizontal-offset) 5)
         vertical-offset (* (next-input-vertical-offset) 20)
@@ -543,23 +419,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         (read-eval-print code)))
 
 
-#_(defn input-stage []
-    (let [bounds (. (fx/primary-screen) getVisualBounds)]
-        (fx/now (fx/stage
-                 :style :utility
-                 :title "Input"
-                 :scene (input-scene)
-                 :sizetoscene true
-                 :location [(-> bounds .getWidth (/ 2))
-                            (-> bounds .getHeight (/ 2) (- 300))]))))
-
-
-
-
-
-
-;;;; output section ;;;;
-
 
 (defonce ^:private output-singleton (atom nil))
 
@@ -567,7 +426,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 (defn- get-outputarea []
     (when-let [stage @output-singleton]
         (->  stage .getScene .getRoot .getChildrenUnmodifiable first)))
-
 
 
 (defn- output-string-writer [typ] ;; type is one of :out :err
@@ -632,7 +490,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         (.print standard-out (str obj))))
 
 
-
 (defn- style [spec]
     (let [{c :color} spec]
         (str
@@ -694,25 +551,12 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
                         :top button-box
                         :center outputarea
                         :insets 5))]
-
-        #_(-> text-flow
-            .getChildren
-            (. addListener
-               (reify ListChangeListener
-                   (onChanged [_ _]
-                       (. text-flow layout)
-                       (doto scroll-pane (. layout) (. setVvalue 1.0))))))
-
-        #_(def append (fn [node] (fx/later (-> text-flow .getChildren (. add node)))))
-
         scene))
-
-
 
 
 (defn- output-stage []
     (let [bounds (.getVisualBounds (fx/primary-screen))
-          size [1000 300]];[700 300]
+          size [1000 300]]
 
         (fx/now
             (fx/stage
@@ -728,7 +572,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 (defn show-or-create-output-stage []
     (if @output-singleton
-        (fx/later (. @output-singleton toFront))
+        (fx/later (.toFront @output-singleton))
         (do (wrap-outs)
             (reset! output-singleton
                     (fx/setoncloserequest
@@ -742,442 +586,3 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 
 
-
-
-;;;; VAR section ;;;;
-
-
-
-(defrecord NsThing [k v t]
-    Object
-    (toString [_]
-        (let [derefed (deref v)]
-
-         (format "%s   %s  %s   %s" t k (if (fn? derefed) "FN" "") (meta v)))))
-
-
-(defn- print-all [nsthing]
-    (let [
-          {:keys [k v t]} nsthing
-          m (meta v)
-          n (:name m)
-          doc (:doc m)
-
-          src (cr/source-fn (symbol (str (:ns m))  (str (:name m))))]
-
-        (printf "\n  ## %s ##\n" (name t))
-        (println  "  name: " n)
-;        (println  "  meta: " (cpp/write (dissoc met :ns) :stream nil))
-        (println  "  meta: " (dissoc m :ns))
-        (println  "   doc: " doc)
-        (println  "   src: " src)))
-
-
-(defn- create-node [interned-var]
-
-    (let [
-          mt (meta interned-var)
-          nm (:name mt)
-
-          short-text
-          (doto (fx/text (str nm)
-                         :font (fx/SourceCodePro "Regular" 20)))
-
-
-          name-text (fx/text (str nm)
-                             :font (fx/SourceCodePro "Regular" 18))
-
-          text-flow (doto (TextFlow. (fxj/vargs short-text))
-                        (.setUserData interned-var))
-
-          args-text (fx/text (str N (:arglists mt))
-                             :font (fx/SourceCodePro "Regular" 16))]
-
-
-        #_(-> visible-label .visibleProperty (.bind
-                                              (-> hovered-textflow .visibleProperty .not)))
-
-        (.setOnMouseEntered text-flow
-                            (fx/event-handler
-                                (println "mouse entered")
-                                (-> text-flow .getChildren (.setAll (fxj/vargs name-text args-text)))))
-
-        (.setOnMouseExited text-flow
-                            (fx/event-handler
-                                (println "mouse exited")
-                                (-> text-flow .getChildren (.setAll (fxj/vargs short-text)))))
-
-
-        text-flow))
-
-
-(defn- get-or-create-node [interned-var]
-    (let [
-          mt (meta interned-var)
-          nd  (:node mt)]
-
-        (if nd
-            nd
-            (do
-                (alter-meta! interned-var
-                             #(assoc % :node (create-node interned-var)))
-                (recur interned-var)))))
-
-
-(defn- tooltip [nsthing]
-    (let [
-          {:keys [k v t]} nsthing
-          derefed (deref v)
-          s (format "%s: \n%s   ->  %s \nfn? %s \n%s"
-                    (name t)
-                    k v
-                    (fn? derefed)
-                    ;(meta v)
-                    (cpp/write (dissoc (meta v) :ns) :stream nil))]
-
-
-        (doto (Tooltip. s)
-            (. setFont (fx/SourceCodePro "Medium" 16))
-            (. setStyle "
-            -fx-padding: 5;
-            -fx-background-radius: 2 2 2 2;
-            -fx-text-fill: #2b292e;
-            -fx-background-color: WHITESMOKE;"))))
-
-
-(defn- a-namespace-listcell-factory []
-    (let[]
-;         lbl (fx/label)
- ;        tt (Tooltip.)
-
-     (reify Callback
-         (call [this view]
-             (proxy [ListCell] []
-                 (updateItem [item empty?]
-                     (proxy-super updateItem item empty?)
-                     (when-not empty?
-                        ;(.setText  lbl (str item))
-                         (.setText this (str item)))
-;                        (.setText tt (str "TT: " item))
-                         ;(.setTooltip this  (tooltip item))
-
-
-                     this))))))
-
-
-(defn- a-namespace-scene [namespace]
-    (let [
-          interns (map (fn [[k v]] (->NsThing k v :interned)) (ns-interns namespace))
-          refers (map (fn [[k v]] (->NsThing k v :refered)) (ns-refers namespace))
-          aliases (map (fn [[k v]] (->NsThing k v :aliased)) (ns-aliases namespace))
-          imports (map (fn [[k v]] (->NsThing k v :imported)) (ns-imports namespace))
-
-          all (concat
-                  interns
-                  refers
-                  aliases
-                  imports)
-
-          view (fx/listview
-                   (apply fx/observablearraylist-t Object
-                          all))]
-        (-> view
-            .getSelectionModel
-            .selectedItemProperty
-            (.addListener
-                (fx/changelistener [_ _ _ val]
-                                   (print-all val))))
-
-        (. view (setCellFactory (a-namespace-listcell-factory)))
-        (fx/scene view)))
-
-
-(defn- make-draggable [scale node]
-    (let [
-          point-atom (atom [0 0])
-
-          press-handler
-          (fx/event-handler-2
-              [_ event]
-              (let [bounds (.getBoundsInParent node)
-                    scale-value (.getX scale)]
-                  (reset! point-atom [
-                                      (- (* (.getMinX bounds ) scale-value)
-                                         (.getScreenX event))
-                                      (- (* (.getMinY bounds ) scale-value)
-                                         (.getScreenY event))])))
-
-
-          drag-handler
-          (fx/event-handler-2
-              [_ event]
-              (let [
-                    offset-x (+ (.getScreenX event ) (first @point-atom))
-                    offset-y (+ (.getScreenY event ) (second @point-atom))
-                    scale-value (.getX scale)]
-
-                  (.relocate node
-                     (/ offset-x scale-value)
-                     (/ offset-y scale-value))))]
-
-
-        (doto node
-            (.setOnMousePressed press-handler)
-            (.setOnMouseDragged drag-handler))
-
-        nil))
-
-
-(defn strip-node-from-vars [namespace]
-    (let [interns (ns-interns namespace)]
-        (doseq [[_ vr] interns]
-            (alter-meta! vr #(dissoc % :node)))))
-
-
-(defn- display-all [namespace group scale]
-    (let [interns (ns-interns namespace)]
-        (doseq [[nm vr] interns]
-            (let [node (get-or-create-node vr)]
-                (make-draggable scale node)
-             (println nm ":" node)
-             (fx/later (fx/add group node))))))
-
-
-
-(defn- create-zoomable-scrollpane []
-    (let [
-          content-layer (Pane.)
-          content-group (fx/group content-layer)
-
-
-          delta 0.1  ;; scroll by this much
-
-          transform-group (fx/group content-group) ;; gets transformed by the group
-          layout-bounds-group  (fx/group transform-group)  ;; will resize to adapt to transform-group  zooms
-          scrollpane (ScrollPane. layout-bounds-group) ;; will adjust scrollbars et al when layout-bounds-group expands
-          scale-transform (Scale.)
-
-          zoom-handler
-          (fx/event-handler-2
-              [_ scroll-event]
-              (when (.isControlDown scroll-event)
-                  (let [scale-value (.getX scale-transform) ;; equal scaling in both directions
-                        delta-y (.getDeltaY scroll-event)  ;; positive or negative
-                        new-scale-value (+ scale-value (* delta (if (pos? delta-y) 1 -1)))]
-
-                      (.setX scale-transform new-scale-value)
-                      (.setY scale-transform  new-scale-value)
-                      (.consume scroll-event))))]
-          ;; Tips on keeping zoom centered: https://community.oracle.com/thread/2541811?tstart=0
-
-        (-> transform-group .getTransforms (.add scale-transform))
-        ;; eventfilter allows my code to get in front of ScrollPane's event-handler.
-        (.addEventFilter scrollpane ScrollEvent/ANY zoom-handler)
-
-        [scale-transform scrollpane]
-
-        {:scrollpane scrollpane
-         :contentpane content-layer
-         :scale scale-transform}))
-
-
-
-
-(def ^:private randomizer (Random.))
-
-(defn- randomize-layout [nodes]
-    (doseq [c nodes]
-        (let [x (* (. randomizer nextDouble) 400)
-              y (* (. randomizer nextDouble) 400)]
-            (. c relocate x y))))
-
-
-(defn- a-namespace-view [namespace]
-        (let [
-              {:keys [contentpane scrollpane scale]}
-              (create-zoomable-scrollpane)]
-;              graph-atom (atom (create-graph))
- ;             graph-panes (create-graph-panes)
-
-            (display-all namespace contentpane scale)
-            (randomize-layout (.getChildren contentpane))
-  ;          (swap! graph-atom populate graph-panes)
-   ;         (randomize-layout @graph-atom)
-            (fx/later (fx/stage
-                          :style :utility
-                          :title (str "namespace: " namespace)
-                          :location [100 50]
-                          :size [800 600]
-                          :scene (fx/scene (fx/borderpane
-                                               :center scrollpane
-                                               :insets 0))))))
-
-
-
-
-
-
-(defn- a-namespace-stage [namespace]
-    (let [bounds (. (fx/primary-screen) getVisualBounds)]
-
-        (fx/now
-            (fx/stage
-                :style :utility
-                :title (str "namespace: " namespace)
-                :location [(-> bounds .getMinX (+ 350))(-> bounds .getMinY (+ 120))]
-                :size [350 350]
-                :scene (a-namespace-scene namespace)))))
-
-
-
-
-
-;;;; namespaces section ;;;;
-
-(defn- namespaces []
-    (sort #(compare (str %1) (str %2))
-          (all-ns)))
-
-
-(defn- namespaces-scene []
-    (let [
-          view (fx/listview (apply fx/observablearraylist (namespaces)))]
-
-        (-> view
-            .getSelectionModel
-            .selectedItemProperty
-            (.addListener
-                (fx/changelistener [_ _ _ val]
-                                   (println "namespace:" val)
-                                   (a-namespace-stage val)
-                                   (a-namespace-view val))))
-
-
-
-
-        (fx/scene view)))
-
-
-(defn- namespaces-stage []
-    (let [bounds (. (fx/primary-screen) getVisualBounds)]
-
-        (fx/now
-            (fx/stage
-                :style :utility
-                :title "Namespaces"
-                :location [(. bounds getMinX)(-> bounds .getMinY (+ 120))]
-                :size [350 350]
-                :scene (namespaces-scene)))))
-
-
-
-(defonce ^:private namespaces-singleton (atom nil))
-
-(defn show-or-create-namespaces-stage []
-    (if @namespaces-singleton
-        (. @namespaces-singleton toFront)
-        (reset! namespaces-singleton
-                (fx/setoncloserequest (namespaces-stage)
-                                      #(do
-                                          (println "reset!-ing namespaces-singleton to nil")
-                                          (reset! namespaces-singleton nil))))))
-
-
-;;; launcher section ;;;;
-
-
-(defn- launcher-scene []
-    (let [
-          button-width
-          150
-
-          namespace-button
-          (fx/button
-              "Namespaces"
-              :width button-width
-              :onaction #(show-or-create-namespaces-stage)
-              :tooltip "Open/show namespace-list")
-
-          output-button
-          (fx/button
-              "Output"
-              :width button-width
-              :onaction show-or-create-output-stage
-              :tooltip "Open/show output-window")
-
-          ;input-button
-          ;(fx/button
-          ;    "Input"
-          ;    :width button-width
-          ;    :onaction input-stage
-          ;    :tooltip "Open a new input window / REPL")
-
-
-          logo
-          (fx/imageview "graphics/George_logo.png")]
-
-
-        (fx/scene
-            (doto (fx/hbox
-                   logo namespace-button output-button ;input-button
-                   :spacing 20
-                   :padding 20
-                   :alignment Pos/CENTER_LEFT)
-                (. setBackground (fx/color-background Color/WHITE))))))
-
-
-(defn- launcher-stage []
-    (let [bounds (. (fx/primary-screen) getVisualBounds)]
-
-        (fx/now
-            (fx/stage
-                :style :utility
-                :title "George"
-                :location [(. bounds getMinX)(. bounds getMinY)]
-                :size [(. bounds getWidth) 120]
-                :scene (launcher-scene)))))
-
-
-
-#_(defn- scene-root []
-   (let [
-         root (fx/borderpane
-                :center (fx/rectangle :fill (fx/web-color "yellow"))
-                :insets 0)]
-
-
-
-     root))
-
-
-#_(defn -main [& args]
-   (fx/later
-     (fx/stage
-       :title "George :: core"
-       :size [600 600]
-       :scene (fx/scene (scene-root)))))
-
-
-
-
-(defonce ^:private launcher-singleton (atom nil))
-
-(defn show-or-create-launcher-stage []
-    (if-not @launcher-singleton
-        (reset! launcher-singleton
-                (fx/setoncloserequest (launcher-stage)
-                                      #(do
-                                          (println "reset!-ing launcher-singleton to nil")
-                                          (reset! launcher-singleton nil))))))
-
-
-
-(defn -main []
-    (show-or-create-launcher-stage)
-    (show-or-create-output-stage))
-
-
-
-;;; DEV ;;;
-
-;(println "WARNING: Running george.core.core/-main")  (-main)
