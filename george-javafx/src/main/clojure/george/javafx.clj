@@ -781,6 +781,7 @@ It must return a string (which may be wrapped to fit the width of the list."
            :size nil ;[200 200]
            :show true
            :ontop false
+           :tofront false
            :resizable true
            :oncloserequest #()  ;; good for preventing closing (consume event)
            :onhiding #()  ;; good for saving content
@@ -807,6 +808,7 @@ It must return a string (which may be wrapped to fit the width of the list."
               (doto stg (.setX x) (.setY y)))
 
           (when (:show kwargs) (.show stg))
+          (when (:tofront kwargs) (.toFront stg))
 
           stg)))
 
