@@ -29,7 +29,6 @@
       (load-file (str file))))
 
 
-
 (defn load-via-tempfile [code-str ns-str]
     (println "  ## load-via-tempfile  ns:" ns-str)
     (let [temp-file (File/createTempFile "code_" ".clj")]
@@ -37,16 +36,11 @@
       (load-from-file temp-file ns-str)))
 
 
-
-
 (defn- update-file-label [file-meta file-label chrome-title]
     (when-let [f (:file @file-meta)]
         (fx/later
             (.setValue chrome-title  (str (if (:changed @file-meta) "* " "") (.getName f)))
             (.setText file-label (str (.getAbsolutePath f))))))
-
-
-
 
 
 (def clj-filechooser
@@ -99,7 +93,7 @@
 
 (defn- codearea-changelistener [save-chan file-meta file-label chrome-title]
     (reify ChangeListener
-        (changed [_ obs old-code new-code]
+        (changed [_ _ _ new-code]
             ;(println "  ## code changed ...")
             (swap! file-meta assoc :changed true)
             (update-file-label file-meta file-label chrome-title)
@@ -113,7 +107,7 @@
     (let [
           default-kwargs {:file nil :library nil :namespace "user"}
           [_ kwargs] (fxu/partition-args args default-kwargs)
-          _ (println "code-editor-pane kwargs:" kwargs)
+          ;_ (println "code-editor-pane kwargs:" kwargs)
 
           codearea
           (doto
@@ -146,14 +140,12 @@
               (set-file-fn f)
               (gcode/set-text codearea (slurp f)))
 
-
           open-file-button
           (fx/button "Open ..."
                      :minwidth 80
                      :width 80
                      :onaction open-file-fn
                      :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" gcc/SHORTCUT_KEY))
-
 
           file-pane
           (fx/hbox
@@ -219,12 +211,9 @@
           (fx/stage
                     :scene scene
                     :title "<unsaved file>"
-                    ;:location (fx/centering-point-on-primary scene)
                     :location [300 80]
                     :size [800 600]
                     :sizetoscene false)
-                    ;:oncloserequest #(println "closing ...")
-                    ;:onhidden #(println "... closed")
 
 
           [root codearea load-fn open-file-fn save-file-as-fn save-file-fn]
@@ -235,10 +224,10 @@
          (.setRoot root)
          (.setOnKeyPressed
             (fx/key-pressed-handler {
-                                     #{:L :CTRL} load-fn
-                                     #{:O :CTRL} open-file-fn
-                                     #{:S :CTRL :SHIFT} save-file-as-fn
-                                     #{:S :CTRL} save-file-fn})))
+                                     #{:L :SHORTCUT} load-fn
+                                     #{:O :SHORTCUT} open-file-fn
+                                     #{:S :SHORTCUT :SHIFT} save-file-as-fn
+                                     #{:S :SHORTCUT} save-file-fn})))
 
         (.setUserData stage {:codearea codearea})
 

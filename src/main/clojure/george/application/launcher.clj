@@ -14,11 +14,12 @@
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
-           (javafx.stage Screen)
-           (javafx.application Platform)))
+           [javafx.stage Screen]
+           [javafx.application Platform]))
+
+
 
 (defn- about []
-
   (fx/stage
             :style :utility
             :size [250 310]
@@ -26,12 +27,13 @@
                      (fx/vbox
                        (ImageView. (Image. "graphics/George_logo.png"))
                        (fx/label
-                         "\nGeorge: \n  Version: 0.7.3 \n\nClojure:\n  Version: 1.8.0\n")))
+                         "\nGeorge: \n  Version: 0.7.4 \n\nClojure:\n  Version: 1.8.0\n")))
 
             :sizetoscene false
             :title "About George"))
 
-(defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
+
+(defn- applet-button [{:keys [name description main-fn]} button-width]
   (fx/button name
              :width button-width
              :onaction main-fn
@@ -49,37 +51,8 @@
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
 
-          ;output-button
-          ;(fx/button
-          ;    "Output"
-          ;    :width b-width
-          ;    :onaction output/show-output-stage
-          ;    :tooltip "Open/show output-window")
-
-
-          ;input-button
-          ;(fx/button
-          ;    "Input"
-          ;    :width b-width
-          ;    :onaction #(do
-          ;                  ;(. output-button fire)
-          ;                  (input/new-input-stage))
-          ;    :tooltip "Open a new input window / REPL")
-
-
-          ;code-button
-          ;(fx/button
-          ;    "Code"
-          ;    :width b-width
-          ;    :onaction #(do
-          ;                  ;(. output-button fire)
-          ;                  (editor/new-code-stage))
-          ;    :tooltip "Open a new code editing window. \n(Can be used to open and save files.)")
-
-
           logo
           (ImageView. (Image. "graphics/George_logo.png"))
-
 
           ;; Set align BOTTOM_RIGHT
           about-button
@@ -88,26 +61,18 @@
             (.setOnMouseClicked (fx/event-handler (about))))
 
           about-box
-          (fx/vbox
-
-            (doto (javafx.scene.layout.Region.)
-              (javafx.scene.layout.VBox/setVgrow
-                (javafx.scene.layout.Priority/ALWAYS)))
-
+          (fx/vbox (fx/region :vgrow :always)
             about-button
             :alignment Pos/BASELINE_LEFT)
 
           scene
           (fx/scene
-             (doto
-               (apply fx/hbox
-                      (flatten [logo applet-buttons about-box
-                                :spacing 15
-                                :padding 10
-                                :alignment Pos/CENTER_LEFT]))
-               (.setBackground (fx/color-background Color/WHITE)))
-
-             :fill Color/WHITE)] ;; Doesn't take effect! Root panes background covers it! :-(
+             (apply fx/hbox
+                    (flatten [logo applet-buttons about-box
+                              :spacing 15
+                              :padding 10
+                              :alignment Pos/CENTER_LEFT
+                              :background (fx/color-background Color/WHITE)])))]
              ;:size [180 (+ 80 ;; logo
              ;              (* 48  ;; each button
              ;                (+ (count applet-buttons)
@@ -138,7 +103,7 @@
           visual-bounds (.getVisualBounds (Screen/getPrimary))
           scene (launcher-scene)]
 
-      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q } #(.hide stage)}))
+      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q} #(.hide stage)}))
 
       ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
       (doto stage

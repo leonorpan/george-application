@@ -237,10 +237,10 @@
        (.setRoot root)
        (.setOnKeyPressed
           (fx/key-pressed-handler {
-                                   #{:L :CTRL} load-fn
-                                   #{:O :CTRL} open-file-fn
-                                   #{:S :CTRL :SHIFT} save-file-as-fn
-                                   #{:S :CTRL} save-file-fn})))
+                                   #{:L :SHORTCUT} load-fn
+                                   #{:O :SHORTCUT} open-file-fn
+                                   #{:S :SHORTCUT :SHIFT} save-file-as-fn
+                                   #{:S :SHORTCUT} save-file-fn})))
 
 
       stage))
