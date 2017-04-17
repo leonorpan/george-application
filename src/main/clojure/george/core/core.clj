@@ -260,7 +260,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
     (let [input (gcode/text code-area)]
         (if (s/blank? input)
             (println)
-            (fxj/thread
+            (fxj/daemon-thread
                 (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
                     (fx/thread (.setText ns-textfield new-ns)))))))
 
@@ -357,7 +357,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
             (println)
             (fx/later  ;; GUI interatactions must be on a JavaFX render thread
                 (.setDisable eval-button true)
-                (fxj/thread
+                (fxj/daemon-thread
                     ;; From within the JavaFX thread we can spin of a new Java thread.
                     ;; But from within the Java-thread we must again place GUI interactions on
                     ;; the JavaFX render thread using `fx/later`.

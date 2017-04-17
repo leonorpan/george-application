@@ -2,11 +2,22 @@
     (:import (javax.swing SwingUtilities)))
 
 
+(defn daemon-thread*
+    "Utility fuction for 'daemon-thread'."
+    [exp]
+    (doto (Thread. exp)
+        (.setDaemon true)
+        (.start)))
+
+(defmacro daemon-thread
+    "Run body in new daemon-thread."
+    [& body]
+    `(daemon-thread* (fn [] ~@body)))
+
 (defn thread*
     "Utility fuction for 'thread'."
     [exp]
     (doto (Thread. exp)
-        (.setDaemon true)
         (.start)))
 
 (defmacro thread
