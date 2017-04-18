@@ -162,4 +162,4 @@ Powered by open source software.
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.application.launcher/-main" (-main))
+;(do (println "WARNING: Running george.application.launcher/-main") (-main))

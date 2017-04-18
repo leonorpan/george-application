@@ -56,6 +56,9 @@
   ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
 
   :aliases {
+            "preloader" ^{:doc "Triggers the JavaFX preloader. Note: The preloader won't appear as fast when triggered by a standard JAR launch."}
+                        ["run" "-m" "no.andante.george.Main" "--with-preloader"]
+
             ;; starts turtle environement directly
             "turtle" ["run" "-m" "george.application.applet.turtle"]
             ;; starts general environment directly
@@ -87,5 +90,6 @@
   :profiles {
              :uberjar {
                        :aot :all
-                       :main no.andante.george.Main
-                       :manifest {}}}) ;"Main-Class" "no.andante.george.Main"
+                       :manifest {"Main-Class" "no.andante.george.Main"
+                                  "JavaFX-Preloader-Class" "no.andante.george.MainPreloader"
+                                  "JavaFX-Application-Class" "no.andante.george.Main"}}})

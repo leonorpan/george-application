@@ -13,22 +13,54 @@
   (:require [george.application.launcher :as launcher]))
 
 
+(def WITH_PRELOADER_ARG "--with-preloader")
+
 
 
 (defn -start [this ^javafx.stage.Stage stage]
-  (println "Main.start() ...")
+  (println "no.andante.george.Main/-start")
   (println "params are:" (-> this .getParameters .getRaw seq))
 
   (launcher/start stage))
 
 
 (defn -stop [this]
-  (println "stop called"))
+  (println "no.andante.george.Main/-stop"))
+
+
+(defn- main [& args]
+  (println "::main args:" args)
+  (javafx.application.Application/launch no.andante.george.Main (into-array String args)))
+
+
+(defn- main-with-preloader [& args]
+  ;(println "::main-with-preloader args:" args)
+  (try
+    (com.sun.javafx.application.LauncherImpl/launchApplication
+      no.andante.george.Main
+      no.andante.george.MainPreloader
+      (into-array String args))
+
+    (catch Exception e
+           (.printStackTrace e)
+           (apply main args))))
 
 
 (defn -main
-  "Launch the JavaFX Application using class no.andante.george.Main"
+  "Launches gen-class 'no.andante.george.Main' as JavaFX Application.
+
+  If passed argument --with-preloader (in Clojure), then triggers JavaFX mechanism and first loads no.andante.george.MainPreloader. This is a way of testing the preloader.
+
+  When running JAR, preloader will be run irrespective based on Manifest,
+  and so '--with-preloader' has no effect either way."
   [& args]
-  (javafx.application.Application/launch
-    no.andante.george.Main
-    (into-array String args)))
+  (if (some #(= % WITH_PRELOADER_ARG) args)
+    (apply main-with-preloader args)
+    (apply main args)))
+
+
+;;;; DEV
+
+;(do (println "WARNING! Running no.andante.george.Main/-main")(-main))
+;(do (println "WARNING! Running no.andante.george.Main/-main")(-main WITH_PRELOADER_ARG))
+;(do (println "WARNING! Running no.andante.george.Main/main-with-preloader")(main-with-preloader))
