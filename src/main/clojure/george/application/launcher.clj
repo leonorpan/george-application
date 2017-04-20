@@ -9,16 +9,50 @@
   (require
     [clojure.repl :refer [doc]]
     [george.javafx :as fx]
-    [george.application.applet-loader :as applets-loader])
+    [george.application.applet-loader :as applets-loader]
+    [george.util.singleton :as singleton]
+    [clojure.java.io :as cio])
 
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
-           (javafx.stage Screen)
-           (javafx.application Platform)))
+           [javafx.stage Screen]
+           [javafx.application Platform]))
 
 
-(defn- applet-button [{:keys [name description main-fn] :as applet-info} button-width]
+
+(defn- about-stage-create []
+  (let [text
+        (fx/label
+          (format "
+George version: %s
+Clojure version: %s
+Java version: %s
+
+Copyright 2017 Terje Dahl"
+             (slurp (cio/resource "george-version.txt"))
+             (clojure-version)
+             (System/getProperty "java.version")))]
+      (fx/stage
+         :style :utility
+         :sizetoscene true
+         :ontop true
+         :title "About George"
+         :onhidden #(singleton/remove ::about-stage)
+         :scene (fx/scene
+                  (fx/vbox
+                    (ImageView. (Image. "graphics/George_logo.png"))
+                    text
+                    :padding 10
+                    :background (fx/color-background Color/WHITE))))))
+
+
+(defn- about-stage []
+  (singleton/put-or-create
+    ::about-stage about-stage-create))
+
+
+(defn- applet-button [{:keys [name description main-fn]} button-width]
   (fx/button name
              :width button-width
              :onaction main-fn
@@ -36,49 +70,28 @@
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
 
-          ;output-button
-          ;(fx/button
-          ;    "Output"
-          ;    :width b-width
-          ;    :onaction output/show-output-stage
-          ;    :tooltip "Open/show output-window")
-
-
-          ;input-button
-          ;(fx/button
-          ;    "Input"
-          ;    :width b-width
-          ;    :onaction #(do
-          ;                  ;(. output-button fire)
-          ;                  (input/new-input-stage))
-          ;    :tooltip "Open a new input window / REPL")
-
-
-          ;code-button
-          ;(fx/button
-          ;    "Code"
-          ;    :width b-width
-          ;    :onaction #(do
-          ;                  ;(. output-button fire)
-          ;                  (editor/new-code-stage))
-          ;    :tooltip "Open a new code editing window. \n(Can be used to open and save files.)")
-
-
           logo
           (ImageView. (Image. "graphics/George_logo.png"))
 
+          ;; Set align BOTTOM_RIGHT
+          about-button
+          (doto
+            (fx/label "About")
+            (.setOnMouseClicked (fx/event-handler (about-stage))))
+
+          about-box
+          (fx/vbox (fx/region :vgrow :always)
+            about-button
+            :alignment Pos/BASELINE_LEFT)
+
           scene
           (fx/scene
-
-             (doto
-               (apply fx/hbox
-                      (flatten [logo applet-buttons
-                                :spacing 20
-                                :padding 10
-                                :alignment Pos/BASELINE_LEFT]))
-               (.setBackground (fx/color-background Color/WHITE)))
-
-             :fill Color/WHITE)] ;; Doesn't take effect! Root panes background covers it! :-(
+             (apply fx/hbox
+                    (flatten [logo applet-buttons about-box
+                              :spacing 15
+                              :padding 10
+                              :alignment Pos/CENTER_LEFT
+                              :background (fx/color-background Color/WHITE)])))]
              ;:size [180 (+ 80 ;; logo
              ;              (* 48  ;; each button
              ;                (+ (count applet-buttons)
@@ -109,7 +122,7 @@
           visual-bounds (.getVisualBounds (Screen/getPrimary))
           scene (launcher-scene)]
 
-      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q } #(.hide stage)}))
+      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q} #(.hide stage)}))
 
       ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
       (doto stage
@@ -140,4 +153,4 @@
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.application.launcher/-main" (-main))
+(do (println "WARNING: Running george.application.launcher/-main") (-main))
