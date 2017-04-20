@@ -199,7 +199,7 @@
              #{:ALT :SHIFT :J}          :paredit-join-sexps
              #{:ALT :RIGHT}             :paredit-expand-right
              #{:ALT :LEFT}              :paredit-expand-left})
-             ; #{:CTRL :SHIFT :K} :paredit-kill not implemented in paredit.clj
+             ; #{:SHORTCUT :SHIFT :K} :paredit-kill not implemented in paredit.clj
 
         (consuming-commands
             {})))

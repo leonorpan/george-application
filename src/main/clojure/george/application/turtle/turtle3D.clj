@@ -329,28 +329,28 @@
                #{:DOWN}
                 #(c-forward camera (- FORWARD_STEP))
 
-               #{:CTRL :RIGHT}
+               #{:SHORTCUT :RIGHT}
                 #(c-sideways camera SLIDE_STEP)
-               #{:CTRL :LEFT}
+               #{:SHORTCUT :LEFT}
                 #(c-sideways camera (- SLIDE_STEP))
 
-               #{:CTRL :UP}
+               #{:SHORTCUT :UP}
                 #(c-elevate camera (- SLIDE_STEP))
-               #{:CTRL :DOWN}
+               #{:SHORTCUT :DOWN}
                 #(c-elevate camera SLIDE_STEP)
 
-               #{:SHIFT :CTRL :UP}
+               #{:SHIFT :SHORTCUT :UP}
                 #(c-tilt camera ROTATE_STEP)
-               #{:SHIFT :CTRL :DOWN}
+               #{:SHIFT :SHORTCUT :DOWN}
                 #(c-tilt camera (- ROTATE_STEP))
 
-               #{:CTRL :DIGIT2} #(c-transition :2D state)
-               #{:CTRL :DIGIT3} #(c-transition :3D state)
+               #{:SHORTCUT :DIGIT2} #(c-transition :2D state)
+               #{:SHORTCUT :DIGIT3} #(c-transition :3D state)
 
-               #{:CTRL :C}      #(print-camera-transforms camera)
-               #{:CTRL :O}      #(.setVisible origo (not (.isVisible origo)))
-               #{:CTRL :A}      #(.setVisible axis (not (.isVisible axis)))
-               #{:CTRL :G}      #(.setVisible grid (not (.isVisible grid)))})]
+               #{:SHORTCUT :C}      #(print-camera-transforms camera)
+               #{:SHORTCUT :O}      #(.setVisible origo (not (.isVisible origo)))
+               #{:SHORTCUT :A}      #(.setVisible axis (not (.isVisible axis)))
+               #{:SHORTCUT :G}      #(.setVisible grid (not (.isVisible grid)))})]
 
 
 
