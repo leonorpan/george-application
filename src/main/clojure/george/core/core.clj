@@ -4,27 +4,36 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.core.core
-    (:require
-        [clojure.pprint :refer [pprint pp]:as cpp]
-        [george.javafx :as fx]
-        [george.javafx.java :as fxj]
+  (:require
+    [clojure.pprint :refer [pprint pp] :as cpp]
+    [george.javafx :as fx]
+    [george.javafx.java :as fxj]
 
-        [george.code.core :as gcode]
-        [clojure.string :as s]
-        [george.core.history :as hist]
-        [george.application.repl :as repl])
+    [george.code.core :as gcode]
+    [clojure.string :as s]
+    [george.core.history :as hist]
+    [clojure.tools.nrepl :as nrepl]
+    [clj-stacktrace.repl :refer [pst pst-str pst-on]]
+    [clj-stacktrace.core :refer [parse-exception]]
+    [george.application.repl :as repl]
+    [george.application.repl-server :as repl-server]
+    [george.util :as gu]
+    [clj-stacktrace.utils :as utils]
+    [clojure.string :as cs])
 
-    (:import (javafx.geometry Pos)
-             (java.io StringWriter PrintStream OutputStreamWriter StringReader)
-             (org.apache.commons.io.output WriterOutputStream)
-             (javafx.scene.text Text)
-             (clojure.lang LineNumberingPushbackReader ExceptionInfo)
 
-             (javafx.scene.input  KeyEvent)
-             (org.fxmisc.richtext StyledTextArea)
-             (java.util.function BiConsumer)
-             (java.util Collections Random)
-             (javafx.scene.layout Pane)))
+  (:import (javafx.geometry Pos)
+           (java.io StringWriter PrintStream OutputStreamWriter StringReader)
+           (org.apache.commons.io.output WriterOutputStream)
+           (javafx.scene.text Text)
+           (clojure.lang LineNumberingPushbackReader ExceptionInfo)
+
+           (javafx.scene.input KeyEvent)
+           (org.fxmisc.richtext StyledTextArea)
+           (java.util.function BiConsumer)
+           (java.util Collections Random)
+           (javafx.scene.layout Pane GridPane Priority)
+           (javafx.scene.control Alert$AlertType Alert)))
 
 
 (defonce standard-out System/out)
@@ -32,53 +41,14 @@
 (declare output)
 
 
-;;;; general utils
-
-(defn pprint-str
-  "returns a pprint-formated str"
-  [data]
-  (cpp/write data :stream nil))
-  ;; is this better of worse than (with-out-str (cpp data))
 
 
-
-(defonce ^:private input-vertical-offset (atom 0))
-
-(defonce ^:private input-horizontal-offset (atom 0))
-
-(defn next-input-vertical-offset [] (swap! input-vertical-offset inc))
-
-(defn next-input-horizontal-offset [] (swap! input-horizontal-offset inc))
-
-
-;;;; input section ;;;;
+;;;; Input section ;;;;
 
 
 ;; from Versions.java in george-client
 (def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
-
-
-(defn- read-span [[after-l after-c] [before-l before-c] code]
-    ;(output nil (str " after: " after-l ":" after-c " before: " before-l ":" before-c N))
-    (let [rdr (LineNumberingPushbackReader. (StringReader. code))
-          sb (StringBuilder.)]
-        ;; step rdr forward to start-line and start-char
-        (dotimes [_  (dec after-l)] (.readLine rdr))
-        (dotimes [_  (dec after-c)] (.read rdr))
-
-        (loop []
-            ;; keep appending and looping until end-line and end-char are reached
-            (when
-                (or
-                    (< (.getLineNumber rdr) before-l)
-                    (and (= (.getLineNumber rdr) before-l)
-                         (< (.getColumnNumber rdr) before-c)))
-                (.append sb (char (.read rdr)))
-
-                (recur)))
-        ;; returned a trimmed string of read code
-        (.trim (str sb))))
 
 
 (defn- ensure-newline [obj]
@@ -89,182 +59,11 @@
       (str txt \newline))))
 
 
-(defn- print-error
-
-    ([^ExceptionInfo ei]
-     (let [{:keys [after before source]} (ex-data ei)]
-         (print-error after before source
-                      (. ei getMessage) (. ei getCause) ei)))
-
-    ([after before source msg cause exception]
-     (let [
-           [after-l after-c] after
-           [before-l before-c] before
-           exception-trace (seq (.getStackTrace exception))
-           supressed-trace (seq  (.getSuppressed exception))
-           cause-trace (when-let [cause (.getCause exception)](seq (.getStackTrace cause)))
-           total-error
-           (format
-            "# EXCEPTION!
-%s
-## SOURCE:
-%s
-## SOURCE SPAN:
-from inclusive [%s:%s] to exclusive [%s:%s]  ([line:char])
-## STACKTRACE EXCEPTION:
-%s
-## STACKTRACE SUPRESSED:
-%s
-## STACKTRACE CAUSE:
-%s
-"
-            msg
-            source
-            after-l after-c before-l before-c
-            exception-trace
-            supressed-trace
-            cause-trace)]
-
-
-
-         (output :err total-error)
-;         (.println standard-err loc-str)
-         (.printStackTrace (or cause exception) standard-err))))
-
-
-
-
-;; TODO:
-"
-The following does not give a useful printout - either from any repl or from a loaded file.
-Solve this to make something more user-friendly: A more usable and beginner-firendly system!
-(defn fail [v] (/ 2 v))
-(fail 0)
-"
-(defn- output-ns [ns]
-    (output :ns (str "namespace: " ns "\n")))
-
-
-(defn- read-eval-print [code]
-    (println)
-    (output-ns *ns*)
-
-    (output :in (ensure-newline code))
-    (let [rdr (LineNumberingPushbackReader. (StringReader. code))]
-
-        ;; inspiration:
-        ;;   https://github.com/pallet/ritz/blob/develop/nrepl-middleware/src/ritz/nrepl/middleware/tracking_eval.clj
-        ;;   https://github.com/pallet/ritz/blob/develop/repl-utils/src/ritz/repl_utils/compile.clj
-        (push-thread-bindings
-            {Compiler/LINE_BEFORE (Integer. (int 0))
-             Compiler/LINE_AFTER (Integer. (int 0))})
-        (try
-
-            (loop [ns *ns*]
-                (let [
-                      after [(.getLineNumber rdr ) (.getColumnNumber rdr)]
-                      _ (.set  Compiler/LINE_BEFORE (Integer. (first after)))
-
-                      read-res
-                      (try
-                          (read rdr false :eof)
-                          ;; pass exception into form for later handling,
-                          ;; so we first can get the code end-point.
-                          (catch Exception e e))
-
-                      before [(.getLineNumber rdr) (.getColumnNumber rdr)]
-                      _ (.set Compiler/LINE_BEFORE (Integer. (first before)))
-
-                      source (read-span after before code)]
-
-                    (when (instance? Exception read-res)
-                        (throw
-                            (ex-info
-                                (.getMessage read-res)
-                                {:after after :before before :source source}
-                                (.getCause read-res))))
-
-                    (when-not (= read-res :eof)
-                            (try
-                                (let [eval-res (eval read-res)]
-
-                                    (output :res (ensure-newline eval-res))
-                                    ;; we made it this far without a read-exception or eval-exception
-
-                                    ;(output nil (str "read-res: " read-res \newline))
-
-                                    #_(cond
-                                        (not= *ns* ns)
-                                        (do
-                                            (output-ns *ns*)
-                                            (output nil (str "   new ns: " *ns* " \n"))
-                                            (output nil (str "   source: " source \newline)))
-
-
-                                        (var? eval-res)
-                                        (do
-                                            (output nil (str "      var: " eval-res "   (RT-state store)\n"))
-                                            (output nil (str "   source: " source \newline)))
-
-
-                                        :default
-                                        (do
-                                            (output nil (str " call res: " eval-res "   (history store)\n"))
-                                            (output nil (str "   source: " source \newline)))))
-
-        ;                            (post-eval source read-res eval-res  *ns* ns)
-
-
-
-                                ;; Catch and re-throw the eval-exception,
-                                ;; adding start and end-point in code
-                                (catch Exception e
-                                    (throw
-                                        (ex-info
-                                            (.getMessage e)
-                                            {:after after :before before :source source}
-                                            (.getCause e)))))
-                                ;; We only recur if no read or eval exception was thrown.
-                            (recur *ns*))))
-            ;; here we actually catch read and eval exceptions, and print them.
-            ;; This is where something much more useful should be done!!
-            (catch ExceptionInfo ei
-                (print-error ei))
-
-            (finally
-                (pop-thread-bindings)))
-
-        (str *ns*)))
-
 
 (declare read-eval-print-in-ns)
 
 
-(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button]
-    (let [input (gcode/text code-area)]
-        (if (s/blank? input)
-            (println)
-            (fx/later  ;; GUI interatactions must be on a JavaFX render thread
-                (.setDisable eval-button true)
-                (fxj/daemon-thread
-                    ;; From within the JavaFX thread we can spin of a new Java thread.
-                    ;; But from within the Java-thread we must again place GUI interactions on
-                    ;; the JavaFX render thread using `fx/later`.
-                    (let [new-ns (read-eval-print-in-ns input (.getText ns-textfield))]
-                        (when (not= new-ns (.getText ns-textfield))
-                            (fx/later (.setText ns-textfield new-ns))
-                            (output-ns (str "-> " new-ns)))
-                        ;; handle history and clearing
-                        (hist/append-history repl-uuid input)
-                        (reset! current-history-index-atom -1)
-                        (when clear? (fx/later (.clear code-area)))
-                        ;; all state changes done, it is now safe to eval again
-                        (fx/later
-                          (.setDisable eval-button false)
-                          (-> code-area .getScene .getWindow .requestFocus))))))))
-
-
-(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button]
+(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button source-file]
     (let [input (gcode/text code-area)
           update-ns-fn #(fx/later (.setText ns-textfield %))]
         (if (s/blank? input)
@@ -276,7 +75,11 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
 
               (fxj/daemon-thread
                   (try
-                    (read-eval-print-in-ns input (.getText ns-textfield) update-ns-fn)
+                    (read-eval-print-in-ns
+                      input
+                      (.getText ns-textfield)
+                      source-file
+                      update-ns-fn)
 
                     ;; handle history and clearing
                     (hist/append-history repl-uuid input)
@@ -292,9 +95,10 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                         (-> code-area .getScene .getWindow .requestFocus)))))))))
 
 
-(defn- input-scene [ns]
+
+(defn- input-scene [ns source-file]
     (let [
-          repl-uuid (hist/uuid)
+          repl-uuid (gu/uuid)
 
           current-history-index-atom (atom -1)
 
@@ -331,7 +135,7 @@ Solve this to make something more user-friendly: A more usable and beginner-fire
                     (.isSelected clear-checkbox)
                     do-clear
                     (if inverse-clear (not clear-checked) clear-checked)]
-                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button)))
+                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button source-file)))
 
           prev-button
           (doto
@@ -397,16 +201,26 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         scene))
 
 
+(defonce ^:private output-singleton (atom nil))
+
+
+;; For Input stage layout
+(defonce ^:private input-vertical-offset (atom 0))
+(defonce ^:private input-horizontal-offset (atom 0))
+(defn next-input-vertical-offset [] (swap! input-vertical-offset inc))
+(defn next-input-horizontal-offset [] (swap! input-horizontal-offset inc))
+
+
 (defn new-input-stage [& [ns]]
     ;; TODO: consolidate/fix integrations/dependencies
     ;; TODO: add interupt-posibility (button) to/for run-thread
 
-    (fxj/thread (repl/ensure-serve! 0))
+    (fxj/thread (repl/session-ensured! true))
     (let [
           repl-nr
           (hist/next-repl-nr)
 
-          scene (input-scene ns)
+          scene (input-scene ns (str \" "Input " repl-nr \"))
 
           screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
 
@@ -425,10 +239,108 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         stage))
 
 
+(defn- exception-dialog [message lines]
+  ;; http://code.makery.ch/blog/javafx-dialogs-official/
+  (let [details
+        (loop [sb (StringBuilder.) lines lines]
+          (if-let [line (first lines)]
+            (recur (doto sb (.append line) (.append \newline)) (rest lines))
+            (str sb)))
+        textarea
+        (doto (fx/textarea :text details :font (fx/SourceCodePro "Regular" 12))
+          (.setEditable false)
+          (.setWrapText true)
+          (.setMaxWidth Double/MAX_VALUE)
+          (.setMaxHeight Double/MAX_VALUE)
+          (GridPane/setVgrow Priority/ALWAYS)
+          (GridPane/setHgrow Priority/ALWAYS))
+        label
+        (fx/label "The exception stacktrace is:")
+        ex-content
+        (doto (GridPane.)
+          (.setMaxWidth Double/MAX_VALUE)
+          (.setPrefWidth 900)
+          (.add label 0 0)
+          (.add textarea 0 1))]
+
+    (doto (Alert. Alert$AlertType/ERROR)
+      (.setTitle "Exception")
+      (.setHeaderText "An error has occoured")
+      (.setContentText message)
+      (-> .getDialogPane (.setExpandableContent ex-content))
+      (.showAndWait))))
+
+
+
+(defn source-str [trace alternative-name]
+  (let [file (:file trace)]
+    (prn "  ## file:" file)
+    (str (if (or (= file [])  (= file "NO_SOURCE_FILE"))
+           alternative-name
+           file)
+         ":"
+         (:line trace))))
+
+
+;; drop everything before and including the first $
+;; drop everything after and including and the second $
+;; drop any __xyz suffixes
+;; sub _PLACEHOLDER_ for the corresponding char
+(def clojure-fn-subs
+  [[#"^[^$]*\$" ""]
+   [#"\$.*"    ""]
+   [#"__\d+.*"  ""]
+   [#"_QMARK_"  "?"]
+   [#"_BANG_"   "!"]
+   [#"_PLUS_"   "+"]
+   [#"_GT_"     ">"]
+   [#"_LT_"     "<"]
+   [#"_EQ_"     "="]
+   [#"_STAR_"   "*"]
+   [#"_SLASH_"  "/"]
+   [#"_"        "-"]])
+
+
+(defn- clojure-fn
+  "Returns the clojure function name implied by the bytecode class name."
+  [class-name]
+  (reduce
+    (fn [base-name [pattern sub]] (cs/replace base-name pattern sub))
+    class-name
+    clojure-fn-subs))
+
+
+(defn- clojure-anon-fn?
+  "Returns true if the bytecode class name implies an anonymous inner fn."
+  [class-name]
+  (boolean (re-find #"\$.*\$" class-name)))
+
+
+(defn clojure-method-str [parsed]
+  (let [c (:class parsed)
+        anon? (clojure-anon-fn? c)]
+    (str (:ns parsed) "/" (clojure-fn c) (when anon? "[fn]"))))
+
+
+(defn java-method-str [parsed]
+  (str (:class parsed) "." (:method parsed)))
+
+
+(defn method-str [parsed]
+  (if (= (:type parsed) "java")
+    (java-method-str parsed)
+    (clojure-method-str parsed)))
+
+
+(defn- format-line [parsed width alternative-name]
+  (str (utils/rjust width (source-str parsed alternative-name))
+       "  "
+       (method-str parsed)))
+
 
 (defn- process-response
   "returns current-ns, for use in read-eval-print-in-ns loop"
-  [res current-ns update-ns-fn]
+  [res current-ns update-ns-fn alternative-source-file-name]
   ;(pprint res)
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
     (when (not= ns current-ns)
@@ -444,36 +356,55 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
     (when-let [o (:out res)]
       (print o) (flush))
 
-    (when-let [ex (:root-ex res)]
-      (binding [*out* *err*] (println (str " ex: " ex))))
+    (when (= "eval-error" (-> res :status first)) ;(or (:ex res) (:root-ex res))
+      (binding [*out* *err*]
+        (let [{:keys [stacktrace message class] :as res2} (first (repl/stacktrace-get))]
+          ;(pprint ["  ## res2:"  (dissoc res2 :stacktrace)])
+          (printf "%s  %s\n" class message)
 
-    (when-let [er (:err res)]
-      (binding [*out* *err*] (println (str " er: " er))))
+          ;(doseq [{:keys [class file flags line method name  ns var type] :as trace}
+          ;        stacktrace]
+          ;  ;(prn "  trace: " trace)
+          ;  (printf "  %30s  %-40s  %s"
+          ;          (format "%s:%s"
+          ;                  (if (= file "NO_SOURCE_FILE") alternative-source-file-name file)
+          ;                  line)
+          ;          name  flags))
 
+          (let [lines (map #(format-line  % 30 alternative-source-file-name) stacktrace)]
+            (doseq [line lines]
+              (println line))
+
+            (when-not @output-singleton
+              (fx/now (exception-dialog message lines))))
+
+          (println))))
     ns))
 
 
 ;;;; API ;;;;
 
 
-(defn read-eval-print-in-ns  ;; Uses nREPL
+(defn read-eval-print-in-ns
   "returns nil"
-  [^String code ^String ns & [update-ns-fn]]
+  [^String code ^String ns ^String source-file & [update-ns-fn]]
   (output :in (ensure-newline (str " <<< " code)))
-  ;(output :out (ensure-newline (println "1:" ns ":" code)))
-  (repl/def-eval
-    (loop [responses (message-eval client (message :code code :ns ns))
-           current-ns ns]
-      (when-let [response (first responses)]
-        (let [new-ns (process-response response current-ns update-ns-fn)]
-          (recur (rest responses) new-ns))))))
-
+  (loop [responses
+         (repl/eval-do
+           :code code
+           :ns ns
+           :session (repl/session-ensured! true)
+           :line 1
+           :column 1)
+         current-ns ns]
+    (when-let [response (first responses)]
+      (let [new-ns (process-response response current-ns update-ns-fn source-file)]
+        (recur (rest responses) new-ns)))))
 
 
 ;;;; output section ;;;;
 
 
-(defonce ^:private output-singleton (atom nil))
 
 
 (defn- get-outputarea []

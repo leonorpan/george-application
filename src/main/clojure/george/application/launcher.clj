@@ -153,4 +153,4 @@ Copyright 2017 Terje Dahl"
 
 ;;; DEV ;;;
 
-(do (println "WARNING: Running george.application.launcher/-main") (-main))
+;(do (println "WARNING: Running george.application.launcher/-main") (-main))
