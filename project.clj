@@ -25,8 +25,9 @@
                  [org.clojure/java.classpath "0.2.3"]
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
                  ;; https://github.com/clojure/tools.nrepl
-                 [org.clojure/tools.nrepl "0.2.12"]]
-
+                 [org.clojure/tools.nrepl "0.2.12"]
+                 ;; https://github.com/clojure-emacs/cider-nrepl
+                 [cider/cider-nrepl "0.14.0"]]
   :plugins [
             ;; https://github.com/kumarshantanu/lein-sub
             [lein-sub "0.3.0"]
@@ -53,7 +54,7 @@
 
   :main no.andante.george.Main
   :aot [no.andante.george.Main]
-
+  :jvm-opts ["-Dapple.awt.graphics.UseQuartz=true"]
   :target-path "target/%s"
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
