@@ -38,7 +38,7 @@
   []
   (session-close!)
   (let [new-ses (-> (george.application.repl/eval-do :op :clone) first :new-session)]
-    (println "  ## new-ses:" new-ses)
+    ;(println "  ## new-ses:" new-ses)
     (reset! default-session_ new-ses)))
 
 
@@ -63,11 +63,8 @@
   [& {:keys [timeout port serving-ensure? session] :as ops}]
   ;(println "::eval-do ops:" ops)
   (with-open [conn
-              (nrepl/connect
-                :port  (or port (repl-server/port-get serving-ensure?)))]
-    ;(println "  ## conn:" conn)
-    (let [m (into {:op :eval}
-                  (filter (comp some? val) ops))]
+              (nrepl/connect :port  (or port (repl-server/port-get serving-ensure?)))]
+    (let [m (into {:op :eval} (filter (comp some? val) ops))]
       ;(println "  ## m:" m)
       (-> (nrepl/client conn (or timeout 1000))
           (nrepl/message m)
@@ -93,35 +90,3 @@
     (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
         
 
-
-
-
-
-
-
-
-(defn message
-  "a multi-arity function which build a message based on inputs"
-  [& {:as options}]
-  (let [msg (conj
-              {:op :eval :code "\"Warning: No code to evaluate.\"" :ns "user"}
-              options)]
-
-    ;(pprint msg)
-    msg))
-
-
-
-;(defmacro def-eval
-;  [& body]
-;  `(with-open [transport# (nrepl/connect :port (repl-server/port-get))]
-;     (let [~'transport transport#
-;           ~'client (nrepl/client transport# Long/MAX_VALUE)
-;           ~'session (nrepl/client-session ~'client)
-;           ~'timeout-client (nrepl/client transport# 1000)
-;           ~'timeout-session (nrepl/client-session ~'timeout-client)
-;           ~'message message
-;           ~'simple-eval #(nrepl/message % (message :op :eval :code %2))
-;           ~'message-eval #(nrepl/message % %2)
-;           ~'simple-values (comp nrepl/response-values ~'simple-eval)]
-;       ~@body)))
