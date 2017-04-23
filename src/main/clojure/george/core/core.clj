@@ -63,9 +63,10 @@
 (declare read-eval-print-in-ns)
 
 
-(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button source-file]
+(defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
     (let [input (gcode/text code-area)
-          update-ns-fn #(fx/later (.setText ns-textfield %))]
+          update-ns-fn #(fx/later (.setText ns-textfield %))
+          eval-id (gu/uuid)]
         (if (s/blank? input)
             ;; then
             (println)
@@ -73,13 +74,23 @@
             (fx/later  ;; GUI interatactions must be on a JavaFX render thread
               (.setDisable eval-button true)
 
+              (doto interrupt-button
+                (.setDisable  false)
+                (.setOnAction
+                  (fx/event-handler
+                    ;(println "Interrupting:" eval-id)
+                    (repl/eval-interrupt eval-id)
+                    (output :system "Interrupted!\n"))))
+
               (fxj/daemon-thread
                   (try
                     (read-eval-print-in-ns
                       input
                       (.getText ns-textfield)
+                      eval-id
                       source-file
                       update-ns-fn)
+
 
                     ;; handle history and clearing
                     (hist/append-history repl-uuid input)
@@ -91,6 +102,7 @@
                     (finally
                       ;; No matter what, I need to be able to eval again
                       (fx/later
+                        (.setDisable interrupt-button true)
                         (.setDisable eval-button false)
                         (-> code-area .getScene .getWindow .requestFocus)))))))))
 
@@ -120,6 +132,14 @@
           (fx/checkbox "Clear on 'Eval'"
             :tooltip "If selected, code is cleared when 'Eval' is  triggered (button or keyboard shortcut).")
 
+          interrupt-button
+          (doto
+            (fx/button "X"
+                       :width 30
+                       :tooltip "Interrupt current 'Eval'")
+            (.setDisable true))
+
+
           run-button
           (fx/button
             "Eval"
@@ -135,7 +155,7 @@
                     (.isSelected clear-checkbox)
                     do-clear
                     (if inverse-clear (not clear-checked) clear-checked)]
-                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button source-file)))
+                (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file)))
 
           prev-button
           (doto
@@ -163,6 +183,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
               (fx/region :hgrow :always)
               clear-checkbox
               (fx/region :hgrow :always)
+              interrupt-button
               run-button
               :spacing 3
               :alignment fx/Pos_TOP_RIGHT
@@ -337,20 +358,23 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
        (method-str parsed)))
 
 
+
 (defn- process-response
-  "returns current-ns, for use in read-eval-print-in-ns loop"
+  "Returns current-ns. Processes/prints results based on type."
   [res current-ns update-ns-fn alternative-source-file-name]
   ;(pprint res)
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
+
     (when (not= ns current-ns)
       (output :ns (ensure-newline (str " ns> " ns)))
-      (when update-ns-fn (update-ns-fn ns)))
+      (update-ns-fn ns))
 
-    (when-let [v (:value res)]
-      (output :res (ensure-newline (str " >>> " v))))
+    (when-let [s (:value res)]
+      (output :res (ensure-newline (str " >>> " s))))
 
     (when-let [st (:status res)]
-      (output :system (ensure-newline (str " ... " st))))
+
+      (output :system (ensure-newline  (cs/join " " st))))
 
     (when-let [o (:out res)]
       (print o) (flush))
@@ -365,7 +389,8 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
               (println line))
 
             (when-not @output-singleton
-              (fx/now (exception-dialog message lines))))
+              (fx/now (exception-dialog message
+                                        (cons (str message \newline) lines)))))
 
           (println))))
     ns))
@@ -373,18 +398,24 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 ;;;; API ;;;;
 
+(defn- indent-input-lines-rest [s]
+  ;(prn "::indent-input-lines-rest" s)
+  (cs/replace s "\n" "\n ... "))
+
 
 (defn read-eval-print-in-ns
   "returns nil"
-  [^String code ^String ns ^String source-file & [update-ns-fn]]
-  (output :in (ensure-newline (str " <<< " code)))
+  [^String code ^String ns eval-id ^String source-file  & [update-ns-fn]]
+  (output :in (ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (loop [responses
          (repl/eval-do
            :code code
            :ns ns
            :session (repl/session-ensured! true)
+           :id eval-id
            :line 1
            :column 1)
+
          current-ns ns]
     (when-let [response (first responses)]
       (let [new-ns (process-response response current-ns update-ns-fn source-file)]
@@ -392,8 +423,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 
 ;;;; output section ;;;;
-
-
 
 
 (defn- get-outputarea []
@@ -441,7 +470,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 (defn ^:private output-style [typ]
     (get {:out (->OutputStyleSpec "#404042")
-          :err (->OutputStyleSpec "RED")
+          :err (->OutputStyleSpec "#CC0000")
           :in (->OutputStyleSpec "BLUE")
           :ns (->OutputStyleSpec "BROWN")
           :system (->OutputStyleSpec "#bbbbbb")
@@ -459,7 +488,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
              (.insertText oa start (str obj))
              (.setStyle oa start (.getLength oa) (output-style typ)))))
     ;; else:  make sure these always also appear in stout
-    (when (#{:in :res} typ)
+    (when (#{:in :res :system} typ)
         (.print standard-out (str obj))))
 
 

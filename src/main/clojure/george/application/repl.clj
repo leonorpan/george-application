@@ -66,7 +66,8 @@
               (nrepl/connect :port  (or port (repl-server/port-get serving-ensure?)))]
     (let [m (into {:op :eval} (filter (comp some? val) ops))]
       ;(println "  ## m:" m)
-      (-> (nrepl/client conn (or timeout 1000))
+      (-> (nrepl/client conn (or timeout Integer/MAX_VALUE))
+          ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
           (nrepl/message m)
           doall))))
 
@@ -84,9 +85,9 @@
 
 
 (defn eval-interrupt
-  ;; TODO: documetation needed
-  [session eval-id & [timeout]]
-  (with-open [conn (nrepl/connect :port (repl-server/port-get))]
-    (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
+  ([eval-id]
+   (eval-interrupt (session-get!) eval-id))
+  ([session eval-id]
+   (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
         
 
