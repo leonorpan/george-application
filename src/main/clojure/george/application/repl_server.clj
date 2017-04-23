@@ -32,6 +32,7 @@
   "stops running nrepl-server"
   (when-let [srvr @server_]
     (stop-server srvr)
+    (println "nREPL server on port" (:port srvr) "stopped.")
     (reset! server_ nil)))
 
 
