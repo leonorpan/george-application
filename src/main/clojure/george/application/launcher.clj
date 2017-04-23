@@ -65,7 +65,7 @@ Copyright 2017 Terje Dahl"
 
           applet-info-list
           (applets-loader/load-applets)
-          _ (println "  ## applet-info-seq:" applet-info-list)
+          ;_ (println "  ## applet-info-seq:" applet-info-list)
 
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)

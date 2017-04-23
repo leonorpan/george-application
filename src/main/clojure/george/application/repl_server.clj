@@ -10,94 +10,16 @@
   (:require
     [clojure.string :as cs]
     [clojure.pprint :refer [pprint]]
-    [clojure.tools.nrepl :as nrepl]
-    [clojure.tools.nrepl.server :refer [start-server stop-server] :as nserver]
-    [clojure.tools.nrepl.transport :as ntransport]
-    [clojure.tools.nrepl.misc :refer [uuid] :as nmisc]
+    [clojure.tools.nrepl.server :refer [start-server stop-server]]
     [clojure.tools.nrepl.middleware.session :refer [session]]
     [cider.nrepl :refer [cider-nrepl-handler]]
     [clj-stacktrace.core :refer [parse-exception]]
     [clj-stacktrace.repl :refer [pst pst-str]]
     [clojure.repl :refer [doc dir]]
-    [george.util :refer [pprint-str]])
-  (:import (clojure.tools.nrepl.transport Transport)))
+    [george.util :refer [pprint-str]]))
 
 
 
-
-
-
-
-
-(defn current-time-request-handler
-  "nREPL server middleware.
-  Returns a function which wraps the given handler.
-  This is a trivial example.
-  Returns current time in millis :op is \"time?\" in slot ':time'."
-  [handler]
-  (fn [{:keys [op transport] :as msg}]
-    (if (= op "time?")
-      (ntransport/send transport (nmisc/response-for msg :status :done :time (System/currentTimeMillis)))
-      (handler msg))))
-
-
-
-;;;; Exception/stacktrace stuff
-
-(defn stacktrace-parsed []
-  (parse-exception *e))
-
-(defn stacktrace-print []
-  (pst *e))
-
-(defn stacktrace-str []
-  (pst-str *e))
-
-
-(defn- get-stacktrace [])
-
-
-
-
-(defn wrap-stacktrace-reply
-  [{:keys [session transport] :as msg}]
-  (pprint msg)
-  (if-let [e (@session #'*e)]
-    (ntransport/send transport (nmisc/response-for msg (assoc msg :hello "again")))
-    (ntransport/send transport (nmisc/response-for msg :status :no-error)))
-  (ntransport/send transport (nmisc/response-for msg :status :done)))
-
-
-(defn wrap-stacktrace
-  "Middleware that handles stacktrace requests, sending cause and stack frame
-  info for the most recent exception."
-  [handler]
-  (fn [{:keys [op] :as msg}]
-    (case op
-      "stacktrace" (wrap-stacktrace-reply msg)
-      (handler msg))))
-
-
-
-
-(defn-  exception-response-handler
-  "nREPL server middleware.
-  Returns a function which wraps the given handler.
-  This handler looks at the returning response, and if in contains an exception, inserts the stacktrace."
-  [handler]
-  (fn [{:keys [^Transport transport] :as msg}]
-    (handler
-      (assoc msg
-        :transport
-        (reify Transport
-          (recv [_] (.recv transport))
-          (recv [_ timeout] (.recv transport timeout))
-          (send [_ {:keys [session ex root-ex] :as resp}]
-            ;(pprint [" ## resp:" resp])
-            (.send transport
-              (if (or ex root-ex)
-                (assoc resp :stacktrace-str (@session #'*e)) ;(parse-exception *e))
-                resp))))))))
 
 
 (declare port-get)
@@ -118,17 +40,13 @@
   If passed-in port is 0, then a free port will be automselected."
   [& [port]]
   (stop!)
-  (println "Starting nrepl server...")
+  ;(println "Starting nrepl server...")
   (let [port- (or port 11000)
         srvr (reset! server_
                      (start-server :port port-
                                    :handler cider-nrepl-handler))]
-                                   ;(-> (nserver/default-handler)
-                                   ;    (current-time-request-handler)
-                                   ;    (wrap-stacktrace))))];exception-response-handler))))]
 
-    (println srvr
-       (println "nREPL server started on port" (:port srvr)))
+       (println "nREPL server started on port" (:port srvr))
     srvr))
 ;; TODO: Authentication, to allow others to remotely connect to your instance?
 ;; For now, server binds to localhost/loopback by default, so no access from other machines.
@@ -147,7 +65,3 @@
   [& [serving-ensure?]]
   (when serving-ensure? (serving-ensure!))
   (:port @server_))
-
-
-
-

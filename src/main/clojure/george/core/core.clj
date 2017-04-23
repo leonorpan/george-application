@@ -274,7 +274,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
 
 (defn source-str [trace alternative-name]
   (let [file (:file trace)]
-    (prn "  ## file:" file)
     (str (if (or (= file [])  (= file "NO_SOURCE_FILE"))
            alternative-name
            file)
@@ -356,21 +355,11 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
     (when-let [o (:out res)]
       (print o) (flush))
 
-    (when (= "eval-error" (-> res :status first)) ;(or (:ex res) (:root-ex res))
+    (when (= "eval-error" (-> res :status first))
       (binding [*out* *err*]
-        (let [{:keys [stacktrace message class] :as res2} (first (repl/stacktrace-get))]
-          ;(pprint ["  ## res2:"  (dissoc res2 :stacktrace)])
+        (let [{:keys [stacktrace message class]} (first (repl/stacktrace-get))]
           (printf "%s  %s\n" class message)
-
-          ;(doseq [{:keys [class file flags line method name  ns var type] :as trace}
-          ;        stacktrace]
-          ;  ;(prn "  trace: " trace)
-          ;  (printf "  %30s  %-40s  %s"
-          ;          (format "%s:%s"
-          ;                  (if (= file "NO_SOURCE_FILE") alternative-source-file-name file)
-          ;                  line)
-          ;          name  flags))
-
+          ;; TODO: maybe use the ':flags' for something useful?
           (let [lines (map #(format-line  % 30 alternative-source-file-name) stacktrace)]
             (doseq [line lines]
               (println line))
