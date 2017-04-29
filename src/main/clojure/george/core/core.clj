@@ -13,7 +13,7 @@
     [clojure.string :as s]
     [george.core.history :as hist]
     [clojure.tools.nrepl :as nrepl]
-    [clj-stacktrace.repl :refer [pst pst-str pst-on]]
+    [clj-stacktrace.repl :refer [pst pst-str]]
     [clj-stacktrace.core :refer [parse-exception]]
     [george.application.repl :as repl]
     [george.application.repl-server :as repl-server]
@@ -260,17 +260,12 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         stage))
 
 
-(defn- exception-dialog [message lines]
+(defn- exception-dialog [header message details]
   ;; http://code.makery.ch/blog/javafx-dialogs-official/
-  (let [details
-        (loop [sb (StringBuilder.) lines lines]
-          (if-let [line (first lines)]
-            (recur (doto sb (.append line) (.append \newline)) (rest lines))
-            (str sb)))
-        textarea
+  (let [textarea
         (doto (fx/textarea :text details :font (fx/SourceCodePro "Regular" 12))
           (.setEditable false)
-          (.setWrapText true)
+          (.setWrapText false)
           (.setMaxWidth Double/MAX_VALUE)
           (.setMaxHeight Double/MAX_VALUE)
           (GridPane/setVgrow Priority/ALWAYS)
@@ -280,88 +275,59 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         ex-content
         (doto (GridPane.)
           (.setMaxWidth Double/MAX_VALUE)
-          (.setPrefWidth 900)
+          (.setPrefWidth 800)
           (.add label 0 0)
           (.add textarea 0 1))]
 
     (doto (Alert. Alert$AlertType/ERROR)
-      (.setTitle "Exception")
-      (.setHeaderText "An error has occoured")
+      (.setTitle "An error has occoured")
+      (.setHeaderText header)
       (.setContentText message)
       (-> .getDialogPane (.setExpandableContent ex-content))
       (.showAndWait))))
 
 
-
-(defn source-str [trace alternative-name]
-  (let [file (:file trace)]
-    (str (if (or (= file [])  (= file "NO_SOURCE_FILE"))
-           alternative-name
-           file)
-         ":"
-         (:line trace))))
+(defn- update-type-in-parsed [orig]
+  ;(println "/update-orig orig:" orig)
+  (try (resolve orig)
+       (catch Throwable t (.printStackTrace t))))
 
 
-;; drop everything before and including the first $
-;; drop everything after and including and the second $
-;; drop any __xyz suffixes
-;; sub _PLACEHOLDER_ for the corresponding char
-(def clojure-fn-subs
-  [[#"^[^$]*\$" ""]
-   [#"\$.*"    ""]
-   [#"__\d+.*"  ""]
-   [#"_QMARK_"  "?"]
-   [#"_BANG_"   "!"]
-   [#"_PLUS_"   "+"]
-   [#"_GT_"     ">"]
-   [#"_LT_"     "<"]
-   [#"_EQ_"     "="]
-   [#"_STAR_"   "*"]
-   [#"_SLASH_"  "/"]
-   [#"_"        "-"]])
-
-
-(defn- clojure-fn
-  "Returns the clojure function name implied by the bytecode class name."
-  [class-name]
-  (reduce
-    (fn [base-name [pattern sub]] (cs/replace base-name pattern sub))
-    class-name
-    clojure-fn-subs))
-
-
-(defn- clojure-anon-fn?
-  "Returns true if the bytecode class name implies an anonymous inner fn."
-  [class-name]
-  (boolean (re-find #"\$.*\$" class-name)))
-
-
-(defn clojure-method-str [parsed]
-  (let [c (:class parsed)
-        anon? (clojure-anon-fn? c)]
-    (str (:ns parsed) "/" (clojure-fn c) (when anon? "[fn]"))))
-
-
-(defn java-method-str [parsed]
-  (str (:class parsed) "." (:method parsed)))
-
-
-(defn method-str [parsed]
-  (if (= (:type parsed) "java")
-    (java-method-str parsed)
-    (clojure-method-str parsed)))
-
-
-(defn- format-line [parsed width alternative-name]
-  (str (utils/rjust width (source-str parsed alternative-name))
-       "  "
-       (method-str parsed)))
+(defn- process-error [res]
+  ;(println "/process-error res:" res)
+  (binding [*out* *err*]
+    (let [parsed-ex
+          (->
+            (repl/eval-do
+              :code "(clj-stacktrace.core/parse-exception *e)"
+              :session (repl/session-get!))
+            first
+            :value
+            read-string
+            ;(update-in [:class] resolve)
+            (update-in [:class] update-type-in-parsed)
+            ;(update-in [:cause :class] resolve))
+            ((fn [m]
+              (if (-> m :cause :class)
+                  (update-in m [:cause :class] update-type-in-parsed)
+                  m))))
+          ;_ (def p parsed-ex)
+          ;_ (println "  ## parsed-ex:" (dissoc parsed-ex :trace-elems))
+          ex-str (pst-str parsed-ex)]
+      (println ex-str)
+      (when-not @output-singleton
+        (fx/now
+          (exception-dialog
+            (-> parsed-ex :class .getName)
+            (:message parsed-ex)
+            ex-str))))
+    (println)))
 
 
 
 (defn- process-response
   "Returns current-ns. Processes/prints results based on type."
-  [res current-ns update-ns-fn alternative-source-file-name]
+  [res current-ns update-ns-fn]
   ;(pprint res)
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
@@ -379,47 +345,35 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
     (when-let [o (:out res)]
       (print o) (flush))
 
-    (when (= "eval-error" (-> res :status first))
-      (binding [*out* *err*]
-        (let [{:keys [stacktrace message class]} (first (repl/stacktrace-get))]
-          (printf "%s  %s\n" class message)
-          ;; TODO: maybe use the ':flags' for something useful?
-          (let [lines (map #(format-line  % 30 alternative-source-file-name) stacktrace)]
-            (doseq [line lines]
-              (println line))
-
-            (when-not @output-singleton
-              (fx/now (exception-dialog message
-                                        (cons (str message \newline) lines)))))
-
-          (println))))
     ns))
 
 
-;;;; API ;;;;
-
 (defn- indent-input-lines-rest [s]
-  ;(prn "::indent-input-lines-rest" s)
   (cs/replace s "\n" "\n ... "))
 
 
 (defn read-eval-print-in-ns
   "returns nil"
-  [^String code ^String ns eval-id ^String source-file  & [update-ns-fn]]
+  [^String code ^String ns eval-id ^String source-file update-ns-fn]
   (output :in (ensure-newline (str " <<< " (indent-input-lines-rest code))))
-  (loop [responses
-         (repl/eval-do
-           :code code
-           :ns ns
-           :session (repl/session-ensured! true)
-           :id eval-id
-           :line 1
-           :column 1)
-
-         current-ns ns]
-    (when-let [response (first responses)]
-      (let [new-ns (process-response response current-ns update-ns-fn source-file)]
-        (recur (rest responses) new-ns)))))
+  (repl/def-eval
+    {:code code
+     :ns ns
+     :session (repl/session-ensured! true)
+     :id eval-id
+     :line 1
+     :column 1
+     :file source-file}
+    (loop [responses response-seq
+           current-ns ns]
+      (when-let [response (first responses)]
+        (if (= "eval-error" (-> response :status first))
+          (do
+            ;(println "  ## interrupting and pocressing ...")
+            (repl/eval-interrupt (:session response) eval-id)
+            (process-error response))
+          (let [new-ns (process-response response current-ns update-ns-fn)]
+            (recur (rest responses) new-ns)))))))
 
 
 ;;;; output section ;;;;
