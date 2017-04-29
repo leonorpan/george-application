@@ -7,6 +7,7 @@
   (:require
     [clojure.string :as cs]
     [clojure.pprint :refer [pprint]]
+    [clojure.repl]
     [clojure.tools.nrepl :as nrepl]
     [clj-stacktrace.core :refer [parse-exception]]
     [clj-stacktrace.repl :refer [pst pst-str]]
@@ -60,27 +61,37 @@
 
 (defn eval-do
   ;; TODO: documetation needed
-  [& {:keys [timeout port serving-ensure? session] :as ops}]
+  [& {:keys [timeout port serving-ensure?] :as ops}]
   ;(println "::eval-do ops:" ops)
   (with-open [conn
               (nrepl/connect :port  (or port (repl-server/port-get serving-ensure?)))]
     (let [m (into {:op :eval} (filter (comp some? val) ops))]
       ;(println "  ## m:" m)
+      ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
       (-> (nrepl/client conn (or timeout Integer/MAX_VALUE))
-          ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
           (nrepl/message m)
           doall))))
 
 
+(defmacro def-eval
+  ;; TODO: documetation needed
+  [ops & body]
+  `(let [{:keys [timeout# port# serving-ensure?#] :as ops#} ~ops]
+     ;(prn "  ## ops#:" ops#)
+     (with-open [conn#
+                  (nrepl/connect :port  (or port# (repl-server/port-get serving-ensure?#)))]
+       (let [m#
+             (into {:op :eval} (filter (comp some? val) ops#))
+             ~'response-seq
+             ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
+             (-> (nrepl/client conn# (or timeout# Integer/MAX_VALUE))
+                 (nrepl/message m#))]
 
-;;;; utility functions
+         ~@body))))
 
 
-(defn stacktrace-get
-  ([]
-   (stacktrace-get (session-get!)))
-  ([session]
-   (eval-do :op "stacktrace" :session session)))
+    ;;;; utility functions
+
 
 
 
