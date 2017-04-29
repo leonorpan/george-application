@@ -18,13 +18,19 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     "
 
 
-    (:require [george.javafx :as fx]
-              [george.javafx.util :as fxu])
-    (:import (javafx.scene.paint Color)
-             (javafx.scene.canvas Canvas)
-             (javafx.scene Node Group)
-             (javafx.scene.transform Rotate)
-             (javafx.scene.shape Polygon)))
+  (:require [george.javafx :as fx]
+            [george.javafx.util :as fxu]
+            [clojure.java.io :as cio]
+            [clojure.string :as str])
+  (:import (javafx.scene.paint Color)
+           (javafx.scene.canvas Canvas)
+           (javafx.scene Node Group)
+           (javafx.scene.transform Rotate)
+           (javafx.scene.shape Polygon)
+           (javafx.scene.image WritableImage ImageView)
+           (java.awt.image BufferedImage)
+           (javafx.embed.swing SwingFXUtils)
+           (javax.imageio ImageIO)))
 
 
 
@@ -641,6 +647,45 @@ Returns turtle instance"
 
   (hide))
 
+
+(defn- parse-int [s]
+  (let [number (re-find #"\d+" s)]
+    (if (= number nil) 0 (Integer. number))))
+
+
+(defn- get-filename [file]
+  (.getName file))
+
+
+(defn- get-file-num []
+  (let [img-dir (clojure.java.io/file "../images/")
+
+        filenames (into []
+                    (map get-filename
+                         (file-seq img-dir)))
+
+        biggest-number (apply max
+                              (remove nil?
+                                      (map parse-int filenames)))
+
+        next-num (+ biggest-number 1)]
+    (+ biggest-number 1)))
+
+
+
+(defn- image->file [image filename]
+    (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
+
+
+(defn- snapshot [scene]
+  (let [[w h] (fx/WH scene)
+        wi (.snapshot scene (WritableImage. w h))]
+    ;(fx/later (fx/stage :scene (fx/scene (fx/group (ImageView. wi)))))
+    ;(spit "myimage.png" writableimage :encoding)))
+    (image->file wi (str "../images/myimage(" (get-file-num) ").png"))))
+
+
+(defn- screen-snapshot [] (fx/now (snapshot (.getScene (screen)))))
 
 
 (def ordered-command-list
