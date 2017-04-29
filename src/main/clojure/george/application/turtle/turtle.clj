@@ -666,9 +666,7 @@ Returns turtle instance"
 
         biggest-number (apply max
                               (remove nil?
-                                      (map parse-int filenames)))
-
-        next-num (+ biggest-number 1)]
+                                      (map parse-int filenames)))]
     (+ biggest-number 1)))
 
 
@@ -680,8 +678,6 @@ Returns turtle instance"
 (defn- snapshot [scene]
   (let [[w h] (fx/WH scene)
         wi (.snapshot scene (WritableImage. w h))]
-    ;(fx/later (fx/stage :scene (fx/scene (fx/group (ImageView. wi)))))
-    ;(spit "myimage.png" writableimage :encoding)))
     (image->file wi (str "../images/myimage(" (get-file-num) ").png"))))
 
 
