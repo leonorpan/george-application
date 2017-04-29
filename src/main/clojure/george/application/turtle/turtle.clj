@@ -658,7 +658,7 @@ Returns turtle instance"
 
 
 (defn- get-file-num []
-  (let [img-dir (clojure.java.io/file "../images/")
+  (let [img-dir (cio/file "../images/")
 
         filenames (into []
                     (map get-filename
@@ -667,12 +667,14 @@ Returns turtle instance"
         biggest-number (apply max
                               (remove nil?
                                       (map parse-int filenames)))]
+
     (+ biggest-number 1)))
 
 
 
 (defn- image->file [image filename]
-    (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
+       (cio/make-parents filename)
+       (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
 
 
 (defn- snapshot [scene]
