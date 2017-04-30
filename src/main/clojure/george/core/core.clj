@@ -260,6 +260,38 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
         stage))
 
 
+(defn- normalize-cause-location [[F L C] source-file]
+  [(if (#{(str \" source-file \") "NO_SOURCE_FILE" "null"} F)
+     source-file
+     F)
+   (if (#{"0" nil} L) nil L)
+   (if (#{"0" nil} C) nil C)])
+
+
+
+
+(defn- find-cause-location
+  "Attempts to locate file:line:column from printout.
+   Returns a vector, else nil."
+  [ex-str source-file]
+  (let [compiling-info (re-find #"compiling:\((.+):(\d+):(\d+)\)" ex-str)
+        no-source-file (re-find #"(NO_SOURCE_FILE):(\d+)" ex-str)]
+    (cond
+      compiling-info
+      (normalize-cause-location
+        (subvec compiling-info 1)
+        source-file)
+      no-source-file
+      (normalize-cause-location
+        (conj (subvec no-source-file 1) nil)
+        source-file)
+      :default
+      nil)))
+
+
+
+
+
 (defn- exception-dialog [header message details]
   ;; http://code.makery.ch/blog/javafx-dialogs-official/
   (let [textarea
@@ -293,7 +325,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
        (catch Throwable t (.printStackTrace t))))
 
 
-(defn- process-error [res]
+(defn- process-error [res source-file]
   ;(println "/process-error res:" res)
   (binding [*out* *err*]
     (let [parsed-ex
@@ -304,22 +336,35 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
             first
             :value
             read-string
-            ;(update-in [:class] resolve)
             (update-in [:class] update-type-in-parsed)
-            ;(update-in [:cause :class] resolve))
             ((fn [m]
               (if (-> m :cause :class)
                   (update-in m [:cause :class] update-type-in-parsed)
                   m))))
-          ;_ (def p parsed-ex)
-          ;_ (println "  ## parsed-ex:" (dissoc parsed-ex :trace-elems))
-          ex-str (pst-str parsed-ex)]
+          ex-str (pst-str parsed-ex)
+          cause-location (find-cause-location ex-str source-file)]
       (println ex-str)
+      (apply printf
+             (cons "                file:  %s
+                line:  %s
+                row:   %s\n"
+                cause-location))
+
       (when-not @output-singleton
         (fx/now
           (exception-dialog
             (-> parsed-ex :class .getName)
-            (:message parsed-ex)
+
+            (format "%s
+
+    file:    %s
+    line:   %s
+    col:    %s"
+                    (:message parsed-ex)
+                    (first cause-location)
+                    (if-let [r (second cause-location)] r "unknown")
+                    (if-let [c (last cause-location)] c "unknown"))
+
             ex-str))))
     (println)))
 
@@ -369,9 +414,8 @@ Next 'global' history.   SHIFT-%s-RIGHT" SHORTCUT_KEY SHORTCUT_KEY)))
       (when-let [response (first responses)]
         (if (= "eval-error" (-> response :status first))
           (do
-            ;(println "  ## interrupting and pocressing ...")
             (repl/eval-interrupt (:session response) eval-id)
-            (process-error response))
+            (process-error response source-file))
           (let [new-ns (process-response response current-ns update-ns-fn)]
             (recur (rest responses) new-ns)))))))
 
