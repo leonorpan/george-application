@@ -8,6 +8,7 @@
 
   (require
     [clojure.repl :refer [doc]]
+    [clojure.java.browse :refer [browse-url]]
     [george.javafx :as fx]
     [george.application.applet-loader :as applets-loader]
     [george.util.singleton :as singleton]
@@ -18,7 +19,8 @@
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
            [javafx.stage Screen]
-           [javafx.application Platform]))
+           [javafx.application Platform]
+           (javafx.scene.control Hyperlink)))
 
 
 
@@ -30,20 +32,27 @@ George version: %s
 Clojure version: %s
 Java version: %s
 
-Copyright 2017 Terje Dahl"
+
+Copyright 2017 Terje Dahl.
+Powered by open source software.
+"
              (slurp (cio/resource "george-version.txt"))
              (clojure-version)
-             (System/getProperty "java.version")))]
+             (System/getProperty "java.version")))
+        link
+        (doto (Hyperlink. "www.george.andante.no")
+          (.setStyle "-fx-border-color: transparent;-fx-padding: 10 0 10 0;-fx-text-fill:#337ab7;")
+          (.setOnAction (fx/event-handler (browse-url "http://www.george.andante.no"))))]
       (fx/stage
          :style :utility
          :sizetoscene true
-         :ontop true
          :title "About George"
          :onhidden #(singleton/remove ::about-stage)
          :scene (fx/scene
                   (fx/vbox
                     (ImageView. (Image. "graphics/George_logo.png"))
                     text
+                    link
                     :padding 10
                     :background (fx/color-background Color/WHITE))))))
 
