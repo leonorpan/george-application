@@ -4,7 +4,21 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns
-  ^{:author "Terje Dahl" }
-  george.util)
+  ^{:author "Terje Dahl"}
+  george.util
+  (:require [clojure.pprint :as cpp])
+  (:import (java.util UUID)))
 
 
+
+(defn pprint-str
+  "returns a pprint-formated str"
+  [data]
+  (cpp/write data :stream nil))
+;; is this better or worse than (with-out-str (cpp data))
+
+
+(defn uuid
+  "Returns a new UUID string."
+  []
+  (str (UUID/randomUUID)))

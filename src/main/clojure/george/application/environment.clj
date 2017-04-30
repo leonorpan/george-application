@@ -129,7 +129,6 @@
 
 
 (defn- create-toolbar-stage [ide-type]
-  (println "  #!")
   (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
