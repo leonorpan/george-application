@@ -29,8 +29,6 @@
                  ;; https://github.com/clojure-emacs/cider-nrepl
                  [cider/cider-nrepl "0.14.0"]]
   :plugins [
-            ;; https://github.com/kumarshantanu/lein-sub
-            [lein-sub "0.3.0"]
             ;; https://github.com/weavejester/codox
             [lein-codox "0.10.3"]]
 
@@ -38,23 +36,21 @@
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
 
 
-  :sub ["george-javafx"]
-
   :deploy-repositories [
                         ["snapshots" :clojars]
                         ["releases" :clojars]]
 
-  :source-paths      ["src/main/clojure" "george-javafx/src/main/clojure"]
+  :source-paths      ["src/main/clojure"]
   :java-source-paths ["src/main/java"]
   :javac-options     ["-target" "1.8" "-source" "1.8"]
                       ;"-Xlint:unchecked"]
 
   :test-paths ["src/test/clojure"]
-  :resource-paths ["src/main/resources" "george-javafx/src/main/resources"]
+  :resource-paths ["src/main/resources"]
 
   :main no.andante.george.Main
   :aot [no.andante.george.Main]
-  :jvm-opts ["-Dapple.awt.graphics.UseQuartz=true"]
+  :jvm-opts ["-Dapple.awt.graphics.UseQuartz=true"]  ;; should give crisper text on Mac
   :target-path "target/%s"
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/
