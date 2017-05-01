@@ -4,18 +4,19 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.editor
-    (:require
-        [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-        [george.javafx.java :as j]
-        [george.javafx :as fx]
-        [george.javafx.util :as fxu]
-        [george.code.core :as gcode]
-        [george.core.core :as gcc])
+  (:require
+    [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
+    [george.javafx.java :as j]
+    [george.javafx :as fx]
+    [george.javafx.util :as fxu]
+    [george.code.core :as gcode]
+    [george.application.output :refer [output]]
+    [george.util :as u])
 
 
-    (:import [javafx.beans.property StringProperty]
-             [javafx.scene.control OverrunStyle]
-             [javafx.beans.value ChangeListener]))
+  (:import [javafx.beans.property StringProperty]
+           [javafx.scene.control OverrunStyle]
+           [javafx.beans.value ChangeListener]))
 
 
 (defn load-from-file [file ns-str]
@@ -23,7 +24,7 @@
   (binding [*ns* (create-ns (symbol ns-str))]
       ;(println "  ## *ns*:" *ns*)
       (println)
-      (gcc/output :system (format "(load-file \"%s\")\n" file))
+      (output :system (format "(load-file \"%s\")\n" file))
       (println)
       (load-file (str file))))
 
@@ -153,7 +154,7 @@
                      :minwidth 60
                      :width 60
                      :onaction open-file-fn
-                     :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" gcc/SHORTCUT_KEY))
+                     :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" u/SHORTCUT_KEY))
 
 
           file-pane
@@ -165,7 +166,7 @@
                          :minwidth 70
                          :width 70
                          :onaction save-file-as-fn
-                         :tooltip (format "Save as a new (Clojure/Turtle) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.  %s-SHIFT-S" gcc/SHORTCUT_KEY))
+                         :tooltip (format "Save as a new (Clojure/Turtle) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.  %s-SHIFT-S" u/SHORTCUT_KEY))
 
               :insets [0 0 10 0]
               :spacing 10)
@@ -180,7 +181,7 @@
           (fx/button
               "Load"
               :minwidth 140
-              :tooltip (format "Load/reload file.   %s-L" gcc/SHORTCUT_KEY)
+              :tooltip (format "Load/reload file.   %s-L" u/SHORTCUT_KEY)
               :onaction load-fn)
 
           pane
