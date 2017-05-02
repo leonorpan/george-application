@@ -115,7 +115,6 @@ Powered by open source software.
         root))
 
 
-
 (defn- launcher-close-handler [launcher-stage]
   (fx/event-handler-2 [_ e]
      (let [
@@ -133,25 +132,6 @@ Powered by open source software.
               (.consume e))))) ;; do nothing
 
 
-;(defn show-launcher-stage [stage]
-;    (let [
-;          visual-bounds (.getVisualBounds (Screen/getPrimary))
-;          scene (fx/scene (launcher-root-node))]
-;
-;      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q} #(.hide stage)}))
-;
-;      ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-;      (doto stage
-;        (.setScene scene)
-;        (.setX (-> visual-bounds .getMinX (+ 0)))
-;        (.setY (-> visual-bounds .getMinY (+ 0)))
-;        (.setTitle "George")
-;        (.setResizable false)
-;        (fx/setoncloserequest (launcher-close-handler stage))
-;        (.show)
-;        (.toFront))))
-
-
 (defn- double-property [init-value value-change-fn]
   (doto (SimpleDoubleProperty. init-value)
     (.addListener
@@ -161,7 +141,6 @@ Powered by open source software.
 
 
 (defn- morphe-launcher-stage [stage launcher-root]
-  (println "/morphe-launcher-stage")
   ;; Fade out old content.
   (fx/later (doto stage
               (.toFront)
@@ -200,25 +179,26 @@ Powered by open source software.
           (.setResizable false)
           (fx/setoncloserequest (launcher-close-handler stage))))))
 
+
+;; also called from Main
 (defn starting-stage []
   (fx/now
     (fx/stage :title "Loading ..."
               :scene (fx/scene (fx/stackpane (fx/text "Starting Launcher ..."))
                                :size [240 80])
               :tofront true)))
+
+
 ;; called from Main
 (defn start
   "Three versions of this method allow for different startupstrategies. The result is always that a created or given stage will be transformed (animated) into the launcher stage."
   ([]
    (start (starting-stage)))
   ([stage]
-   ;(fx/now (doto stage (.toFront)))
    (start stage (launcher-root-node)))
 
   ([stage root-node]
-  ;(show-launcher-stage stage))
    (morphe-launcher-stage stage root-node)))
-
 
 
 (defn -main
@@ -228,7 +208,6 @@ Powered by open source software.
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
-  ;(fx/now (show-launcher-stage (fx/stage :show false))))
   (start))
 
 

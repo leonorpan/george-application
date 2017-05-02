@@ -12,11 +12,8 @@
     :implements [no.andante.george.IStageSharing])
 
   (:require [george.application.launcher :as launcher]
-            [george.javafx :as fx]
             [george.javafx.java :as fxj])
-  (:import (javafx.scene.shape Path MoveTo CubicCurveTo)
-           (javafx.animation PathTransition Timeline)
-           (javafx.util Duration)))
+  (:import (javafx.application Preloader$ProgressNotification)))
 
 
 (def WITH_PRELOADER_ARG "--with-preloader")
@@ -24,51 +21,29 @@
 (def state_ (atom {}))
 
 (defn -handover [this stage]
-  (println "/-handover")
+  ;(println "/-handover")
   (swap! state_ assoc :handover-done? true)
   (fxj/thread (launcher/start stage (:root @state_))))
 
 
 (defn -init [this]
-  (println "no.andante.george.Main/-init")
+  ;(println "no.andante.george.Main/-init")
+  (fxj/thread
+    (dotimes [i 50]
+      (.notifyPreloader this (Preloader$ProgressNotification. (+ 0.0 (* 0.02 i))));
+      (Thread/sleep 50))
+    (.notifyPreloader this (Preloader$ProgressNotification. 1.0)));
+
   (let [root (launcher/launcher-root-node)]
     (swap! state_ assoc :root root)))
 
 
-
 (defn -start [this ^javafx.stage.Stage stage]
-  (println "no.andante.george.Main/-start args:" (-> this .getParameters .getRaw seq))
-  (println "  ## @state_:" @state_)
-  ;(launcher/start stage)
-  ;(let [root (:root @state_)]
-  ;  (.setScene stage (fx/scene root))
-  ;  (.show stage)))
-
-  ;(let [root (:root @state_)]
-  ;  (fx/later
-  ;    (when-not (.getScene stage)
-  ;      (println "  ## setting empty scene on stage")
-  ;      (.setScene stage (fx/scene (fx/group))))
-  ;    (.show stage)
-  ;    (launcher/start stage root))
+  ;(println "no.andante.george.Main/-start args:" (-> this .getParameters .getRaw seq))
+  ;(println "  ## @state_:" @state_)
 
   (when-not (:handover-done? @state_)
     (-handover this (launcher/starting-stage))))
-
-
-
-  ;(let [path (Path.)
-  ;      _ (doto (.getElements path)
-  ;          (.add (MoveTo. 20 20))
-  ;          (.add (CubicCurveTo. 380, 0, 380, 120, 200, 120)))
-  ;      transition
-  ;      (doto (PathTransition.)
-  ;        (.setDuration (Duration/millis 4000))
-  ;        (.setPath path)
-  ;        (.setNode (:root @state_))
-  ;        (.setCycleCount (Timeline/INDEFINITE))
-  ;        (.setAutoReverse true))]
-  ;  (.play transition)))
 
 
 (defn -stop [this])
@@ -108,10 +83,3 @@
   (if (some #(= % WITH_PRELOADER_ARG) args)
     (apply main-with-preloader args)
     (apply main args)))
-
-
-;;;; DEV
-
-;(do (println "WARNING! Running no.andante.george.Main/-main")(-main))
-;(do (println "WARNING! Running no.andante.george.Main/-main")(-main WITH_PRELOADER_ARG))
-;(do (println "WARNING! Running no.andante.george.Main/main-with-preloader")(main-with-preloader))
