@@ -8,42 +8,93 @@
   (:gen-class
     :main true
     :name no.andante.george.Main
-    :extends javafx.application.Application)
+    :extends javafx.application.Application
+    :implements [no.andante.george.IStageSharing])
 
-  (:require [george.application.launcher :as launcher]))
+  (:require [george.application.launcher :as launcher]
+            [george.javafx :as fx]
+            [george.javafx.java :as fxj])
+  (:import (javafx.scene.shape Path MoveTo CubicCurveTo)
+           (javafx.animation PathTransition Timeline)
+           (javafx.util Duration)))
 
 
 (def WITH_PRELOADER_ARG "--with-preloader")
 
+(def state_ (atom {}))
+
+(defn -handover [this stage]
+  (println "/-handover")
+  (swap! state_ assoc :handover-done? true)
+  (fxj/thread (launcher/start stage (:root @state_))))
+
+
+(defn -init [this]
+  (println "no.andante.george.Main/-init")
+  (let [root (launcher/launcher-root-node)]
+    (swap! state_ assoc :root root)))
+
 
 
 (defn -start [this ^javafx.stage.Stage stage]
-  (println "no.andante.george.Main/-start")
-  (println "params are:" (-> this .getParameters .getRaw seq))
+  (println "no.andante.george.Main/-start args:" (-> this .getParameters .getRaw seq))
+  (println "  ## @state_:" @state_)
+  ;(launcher/start stage)
+  ;(let [root (:root @state_)]
+  ;  (.setScene stage (fx/scene root))
+  ;  (.show stage)))
 
-  (launcher/start stage))
+  ;(let [root (:root @state_)]
+  ;  (fx/later
+  ;    (when-not (.getScene stage)
+  ;      (println "  ## setting empty scene on stage")
+  ;      (.setScene stage (fx/scene (fx/group))))
+  ;    (.show stage)
+  ;    (launcher/start stage root))
+
+  (when-not (:handover-done? @state_)
+    (-handover this (launcher/starting-stage))))
 
 
-(defn -stop [this]
-  (println "no.andante.george.Main/-stop"))
+
+  ;(let [path (Path.)
+  ;      _ (doto (.getElements path)
+  ;          (.add (MoveTo. 20 20))
+  ;          (.add (CubicCurveTo. 380, 0, 380, 120, 200, 120)))
+  ;      transition
+  ;      (doto (PathTransition.)
+  ;        (.setDuration (Duration/millis 4000))
+  ;        (.setPath path)
+  ;        (.setNode (:root @state_))
+  ;        (.setCycleCount (Timeline/INDEFINITE))
+  ;        (.setAutoReverse true))]
+  ;  (.play transition)))
+
+
+(defn -stop [this])
+  ;(println "no.andante.george.Main/-stop"))
 
 
 (defn- main [& args]
   (println "::main args:" args)
-  (javafx.application.Application/launch no.andante.george.Main (into-array String args)))
+  (javafx.application.Application/launch  ;; DON'T IMPORT! IT WILL BREAK.
+    no.andante.george.Main
+    (into-array String args)))
 
 
 (defn- main-with-preloader [& args]
   ;(println "::main-with-preloader args:" args)
   (try
-    (com.sun.javafx.application.LauncherImpl/launchApplication
+    ;; Calling this class directly isn't safe, as it might change in future Java versions.
+    ;; But since George is distributed as a native install with Java RT included, we have control.
+    (com.sun.javafx.application.LauncherImpl/launchApplication ;; DON'T IMPORT! IT MAY BREAK.
       no.andante.george.Main
       no.andante.george.MainPreloader
       (into-array String args))
 
     (catch Exception e
-           (.printStackTrace e)
-           (apply main args))))
+           (.printStackTrace e))))
+           ;(apply main args))))
 
 
 (defn -main

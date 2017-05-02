@@ -56,8 +56,12 @@
   ;; https://clojure.github.io/clojure/branch-master/clojure.main-api.html#clojure.main/main
 
   :aliases {
-            "preloader" ^{:doc "Triggers the JavaFX preloader. Note: The preloader won't appear as fast when triggered by a standard JAR launch."}
-                        ["run" "-m" "no.andante.george.Main" "--with-preloader"]
+            "preloader"
+            ^{:doc "
+  Triggers the JavaFX preloader mechanism to run 'no.andante.george.MainPreloader'.
+  All args are passed through to main application.
+  Note: The preloader won't appear as fast as when triggered by a normal JAR launch."}
+            ["run" "-m" "no.andante.george.Main" "--with-preloader"]
 
             ;; starts turtle environement directly
             "turtle" ["run" "-m" "george.application.applet.turtle"]
