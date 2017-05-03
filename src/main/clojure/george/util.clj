@@ -4,7 +4,42 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns
-  ^{:author "Terje Dahl" }
-  george.util)
+  ^{:author "Terje Dahl"}
+  george.util
+  (:require [clojure.pprint :as cpp])
+  (:import (java.util UUID)))
 
 
+
+(defn pprint-str
+  "returns a pprint-formated str"
+  [data]
+  (cpp/write data :stream nil))
+;; is this better or worse than (with-out-str (cpp data))
+
+
+(defn uuid
+  "Returns a new UUID string."
+  []
+  (str (UUID/randomUUID)))
+
+
+;; from Versions.java in george-client
+(def IS_MAC  (-> (System/getProperty "os.name") .toLowerCase (.contains "mac")))
+
+(def IS_WINDOWS (-> (System/getProperty "os.name") .toLowerCase (.contains "windows")))
+
+
+(def SEP java.io.File/separator)
+(def PSEP java.io.File/pathSeparator)
+
+
+(def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
+
+
+(defn ensure-newline [obj]
+  "ensures that the txt ends with a new-line"
+  (let [txt (if (nil? obj) "nil" (str obj))]
+    (if (= "\n" (last txt))
+      txt
+      (str txt \newline))))

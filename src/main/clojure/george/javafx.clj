@@ -619,7 +619,7 @@ It must return a string (which may be wrapped to fit the width of the list."
     (let [ta
           (doto (TextArea. text)
             (.setPromptText prompt))]
-        ;(when font (.setFont ta font))
+      (when font (.setFont ta font))
       ta))
 
 

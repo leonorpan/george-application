@@ -13,7 +13,9 @@
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.reader "1.0.0-alpha1"]
-                 [leiningen "2.7.1" :exclusions [org.clojure/clojure]]
+                 ;; https://github.com/mmcgrana/clj-stacktrace
+                 [clj-stacktrace "0.2.8"]
+                 [leiningen "2.7.1" :exclusions [org.clojure/clojure clj-stacktrace]]
                  [org.fxmisc.wellbehaved/wellbehavedfx "0.1.1"]
                  [org.fxmisc.richtext/richtextfx "0.6.10" :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
@@ -21,11 +23,12 @@
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
-                 [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]]
-
+                 [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
+                 ;; https://github.com/clojure/tools.nrepl
+                 [org.clojure/tools.nrepl "0.2.13"]
+                 ;; https://github.com/clojure-emacs/cider-nrepl
+                 [cider/cider-nrepl "0.14.0"]]
   :plugins [
-            ;; https://github.com/kumarshantanu/lein-sub
-            [lein-sub "0.3.0"]
             ;; https://github.com/weavejester/codox
             [lein-codox "0.10.3"]]
 
@@ -33,23 +36,21 @@
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
 
 
-  :sub ["george-javafx"]
-
   :deploy-repositories [
                         ["snapshots" :clojars]
                         ["releases" :clojars]]
 
-  :source-paths      ["src/main/clojure" "george-javafx/src/main/clojure"]
+  :source-paths      ["src/main/clojure"]
   :java-source-paths ["src/main/java"]
   :javac-options     ["-target" "1.8" "-source" "1.8"]
                       ;"-Xlint:unchecked"]
 
   :test-paths ["src/test/clojure"]
-  :resource-paths ["src/main/resources" "george-javafx/src/main/resources"]
+  :resource-paths ["src/main/resources"]
 
   :main no.andante.george.Main
   :aot [no.andante.george.Main]
-
+  :jvm-opts ["-Dapple.awt.graphics.UseQuartz=true"]  ;; should give crisper text on Mac
   :target-path "target/%s"
 
   ;; http://www.flyingmachinestudios.com/programming/how-clojure-babies-are-made-lein-run/

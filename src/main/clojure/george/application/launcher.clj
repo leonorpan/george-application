@@ -13,6 +13,7 @@
     [george.application.applet-loader :as applets-loader]
     [george.util.singleton :as singleton]
     [george.application.ui.stage :as ui-stage]
+    [george.application.repl-server :as repl-server]
     [clojure.java.io :as cio])
 
   (:import [javafx.scene.image ImageView Image]
@@ -76,7 +77,7 @@ Powered by open source software.
 
           applet-info-list
           (applets-loader/load-applets)
-          _ (println "  ## applet-info-seq:" applet-info-list)
+          ;_ (println "  ## applet-info-seq:" applet-info-list)
 
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
@@ -119,17 +120,21 @@ Powered by open source software.
   (fx/event-handler-2 [_ e]
      (let [
            button-index
-           (fx/alert
-             "Do you want to quit George?"
-             :title "Quit?"
-             :options ["Quit"]
-             :owner launcher-stage
-             :mode nil
-             :cancel-option? true)]
+           (fx/now
+             (fx/alert
+               "Do you want to quit George?"
+               :title "Quit?"
+               :options ["Quit"]
+               :owner launcher-stage
+               :mode nil
+               :cancel-option? true))
+           exit? (= 0 button-index)]
 
-          (if (= 0 button-index)
-              (fx/later (Platform/exit))
-              (.consume e))))) ;; do nothing
+          (if exit?
+            (do (repl-server/stop!)
+                (fx/now (Platform/exit))
+                (System/exit 0))
+            (.consume e))))) ;; do nothing
 
 
 (defn- double-property [init-value value-change-fn]
@@ -168,9 +173,12 @@ Powered by open source software.
     ;; Fade in Launcher root
     (ui-stage/swap-with-fades stage launcher-root true 500)
 
-    (.setOnKeyPressed
-      (.getScene stage)
-      (fx/key-pressed-handler {#{:ALT :Q} #(.hide stage)}))
+    (.setOnKeyPressed (.getScene stage)
+                      (fx/key-pressed-handler
+                        {#{:ALT :Q}
+                         #(do
+                            (repl-server/stop!)
+                            (.hide stage))}))
 
     (fx/later
          ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
