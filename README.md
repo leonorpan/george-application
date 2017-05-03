@@ -1,8 +1,16 @@
-# George Client - jvm source
 
 
 
-This is the main application code that goes into George Client - native (Windows, Mac, Linux?)  
+# George
+
+[![Clojars Project](https://img.shields.io/clojars/v/no.andante.george/george-application.svg)](https://clojars.org/no.andante.george/george-application)
+[![License](https://img.shields.io/badge/License-EPL%201.0-blue.svg)](https://opensource.org/licenses/EPL-1.0)
+
+
+This is the main application code for George.
+
+It can be run as a standalone Jar, or as a natively installed application for Windows or Mac, and some time in the future, Linux.
+
 
 If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.   
 Go here to [get George for Windows & Mac](http://www.george.andante.no).
