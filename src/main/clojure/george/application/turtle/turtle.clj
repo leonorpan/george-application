@@ -21,16 +21,22 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
   (:require [george.javafx :as fx]
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [george.javafx.java :as fxj])
   (:import (javafx.scene.paint Color)
            (javafx.scene.canvas Canvas)
            (javafx.scene Node Group)
            (javafx.scene.transform Rotate)
            (javafx.scene.shape Polygon)
-           (javafx.scene.image WritableImage ImageView)
+           (javafx.scene.image WritableImage ImageView Image)
            (java.awt.image BufferedImage)
            (javafx.embed.swing SwingFXUtils)
-           (javax.imageio ImageIO)))
+           (javax.imageio ImageIO)
+           (javafx.scene.input Clipboard ClipboardContent DataFormat)
+           (java.io File ByteArrayOutputStream)
+           (java.net URI)
+           (java.nio ByteBuffer)
+           (javafx.scene.control ContextMenu MenuItem)))
 
 
 
@@ -132,7 +138,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- set-heading* [inst ang]
   (let [diff (- (heading* inst) ang)
-        duration (* (/ (Math/abs diff) (* 3 360.)) 1000)]
+        duration (* (/ (Math/abs ^double diff) (* 3 360.)) 1000)]
     (fx/synced-keyframe
            duration ;; 3 rotations pr second
            [(.rotateProperty inst) (- ang)])))
@@ -187,7 +193,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (fx/later (.toFront inst)))
 
     (fx/synced-keyframe
-            (* (/ (Math/abs dist) 600) 1000)  ;; 600 px per second
+            (* (/ (Math/abs ^double dist) 600) 1000)  ;; 600 px per second
         [(.translateXProperty inst) target-x]
         [(.translateYProperty inst) (- target-y)]
         (when line [(.endXProperty line) target-x])
@@ -267,11 +273,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 ;(def ^:private screen-singleton (atom nil))
 ;(def ^:private turtle-singleton (atom nil))
-(def ^:private screen-and-turtle-singleton (atom nil))
+(defonce ^:private screen-and-turtle-singleton (atom nil))
 
 
-
-
+(declare copy-screenshot-to-clipboard)
+(declare save-screenshot-to-file)
 
 (defn- create-screen [w h]
     (fx/now
@@ -288,9 +294,25 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
               ;_ (fx/add root up-and-over)
 
+
+              cm
+              (ContextMenu.
+                (fxj/vargs
+                  (doto (MenuItem. "Copy screenshot to clipboard")
+                    (.setOnAction (fx/event-handler (copy-screenshot-to-clipboard))))
+                  (doto (MenuItem. "Save screenshot to file ...")
+                    (.setOnAction (fx/event-handler (save-screenshot-to-file))))))
+
+              cm-handler
+              (fx/event-handler-2 [_ e]
+                                  (.show cm root (.getScreenX e) (.getScreenY e)))
+
+
               stage (fx/stage
                         :title "Turtle Screen"
-                        :scene (fx/scene root :size [w h] :fill fx/WHITESMOKE)
+                        :scene (doto
+                                 (fx/scene root :size [w h] :fill fx/WHITESMOKE)
+                                 (.setOnContextMenuRequested cm-handler))
                         :resizable true
                         :location [30 120]
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
@@ -648,9 +670,11 @@ Returns turtle instance"
   (hide))
 
 
+
 (defn- parse-int [s]
-  (let [number (re-find #"\d+" s)]
-    (if (= number nil) 0 (Integer. number))))
+  (if-let [number (re-find #"\d+" s)]
+    (Integer/parseInt number)
+    0))
 
 
 (defn- get-filename [file]
@@ -672,18 +696,85 @@ Returns turtle instance"
 
 
 
-(defn- image->file [image filename]
+(defn- write-image-to-file
+       "Writes image to file (as '.png')"
+       [image filename]
        (cio/make-parents filename)
        (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
 
 
-(defn- snapshot [scene]
-  (let [[w h] (fx/WH scene)
-        wi (.snapshot scene (WritableImage. w h))]
-    (image->file wi (str "../images/myimage(" (get-file-num) ").png"))))
+(def CB (fx/now (Clipboard/getSystemClipboard)))
 
 
-(defn- screen-snapshot [] (fx/now (snapshot (.getScene (screen)))))
+(defn- print-clipboard-content
+  "For dev/test purposes."
+  []
+  (println "  ## CB content types:" (fx/now (.getContentTypes CB)))
+  ;(fx/now (.getString CB)))
+  (fx/now (.getImage CB)))
+
+
+(defn- write-image-to-tempfile [image]
+  (let [f (File/createTempFile "Turtle_Geometry_screenshot" ".png")]
+    (when (write-image-to-file image (str f))
+      f)))
+
+
+(defn- image->png-bytebuffer [^WritableImage im]
+  (let [baos (ByteArrayOutputStream.)
+        _ (ImageIO/write (SwingFXUtils/fromFXImage im nil) "png" baos)
+        res (ByteBuffer/wrap (.toByteArray (doto baos .flush)))]
+    (.close baos)
+    res))
+
+
+(defn- put-image-on-clipboard [image text-repr]
+  (let [png-mime "image/png"
+        png
+        (if-let [df (DataFormat/lookupMimeType png-mime)]
+          df (DataFormat. (fxj/vargs png-mime)))
+        tempfile
+        (write-image-to-tempfile image)
+        cc
+        (doto (ClipboardContent.)
+              (.putImage image)
+              ;(.put png (image->png-bytebuffer image))  ;; doesn't work for some reason!
+              (.putFiles [tempfile])
+              (.putFilesByPath [(str tempfile)])
+              (.putString text-repr))]
+    (fx/now (.setContent CB cc))))
+
+
+(defn- ^WritableImage snapshot
+  ""
+  [scene]
+  (let [[w h] (fx/WH scene)]
+    (.snapshot scene (WritableImage. w h))))
+
+
+(defn- ^WritableImage screenshot []
+  (fx/now (-> (screen) .getScene snapshot)))
+
+
+(defn- save-screenshot-to-file []
+  (println "/save-image-to-file IMCOPLETE IMPL!")
+  "Should open a filechooser"
+  (write-image-to-file (screenshot) (str "../images/myimage(" (get-file-num) ").png")))
+
+
+
+(defn- copy-screenshot-to-clipboard []
+  (put-image-on-clipboard (screenshot) "<Turtle_Geometry_screenshot>"))
+
+
+
+
+;; TODO:
+;; - Add contextual menu to Turtle screen
+;;   - Add copy-to-clipboard
+;;   - Add save-to-file
+;;   - implement file-chooser (shared with "code")
+
 
 
 (def ordered-command-list
@@ -706,7 +797,5 @@ Returns turtle instance"
    #'rep
    #'sleep
    #'run-sample])
-
-
 
 
