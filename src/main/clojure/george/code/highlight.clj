@@ -86,8 +86,8 @@
             (#{String Character} typ)
             "#008e00";"#008000"
 
-            (#{DelimChar} typ)
-            "#99999c";"#D1D2D4";"lightgray"
+            (#{DelimChar} typ)  ;; all types of params
+            "blue" ;"#99999c";"#D1D2D4";"lightgray"
             ; "#f2c100" ;; yellow
 
             (#{Comment}  typ)
