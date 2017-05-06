@@ -33,7 +33,7 @@ Clojure version: %s
 Java version: %s
 
 
-Copyright 2017 Terje Dahl.
+Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
 "
              (slurp (cio/resource "george-version.txt"))
@@ -56,10 +56,14 @@ Powered by open source software.
                     :padding 10
                     :background (fx/color-background Color/WHITE))))))
 
+(def ABOUT_STAGE_KW ::about-stage)
 
 (defn- about-stage []
-  (singleton/put-or-create
-    ::about-stage about-stage-create))
+  (if-let [st (singleton/get ABOUT_STAGE_KW)]
+    (do (.hide st)
+        (singleton/remove ABOUT_STAGE_KW))
+    (singleton/get-or-create
+      ABOUT_STAGE_KW about-stage-create)))
 
 
 (defn- applet-button [{:keys [name description main-fn]} button-width]
