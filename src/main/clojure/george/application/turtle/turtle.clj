@@ -21,7 +21,7 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
   (:require [george.javafx :as fx]
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
-            [clojure.string :as str]
+            [clojure.string :as cs]
             [george.javafx.java :as fxj])
   (:import (javafx.scene.paint Color)
            (javafx.scene.canvas Canvas)
@@ -33,7 +33,7 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
            (javafx.embed.swing SwingFXUtils)
            (javax.imageio ImageIO)
            (javafx.scene.input Clipboard ClipboardContent DataFormat)
-           (java.io File ByteArrayOutputStream)
+           (java.io File FilenameFilter ByteArrayOutputStream)
            (java.net URI)
            (java.nio ByteBuffer)
            (javafx.scene.control ContextMenu MenuItem)))
@@ -671,36 +671,57 @@ Returns turtle instance"
 
 
 
+(def SCREENSHOT_BASE_FILENAME "TG_screenshot")
+
+
 (defn- parse-int [s]
   (if-let [number (re-find #"\d+" s)]
     (Integer/parseInt number)
     0))
 
 
-(defn- get-filename [file]
-  (.getName file))
+;(defn- get-filename [file]
+;  (.getName file))
 
 
-(defn- get-file-num []
-  (let [img-dir (cio/file "../images/")
+;(defn- get-file-num []
+;  (let [img-dir (cio/file "../images/")
+;
+;        filenames (into []
+;                        (map get-filename
+;                             (file-seq img-dir)))
+;
+;        biggest-number (apply max
+;                              (remove nil?
+;                                      (map parse-int filenames)))]
+;
+;    (+ biggest-number 1)))
 
-        filenames (into []
-                    (map get-filename
-                         (file-seq img-dir)))
 
-        biggest-number (apply max
-                              (remove nil?
-                                      (map parse-int filenames)))]
-
-    (+ biggest-number 1)))
+(defn- find-next-file-numbering [dir]
+  (->> (.listFiles
+         (cio/file dir)
+         (reify FilenameFilter
+           (accept [_ _ name]
+             (boolean (re-find (re-pattern SCREENSHOT_BASE_FILENAME) name)))))
+       (seq)
+       (map #(.getName %))
+       (map parse-int)
+       (remove nil?)
+       (#(if (empty? %) '(0) %))
+       (apply max)
+       (inc)))
 
 
 
 (defn- write-image-to-file
        "Writes image to file (as '.png')"
-       [image filename]
-       (cio/make-parents filename)
-       (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
+       [image file]
+       (cio/make-parents file)
+       (ImageIO/write
+         (SwingFXUtils/fromFXImage image nil)
+         "png"
+         file))
 
 
 (def CB (fx/now (Clipboard/getSystemClipboard)))
@@ -715,9 +736,9 @@ Returns turtle instance"
 
 
 (defn- write-image-to-tempfile [image]
-  (let [f (File/createTempFile "Turtle_Geometry_screenshot" ".png")]
-    (when (write-image-to-file image (str f))
-      f)))
+  (let [file (File/createTempFile (str SCREENSHOT_BASE_FILENAME "_") ".png")]
+    (when (write-image-to-file image file)
+      file)))
 
 
 (defn- image->png-bytebuffer [^WritableImage im]
@@ -756,24 +777,48 @@ Returns turtle instance"
   (fx/now (-> (screen) .getScene snapshot)))
 
 
-(defn- save-screenshot-to-file []
-  (println "/save-image-to-file IMCOPLETE IMPL!")
-  "Should open a filechooser"
-  (write-image-to-file (screenshot) (str "../images/myimage(" (get-file-num) ").png")))
+"A fileshooser-object is instanciated once pr session. It remembers the previous location.
+One might in future choose to save the 'initial directory' so as to return user to same directory across sessions."
+(defonce screenshot-filechooser
+  (apply fx/filechooser fx/FILESCHOOSER_FILTERS_PNG))
 
+
+(defn- build-filename-suggestion [dir]
+    (format "%s%s.png"
+            SCREENSHOT_BASE_FILENAME
+            (find-next-file-numbering dir)))
+
+
+(defn- ^File choose-target-file
+  "If user selects a location and a file-name, then a file object is returned. Else nil.
+  (A file hasn't been created yet. Only name and location chosen. The file is created when it is written to.)"
+  []
+  (let [initial-dir
+        (if-let [dir (.getInitialDirectory screenshot-filechooser)]
+                dir
+                (cio/file (System/getProperty "user.home")))
+
+        suggested-filename
+        (build-filename-suggestion initial-dir)]
+
+    (when-let [file (-> (doto screenshot-filechooser
+                          (.setTitle "Save sreenshot as ...")
+                          (.setInitialFileName suggested-filename))
+                        (.showSaveDialog nil))]
+
+      ;; If a different directory has been chosen, we want the filechooser to remember it:
+      (.setInitialDirectory screenshot-filechooser (.getParentFile file))
+        ;; Handling of potential overwrite of file is buildt into filechooser.
+      file)))
+
+
+(defn- save-screenshot-to-file []
+  (when-let [file (choose-target-file)]
+    (write-image-to-file (screenshot) file)))
 
 
 (defn- copy-screenshot-to-clipboard []
-  (put-image-on-clipboard (screenshot) "<Turtle_Geometry_screenshot>"))
-
-
-
-
-;; TODO:
-;; - Add contextual menu to Turtle screen
-;;   - Add copy-to-clipboard
-;;   - Add save-to-file
-;;   - implement file-chooser (shared with "code")
+  (put-image-on-clipboard (screenshot) (format "<%s>" SCREENSHOT_BASE_FILENAME)))
 
 
 
