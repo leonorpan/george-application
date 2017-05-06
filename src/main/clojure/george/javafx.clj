@@ -880,6 +880,7 @@ Example of codes-map:
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
               code (str (.getCode event))
+              ;_ (println "  ## code:" code)
               shift (when (.isShiftDown event) "SHIFT")
               shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
               alt (when (.isAltDown event) "ALT") ;;  "M-"
