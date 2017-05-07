@@ -260,13 +260,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn- create-turtle []
     (doto (turtle-impl "Tom") .sayHello))
 
-#_(defn- get-create-resize-screen
-    "Returns existing singleton screen and brings it to front.
-    If one doesn't already exist, then a new one is created.
-    If the size of the existing screen doesn't match, it will be resized.
-    "
-    [w h])
-
 
 ;; TODO: implement CRUD ref. spec
 (defonce  data (atom {}))
@@ -315,6 +308,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                                  (.setOnContextMenuRequested cm-handler))
                         :resizable true
                         :location [30 120]
+                        :tofront true
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
 
           ;; not useful to bind now, as resizable is false
@@ -327,11 +321,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 
-(comment defn- get-or-create-screen [w h]
-    (if-let [scrn @screen-singleton]
-        (fx/now (doto scrn (.toFront)))
-        (reset! screen-singleton (create-screen w h))))
-
 
 ;(defn- create-turtle []
 ;    (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE))
@@ -340,29 +329,22 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (def DEFAULT_SCREEN_SIZE [600 450])
 
 
-(comment defn- get-or-create-turtle []
-    (if-let [turt @turtle-singleton]
-        turt
-        (let [t (reset! turtle-singleton (create-turtle))]
-            (fx/later
-                (fx/add
-                    (-> (apply get-or-create-screen DEFAULT_SCREEN_SIZE) .getUserData :root) t))
-            (Thread/sleep 1000))))
-
-
-
 (defn- get-or-create-screen-and-turtle
     ([]
      (apply get-or-create-screen-and-turtle DEFAULT_SCREEN_SIZE))
     ([w h]
      (if-let [s-n-t @screen-and-turtle-singleton]
-         (do
-             (fx/later (.toFront (:screen s-n-t)))
+         (let [screen (:screen s-n-t)]
+             (when (.isIconified screen)
+               (fx/later
+                 (doto screen
+                   (.setIconified false)
+                   (.toFront))))
              s-n-t)
          (let [scrn (create-screen w h)
                trtl (create-turtle)]
              (add-node scrn trtl)
-             (Thread/sleep 1000)
+             (Thread/sleep 500)
              (reset! screen-and-turtle-singleton {:screen scrn :turtle trtl})))))
 
 
