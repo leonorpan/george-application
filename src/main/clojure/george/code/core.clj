@@ -9,10 +9,11 @@
      [george.code.highlight :as highlight]
      [george.code.codearea :as ca]
      [george.code.paredit :as paredit]
-     [george.javafx :as fx])
+     [george.javafx :as fx]
+     [george.util.css :as css]
+     [george.util :as u])
   (:import [org.fxmisc.richtext StyledTextArea]
-           (javafx.scene.input KeyEvent)
-           (javafx.scene.text Font)))
+           (javafx.scene.input KeyEvent)))
 
 
 
@@ -24,23 +25,21 @@
       (when (and (#{"+" "-"} c) shortcut?)
         (let [source (.getSource e)
               font (.getFont source)
-              size (.getSize font)
-              new-size (+ size (if (= "+" c) 2 -2))
-              new-font (Font. (.getName font) new-size)]
-          (.setFont source new-font))))))  ;; TODO: No change!  :-(
-          ;(println "  ## source:" source)
-          ;(println "  ## font:" font)
-          ;(println "  ## size:" size)
-          ;(println "  ## new-size:" new-size))))))
+              size (int (.getSize font))
+              new-size (u/clamp 6 (+ size (if (= "+" c) 2 -2)) 72)]
+          (css/set-style-map source
+              (assoc
+                (css/stylable->style-map source)
+                "-fx-font" (format "%spx '%s'" (int new-size) (.getName font)))))))))
 
 
 (defn ^StyledTextArea ->codearea []
     (doto
         (ca/->codearea)
-      (ca/set-linenumbers)
-      (paredit/set-handlers)
-      (highlight/set-handlers)))
-      ;(.addEventHandler KeyEvent/KEY_TYPED (font-size-handler))))
+        (ca/set-linenumbers)
+        (paredit/set-handlers)
+        (highlight/set-handlers)
+        (.addEventHandler KeyEvent/KEY_TYPED (font-size-handler))))
 
 
 (defn text [codearea]

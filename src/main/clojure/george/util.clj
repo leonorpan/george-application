@@ -7,7 +7,8 @@
   ^{:author "Terje Dahl"}
   george.util
   (:require [clojure.pprint :as cpp])
-  (:import (java.util UUID)))
+  (:import (java.util UUID)
+           (java.io File)))
 
 
 
@@ -15,7 +16,7 @@
   "returns a pprint-formated str"
   [data]
   (cpp/write data :stream nil))
-;; is this better or worse than (with-out-str (cpp data))
+  ;; is this better or worse than (with-out-str (cpp data))?
 
 
 (defn uuid
@@ -30,8 +31,8 @@
 (def IS_WINDOWS (-> (System/getProperty "os.name") .toLowerCase (.contains "windows")))
 
 
-(def SEP java.io.File/separator)
-(def PSEP java.io.File/pathSeparator)
+(def SEP File/separator)
+(def PSEP File/pathSeparator)
 
 
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
@@ -43,3 +44,17 @@
     (if (= "\n" (last txt))
       txt
       (str txt \newline))))
+
+
+(defn clamp
+  "low and high (both inclusive)"
+  [low x high]
+  ;(println "::clamp" low x high)
+  (if (< x low) low
+                (if (> x high) high
+                               x)))
+
+(defn in-range?
+  "returns true if x is in range of low and high (both inclusive)"
+  [low high x]
+  (<= low  x high))
