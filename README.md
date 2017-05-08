@@ -3,84 +3,35 @@
 
 # George
 
-[![Clojars Project](https://img.shields.io/clojars/v/no.andante.george/george-application.svg)](https://clojars.org/no.andante.george/george-application)
-[![License](https://img.shields.io/badge/License-EPL%201.0-blue.svg)](https://opensource.org/licenses/EPL-1.0)
 
-
-This is the main application code for George.
+The main application code for [George](http://www.george.andante.no).
 
 It can be run as a standalone Jar, or as a natively installed application for Windows or Mac, and some time in the future, Linux.
 
 
-If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.   
-Go here to [get George for Windows & Mac](http://www.george.andante.no).
+If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.  That way you are also garanteed to always have an automatically updated latest version.  
+
+[Get George for Windows / Mac / Java](http://www.george.andante.no).
 
 
-## Documentation
+## Develop and contribute
 
-To learn how to test and develop, contribute, and to see the API docs, see the [developer documentation](http://www.george.andante.no/docs).
+We would love your help developing George.
 
+To learn more about how to download and run the source, develop, contribute, and to see the API docs, [read the development documentation](https://andante-george.bitbucket.io).
 
-## Download
-
-You will soon be able to download the source as a ZIP-file.    
-(I just need to implement some support for this. Remind me, if you see this message.)
-
-However, if you would prefer to easily update to the latest version, then use Mercurial and clone instead, and/or use Atlassian's very useful tool
-SourceTree. (See the top of the [Overview](https://bitbucket.org/andante-george/george-client-jvm/overview) page for links and instructions.)
-
-
-## Java
-
-To run this code you will need to have Java 8v40 or newer installed on your system.  
-(As of this writing I am on 8v74.)
-
-If you wish to build it, you will need to have a JDK installed and your paths set up.
-
-- [Download and install a *JDK*](http://www.oracle.com/technetwork/java/javase/downloads/)
-- [Set up your path(s)](http://docs.oracle.com/javase/tutorial/essential/environment/paths.html)
-
-## Leiningen
-
-This project is set up to use [Leiningen](http://leiningen.org) to build and run the code.
-
-To get Boot on your system, simply run the "thin wrapper" by doing: `./lein.sh` or `lein.bat`.  
-This will download and install the latest version of Boot for your system.
-
-To update Leiningen, do `./lein.sh upgrade` or `lein.bat upgrade`.
-
-For help with Leiningen itself, do: `./lein.sh -h` or `lein.bat -h`.
-
-If you would rather use the short version of the lein-command, `lein`, you will probably have to add Leiningen to your path.  
-If you understand what that means, then you will also be able to do that based on the instruction you find on the Leiningen home and download pages.
-
-
-## run/develop
-
-In the listing below I will simply write `<lein>` in place of either `./lein.sh` or `lein.bat`.
-
-The first time you run a <lein> command, Leiningen will take a minute or two to update some repositories.  
-The next time it will be a lot faster, though.
-
-
-### The following commands are relevant for this project
-
-`<lein> deps` To preload and/or update all dependencies.
-
-`<lein> george.example` To run a simple george.example-script.
-
-`<lein> examplej` To run a simple Java-class which in turn runs the same simple george.example-script.
-
-`<lein> repl` To start an interactive REPL.
-  
-  
-  
 
 ***
 
 ## License
 
-Copyright © 2016 Terje Dahl
+
+Copyright © 2016-2017 Terje Dahl
 
 Distributed under the [Eclipse Public License 1.0](https://opensource.org/licenses/eclipse-1.0.php).
+
+***
+
+
+
 

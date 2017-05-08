@@ -3,7 +3,7 @@
 
 (defproject no.andante.george/george-application  GEORGE_APPLICATION_VERSION
 
-  :description "George - The desktop application (JVM)"
+  :description "George - Application (JVM)"
   :url "https://bitbucket.org/andante-george/george-application"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -23,6 +23,7 @@
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
+                 ;; https://github.com/ccw-ide/ccw/tree/master/paredit.clj
                  [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
                  ;; https://github.com/clojure/tools.nrepl
                  [org.clojure/tools.nrepl "0.2.13"]
@@ -85,7 +86,7 @@
   :codox {
           :doc-paths ["docs"]
           :output-path "target/docs"
-          :namespaces [george.app.turtle.turtle]
+          :namespaces [george.application.turtle.turtle]
           :source-uri
           ;"https://github.com/weavejester/codox/blob/{version}/codox.example/{filepath}#L{basename}-{line}"
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
