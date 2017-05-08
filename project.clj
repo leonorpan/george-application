@@ -3,7 +3,7 @@
 
 (defproject no.andante.george/george-application  GEORGE_APPLICATION_VERSION
 
-  :description "George - The desktop application (JVM)"
+  :description "George - Application (JVM)"
   :url "https://bitbucket.org/andante-george/george-application"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -79,7 +79,7 @@
   :codox {
           :doc-paths ["docs"]
           :output-path "target/docs"
-          :namespaces [george.app.turtle.turtle]
+          :namespaces [george.application.turtle.turtle]
           :source-uri
           ;"https://github.com/weavejester/codox/blob/{version}/codox.example/{filepath}#L{basename}-{line}"
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
