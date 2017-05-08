@@ -14,7 +14,8 @@
            [javafx.scene.paint Color]
            [org.reactfx.value Val]
            [javafx.geometry Pos]
-           [javafx.beans.property SimpleObjectProperty]))
+           [javafx.beans.property SimpleObjectProperty]
+           (javafx.util Duration)))
 
 
 (defrecord
@@ -190,14 +191,15 @@
 
 (defn ^StyledTextArea ->codearea []
     (let [lines (SimpleObjectProperty. #{})]
-
         (doto
             (proxy [StyledTextArea IErrorLines] [DEFAULT_SPEC (style-biconsumer)]
                 (errorlines [] lines))
             (. setFont (fx/SourceCodePro "Medium" 16))
             (. setStyle "
             -fx-padding: 0;
-            -fx-background-color: WHITESMOKE;")
+            -fx-background-color: WHITESMOKE;
+            -fx-caret-blink-rate: 0.250;  /* Does this have any effect? */
+            -fx-highlight-fill: #b3d8fd;")
             (. setUseInitialStyleForInsertion true)
             (-> .getUndoManager .forgetHistory)
             (-> .getUndoManager .mark)

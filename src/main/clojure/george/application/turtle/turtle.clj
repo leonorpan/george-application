@@ -21,16 +21,22 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
   (:require [george.javafx :as fx]
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
-            [clojure.string :as str])
+            [clojure.string :as cs]
+            [george.javafx.java :as fxj])
   (:import (javafx.scene.paint Color)
            (javafx.scene.canvas Canvas)
            (javafx.scene Node Group)
            (javafx.scene.transform Rotate)
            (javafx.scene.shape Polygon)
-           (javafx.scene.image WritableImage ImageView)
+           (javafx.scene.image WritableImage ImageView Image)
            (java.awt.image BufferedImage)
            (javafx.embed.swing SwingFXUtils)
-           (javax.imageio ImageIO)))
+           (javax.imageio ImageIO)
+           (javafx.scene.input Clipboard ClipboardContent DataFormat)
+           (java.io File FilenameFilter ByteArrayOutputStream)
+           (java.net URI)
+           (java.nio ByteBuffer)
+           (javafx.scene.control ContextMenu MenuItem)))
 
 
 
@@ -132,7 +138,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- set-heading* [inst ang]
   (let [diff (- (heading* inst) ang)
-        duration (* (/ (Math/abs diff) (* 3 360.)) 1000)]
+        duration (* (/ (Math/abs ^double diff) (* 3 360.)) 1000)]
     (fx/synced-keyframe
            duration ;; 3 rotations pr second
            [(.rotateProperty inst) (- ang)])))
@@ -187,7 +193,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (fx/later (.toFront inst)))
 
     (fx/synced-keyframe
-            (* (/ (Math/abs dist) 600) 1000)  ;; 600 px per second
+            (* (/ (Math/abs ^double dist) 600) 1000)  ;; 600 px per second
         [(.translateXProperty inst) target-x]
         [(.translateYProperty inst) (- target-y)]
         (when line [(.endXProperty line) target-x])
@@ -254,24 +260,17 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn- create-turtle []
     (doto (turtle-impl "Tom") .sayHello))
 
-#_(defn- get-create-resize-screen
-    "Returns existing singleton screen and brings it to front.
-    If one doesn't already exist, then a new one is created.
-    If the size of the existing screen doesn't match, it will be resized.
-    "
-    [w h])
-
 
 ;; TODO: implement CRUD ref. spec
 (defonce  data (atom {}))
 
 ;(def ^:private screen-singleton (atom nil))
 ;(def ^:private turtle-singleton (atom nil))
-(def ^:private screen-and-turtle-singleton (atom nil))
+(defonce ^:private screen-and-turtle-singleton (atom nil))
 
 
-
-
+(declare copy-screenshot-to-clipboard)
+(declare save-screenshot-to-file)
 
 (defn- create-screen [w h]
     (fx/now
@@ -288,11 +287,28 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
               ;_ (fx/add root up-and-over)
 
+
+              cm
+              (ContextMenu.
+                (fxj/vargs
+                  (doto (MenuItem. "Copy screenshot to clipboard")
+                    (.setOnAction (fx/event-handler (copy-screenshot-to-clipboard))))
+                  (doto (MenuItem. "Save screenshot to file ...")
+                    (.setOnAction (fx/event-handler (save-screenshot-to-file))))))
+
+              cm-handler
+              (fx/event-handler-2 [_ e]
+                                  (.show cm root (.getScreenX e) (.getScreenY e)))
+
+
               stage (fx/stage
                         :title "Turtle Screen"
-                        :scene (fx/scene root :size [w h] :fill fx/WHITESMOKE)
+                        :scene (doto
+                                 (fx/scene root :size [w h] :fill fx/WHITESMOKE)
+                                 (.setOnContextMenuRequested cm-handler))
                         :resizable true
                         :location [30 120]
+                        :tofront true
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
 
           ;; not useful to bind now, as resizable is false
@@ -305,11 +321,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 
-(comment defn- get-or-create-screen [w h]
-    (if-let [scrn @screen-singleton]
-        (fx/now (doto scrn (.toFront)))
-        (reset! screen-singleton (create-screen w h))))
-
 
 ;(defn- create-turtle []
 ;    (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE))
@@ -318,29 +329,22 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (def DEFAULT_SCREEN_SIZE [600 450])
 
 
-(comment defn- get-or-create-turtle []
-    (if-let [turt @turtle-singleton]
-        turt
-        (let [t (reset! turtle-singleton (create-turtle))]
-            (fx/later
-                (fx/add
-                    (-> (apply get-or-create-screen DEFAULT_SCREEN_SIZE) .getUserData :root) t))
-            (Thread/sleep 1000))))
-
-
-
 (defn- get-or-create-screen-and-turtle
     ([]
      (apply get-or-create-screen-and-turtle DEFAULT_SCREEN_SIZE))
     ([w h]
      (if-let [s-n-t @screen-and-turtle-singleton]
-         (do
-             (fx/later (.toFront (:screen s-n-t)))
+         (let [screen (:screen s-n-t)]
+             (when (.isIconified screen)
+               (fx/later
+                 (doto screen
+                   (.setIconified false)
+                   (.toFront))))
              s-n-t)
          (let [scrn (create-screen w h)
                trtl (create-turtle)]
              (add-node scrn trtl)
-             (Thread/sleep 1000)
+             (Thread/sleep 500)
              (reset! screen-and-turtle-singleton {:screen scrn :turtle trtl})))))
 
 
@@ -648,42 +652,156 @@ Returns turtle instance"
   (hide))
 
 
+
+(def SCREENSHOT_BASE_FILENAME "TG_screenshot")
+
+
 (defn- parse-int [s]
-  (let [number (re-find #"\d+" s)]
-    (if (= number nil) 0 (Integer. number))))
+  (if-let [number (re-find #"\d+" s)]
+    (Integer/parseInt number)
+    0))
 
 
-(defn- get-filename [file]
-  (.getName file))
+;(defn- get-filename [file]
+;  (.getName file))
 
 
-(defn- get-file-num []
-  (let [img-dir (cio/file "../images/")
-
-        filenames (into []
-                    (map get-filename
-                         (file-seq img-dir)))
-
-        biggest-number (apply max
-                              (remove nil?
-                                      (map parse-int filenames)))]
-
-    (+ biggest-number 1)))
-
-
-
-(defn- image->file [image filename]
-       (cio/make-parents filename)
-       (ImageIO/write (SwingFXUtils/fromFXImage image nil) "png" (cio/file filename)))
+;(defn- get-file-num []
+;  (let [img-dir (cio/file "../images/")
+;
+;        filenames (into []
+;                        (map get-filename
+;                             (file-seq img-dir)))
+;
+;        biggest-number (apply max
+;                              (remove nil?
+;                                      (map parse-int filenames)))]
+;
+;    (+ biggest-number 1)))
 
 
-(defn- snapshot [scene]
-  (let [[w h] (fx/WH scene)
-        wi (.snapshot scene (WritableImage. w h))]
-    (image->file wi (str "../images/myimage(" (get-file-num) ").png"))))
+(defn- find-next-file-numbering [dir]
+  (->> (.listFiles
+         (cio/file dir)
+         (reify FilenameFilter
+           (accept [_ _ name]
+             (boolean (re-find (re-pattern SCREENSHOT_BASE_FILENAME) name)))))
+       (seq)
+       (map #(.getName %))
+       (map parse-int)
+       (remove nil?)
+       (#(if (empty? %) '(0) %))
+       (apply max)
+       (inc)))
 
 
-(defn- screen-snapshot [] (fx/now (snapshot (.getScene (screen)))))
+
+(defn- write-image-to-file
+       "Writes image to file (as '.png')"
+       [image file]
+       (cio/make-parents file)
+       (ImageIO/write
+         (SwingFXUtils/fromFXImage image nil)
+         "png"
+         file))
+
+
+(def CB (fx/now (Clipboard/getSystemClipboard)))
+
+
+(defn- print-clipboard-content
+  "For dev/test purposes."
+  []
+  (println "  ## CB content types:" (fx/now (.getContentTypes CB)))
+  ;(fx/now (.getString CB)))
+  (fx/now (.getImage CB)))
+
+
+(defn- write-image-to-tempfile [image]
+  (let [file (File/createTempFile (str SCREENSHOT_BASE_FILENAME "_") ".png")]
+    (when (write-image-to-file image file)
+      file)))
+
+
+(defn- image->png-bytebuffer [^WritableImage im]
+  (let [baos (ByteArrayOutputStream.)
+        _ (ImageIO/write (SwingFXUtils/fromFXImage im nil) "png" baos)
+        res (ByteBuffer/wrap (.toByteArray (doto baos .flush)))]
+    (.close baos)
+    res))
+
+
+(defn- put-image-on-clipboard [image text-repr]
+  (let [png-mime "image/png"
+        png
+        (if-let [df (DataFormat/lookupMimeType png-mime)]
+          df (DataFormat. (fxj/vargs png-mime)))
+        tempfile
+        (write-image-to-tempfile image)
+        cc
+        (doto (ClipboardContent.)
+              (.putImage image)
+              ;(.put png (image->png-bytebuffer image))  ;; doesn't work for some reason!
+              (.putFiles [tempfile])
+              (.putFilesByPath [(str tempfile)])
+              (.putString text-repr))]
+    (fx/now (.setContent CB cc))))
+
+
+(defn- ^WritableImage snapshot
+  ""
+  [scene]
+  (let [[w h] (fx/WH scene)]
+    (.snapshot scene (WritableImage. w h))))
+
+
+(defn- ^WritableImage screenshot []
+  (fx/now (-> (screen) .getScene snapshot)))
+
+
+"A fileshooser-object is instanciated once pr session. It remembers the previous location.
+One might in future choose to save the 'initial directory' so as to return user to same directory across sessions."
+(defonce screenshot-filechooser
+  (apply fx/filechooser fx/FILESCHOOSER_FILTERS_PNG))
+
+
+(defn- build-filename-suggestion [dir]
+    (format "%s%s.png"
+            SCREENSHOT_BASE_FILENAME
+            (find-next-file-numbering dir)))
+
+
+(defn- ^File choose-target-file
+  "If user selects a location and a file-name, then a file object is returned. Else nil.
+  (A file hasn't been created yet. Only name and location chosen. The file is created when it is written to.)"
+  []
+  (let [initial-dir
+        (if-let [dir (.getInitialDirectory screenshot-filechooser)]
+                dir
+                (cio/file (System/getProperty "user.home")))
+
+        suggested-filename
+        (build-filename-suggestion initial-dir)]
+
+    (when-let [file (-> (doto screenshot-filechooser
+                          (.setTitle "Save sreenshot as ...")
+                          (.setInitialFileName suggested-filename))
+                        (.showSaveDialog nil))]
+
+      ;; If a different directory has been chosen, we want the filechooser to remember it:
+      (.setInitialDirectory screenshot-filechooser (.getParentFile file))
+        ;; Handling of potential overwrite of file is buildt into filechooser.
+      file)))
+
+
+(defn- save-screenshot-to-file []
+  (when-let [file (choose-target-file)]
+    (write-image-to-file (screenshot) file)))
+
+
+(defn- copy-screenshot-to-clipboard []
+  (put-image-on-clipboard (screenshot) (format "<%s>" SCREENSHOT_BASE_FILENAME)))
+
 
 
 (def ordered-command-list
@@ -706,7 +824,5 @@ Returns turtle instance"
    #'rep
    #'sleep
    #'run-sample])
-
-
 
 

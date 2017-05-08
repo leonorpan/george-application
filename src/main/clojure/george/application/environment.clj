@@ -78,7 +78,7 @@
 
 
 (defn- turtle-commands-stage []
-  (singleton/put-or-create
+  (singleton/get-or-create
     ::commands-stage turtle-commands-stage-create))
 
 
@@ -145,7 +145,7 @@
 
 
 (defn toolbar-stage [ide-type]
-    (singleton/put-or-create
+    (singleton/get-or-create
       [::toolbar-stage ide-type] #(create-toolbar-stage ide-type)))
 
 

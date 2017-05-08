@@ -814,13 +814,16 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 
 
-
 (defn filechooserfilter [description & extensions]
     (FileChooser$ExtensionFilter. description (fxj/vargs* extensions)))
 
 
 (def FILESCHOOSER_FILTERS_CLJ [
                                (filechooserfilter "Clojure Files" "*.clj")
+                               (filechooserfilter "All Files"   "*.*")])
+
+(def FILESCHOOSER_FILTERS_PNG [
+                               (filechooserfilter "PNG files" "*.png")
                                (filechooserfilter "All Files"   "*.*")])
 
 
@@ -877,6 +880,7 @@ Example of codes-map:
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
               code (str (.getCode event))
+              ;_ (println "  ## code:" code)
               shift (when (.isShiftDown event) "SHIFT")
               shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
               alt (when (.isAltDown event) "ALT") ;;  "M-"
