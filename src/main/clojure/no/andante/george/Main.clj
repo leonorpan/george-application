@@ -8,27 +8,78 @@
   (:gen-class
     :main true
     :name no.andante.george.Main
-    :extends javafx.application.Application)
+    :extends javafx.application.Application
+    :implements [no.andante.george.IStageSharing])
 
-  (:require [george.application.launcher :as launcher]))
+  (:require [george.application.launcher :as launcher]
+            [george.javafx.java :as fxj])
+  (:import (javafx.application Preloader$ProgressNotification)))
 
 
+(def WITH_PRELOADER_ARG "--with-preloader")
+
+(def state_ (atom {}))
+
+(defn -handover [this stage]
+  ;(println "/-handover")
+  (swap! state_ assoc :handover-done? true)
+  (fxj/thread (launcher/start stage (:root @state_))))
+
+
+(defn -init [this]
+  ;(println "no.andante.george.Main/-init")
+  (fxj/thread
+    (dotimes [i 50]
+      (.notifyPreloader this (Preloader$ProgressNotification. (+ 0.0 (* 0.02 i))));
+      (Thread/sleep 50))
+    (.notifyPreloader this (Preloader$ProgressNotification. 1.0)));
+
+  (let [root (launcher/launcher-root-node)]
+    (swap! state_ assoc :root root)))
 
 
 (defn -start [this ^javafx.stage.Stage stage]
-  (println "Main.start() ...")
-  (println "params are:" (-> this .getParameters .getRaw seq))
+  ;(println "no.andante.george.Main/-start args:" (-> this .getParameters .getRaw seq))
+  ;(println "  ## @state_:" @state_)
 
-  (launcher/start stage))
+  (when-not (:handover-done? @state_)
+    (-handover this (launcher/starting-stage))))
 
 
-(defn -stop [this]
-  (println "stop called"))
+(defn -stop [this])
+  ;(println "no.andante.george.Main/-stop"))
+
+
+(defn- main [& args]
+  (println "::main args:" args)
+  (javafx.application.Application/launch  ;; DON'T IMPORT! IT WILL BREAK.
+    no.andante.george.Main
+    (into-array String args)))
+
+
+(defn- main-with-preloader [& args]
+  ;(println "::main-with-preloader args:" args)
+  (try
+    ;; Calling this class directly isn't safe, as it might change in future Java versions.
+    ;; But since George is distributed as a native install with Java RT included, we have control.
+    (com.sun.javafx.application.LauncherImpl/launchApplication ;; DON'T IMPORT! IT MAY BREAK.
+      no.andante.george.Main
+      no.andante.george.MainPreloader
+      (into-array String args))
+
+    (catch Exception e
+           (.printStackTrace e))))
+           ;(apply main args))))
 
 
 (defn -main
-  "Launch the JavaFX Application using class no.andante.george.Main"
+  "Launches gen-class 'no.andante.george.Main' as JavaFX Application.
+
+  If passed argument --with-preloader (in Clojure), then triggers JavaFX mechanism and first loads no.andante.george.MainPreloader. This is a way of testing the preloader.
+
+  When running JAR, preloader will be run irrespective based on Manifest,
+  and so '--with-preloader' has no effect either way."
   [& args]
-  (javafx.application.Application/launch
-    no.andante.george.Main
-    (into-array String args)))
+  (if (some #(= % WITH_PRELOADER_ARG) args)
+    (apply main-with-preloader args)
+    (apply main args)))
