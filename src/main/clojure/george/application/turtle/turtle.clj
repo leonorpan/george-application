@@ -206,13 +206,18 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (set-heading* inst new-angle)))
 
 
+(defn turtle-polygon []
+  (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE))
+
+
 (defn- turtle-impl [name]
     (let [state
           (atom {:pen-down true
                  :pen-color "black"})
 
           poly
-          (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE)
+          (turtle-polygon)
+
           turt
           (proxy [Group ITurtle] []
             (sayHello []
@@ -307,7 +312,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                                  (fx/scene root :size [w h] :fill fx/WHITESMOKE)
                                  (.setOnContextMenuRequested cm-handler))
                         :resizable true
-                        :location [30 120]
+                        :location [90 100]
                         :tofront true
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
 
@@ -319,11 +324,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
           (.setUserData stage {:root root})
           stage)))
 
-
-
-
-;(defn- create-turtle []
-;    (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE))
 
 
 (def DEFAULT_SCREEN_SIZE [600 450])

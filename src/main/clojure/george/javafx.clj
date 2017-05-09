@@ -210,6 +210,11 @@ and the body is called on 'changed'"
 (defn XY [item]
     [(.getX item) (.getY item)])
 
+
+(defn set-translate-XY [item [x y]]
+  (.setTranslateX item x) (.setTranslateY item y))
+
+
 (defn WH [item]
     (if (instance? Node item)
         (let [b (.getBoundsInParent item)]
@@ -558,8 +563,6 @@ It must return a string (which may be wrapped to fit the width of the list."
           location (:location kwargs)
           size (:size kwargs)
           arc (:arc kwargs)]
-
-
 
       (doto (Rectangle.
                 (first location)

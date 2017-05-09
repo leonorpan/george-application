@@ -10,7 +10,7 @@
     [clojure.repl :refer [doc]]
     [clojure.java.browse :refer [browse-url]]
     [george.javafx :as fx]
-    [george.application.applet-loader :as applets-loader]
+    [george.application.app-loader :as app-loader]
     [george.util.singleton :as singleton]
     [george.application.ui.stage :as ui-stage]
     [george.application.repl-server :as repl-server]
@@ -25,11 +25,7 @@
            (javafx.beans.property SimpleDoubleProperty)))
 
 
-
-(defn- about-stage-create []
-  (let [text
-        (fx/label
-          (format "
+(def about-tmpl "
 George version: %s
 Clojure version: %s
 Java version: %s
@@ -37,7 +33,13 @@ Java version: %s
 
 Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
-"
+")
+
+
+(defn- about-stage-create []
+  (let [text
+        (fx/label
+          (format about-tmpl
              (slurp (cio/resource "george-version.txt"))
              (clojure-version)
              (System/getProperty "java.version")))
@@ -58,7 +60,9 @@ Powered by open source software.
                     :padding 10
                     :background (fx/color-background Color/WHITE))))))
 
+
 (def ABOUT_STAGE_KW ::about-stage)
+
 
 (defn- about-stage []
   (if-let [st (singleton/get ABOUT_STAGE_KW)]
@@ -68,56 +72,58 @@ Powered by open source software.
       ABOUT_STAGE_KW about-stage-create)))
 
 
-(defn- applet-button [{:keys [name description main-fn]} button-width]
-  (fx/button name
-             :width button-width
-             :onaction main-fn
-             :tooltip description))
-
-
 (defn launcher-root-node []
-    (let [
-          b-width 150
+  (let [
+        tile-w 64
+        w (+ tile-w 20)
 
-          applet-info-list
-          (applets-loader/load-applets)
-          ;_ (println "  ## applet-info-seq:" applet-info-list)
+        george-icon
+        (doto (ImageView. (Image. "graphics/George_icon_128_round.png"))
+          (.setFitWidth tile-w)
+          (.setFitHeight tile-w))
 
-          applet-buttons
-          (map #(applet-button % b-width) applet-info-list)
+        about-label
+        (doto
+          (fx/label "About")
+          (.setStyle "-fx-font-size: 10px;")
+          (.setOnMouseClicked (fx/event-handler (about-stage))))
 
-          logo-image (Image. "graphics/George_logo.png")
-          logo (ImageView. logo-image)
+        app-infos
+        (app-loader/load-apps)
 
-          ;; Set align BOTTOM_RIGHT
-          about-button
-          (doto
-            (fx/label "About")
-            (.setOnMouseClicked (fx/event-handler (about-stage))))
+        app-tiles-and-paddings
+        (flatten
+          (map #(vector
+                  (app-loader/launcher-app-tile % tile-w)
+                  (app-loader/padding 30))
+               app-infos))
 
-          about-box
-          (fx/vbox (fx/region :vgrow :always)
-            about-button
-            :alignment Pos/BASELINE_LEFT)
+        root
+        (apply fx/vbox
+               (concat
+                 [
+                  (app-loader/padding 10)
+                  george-icon
+                  (app-loader/padding 10)
+                  (app-loader/hr w)
+                  (app-loader/padding 30)]
 
-          root
-          (doto
-            (apply fx/hbox
-                 (flatten [logo applet-buttons about-box
-                           :spacing 15
-                           :padding 10
-                           :alignment Pos/CENTER_LEFT
-                           :background (fx/color-background Color/WHITE)]))
-            (.setMaxWidth (+ 10
-                             (.getWidth logo-image)
-                             15
-                             b-width ;; button
-                             15
-                             50 ;; About
-                             10))
-            (.setMaxHeight 85))]
+                 app-tiles-and-paddings
 
-        root))
+                 [
+                  (app-loader/hr w)
+                  (app-loader/padding 5)
+                  about-label
+                  (app-loader/padding 5)
+                  :padding 5
+                  :alignment Pos/TOP_CENTER]))]
+
+    (doto root
+         (.setMaxWidth w)
+         (.setMaxHeight (+ 10 tile-w 10 1 30
+                          (* (+ tile-w 100) (count app-infos))
+                          1 5 12 5)))))
+
 
 
 (defn- launcher-close-handler [launcher-stage]
@@ -155,7 +161,7 @@ Powered by open source software.
               (.toFront)
               (.setTitle  "...")))
 
-  (ui-stage/swap-with-fades stage (fx/borderpane) true 500)
+  (ui-stage/swap-with-fades stage (fx/borderpane) true 300)
   (let [
         visual-bounds (.getVisualBounds (Screen/getPrimary))
         target-x (-> visual-bounds .getMinX (+ 0))
@@ -169,7 +175,7 @@ Powered by open source software.
         h-prop (double-property (.getHeight stage) #(.setHeight stage %))]
     ;; Transition stage.
     (fx/synced-keyframe
-      500
+      300
       [x-prop target-x]
       [y-prop target-y]
       [w-prop target-w]
@@ -187,7 +193,7 @@ Powered by open source software.
     (fx/later
          ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
         (doto stage
-          (.setTitle "Launcher")
+          (.setTitle "George")
           (.setResizable false)
           (fx/setoncloserequest (launcher-close-handler stage))))))
 
