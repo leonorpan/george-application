@@ -135,7 +135,7 @@
   (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
-        :location [390 0]
+        :location [90 0]
         :title (if is-turtle "Turtle Geometry" "IDE")
         :scene (fx/scene (toolbar-pane is-turtle))
         :sizetoscene true
