@@ -9,6 +9,7 @@
     [george.application.environment :as ide]
     [george.javafx :as fx]
     [george.application.turtle.turtle :as turtle]
+    [george.application.app :refer [->AppInfo]]
     [george.javafx.java :as fxj])
   (:import (javafx.animation Timeline)
            (javafx.scene.paint Color)
@@ -55,7 +56,6 @@
 
 
 
-
 (defn main []
   (println "george.application.app.turtle/main")
   (ide/-main :turtle))
@@ -63,7 +63,8 @@
 
 
 (defn app-info []
-  {:george.application.app/name "Turtle Geometry"
-   :george.application.app/description "Turtle Geometry \nIDE (Interactive Development Environment)"
-   :george.application.app/icon-fn 'icon
-   :george.application.app/main-fn 'main})
+  (->AppInfo
+    "Turtle Geometry"
+    "Turtle Geometry \nIDE (Interactive Development Environment)"
+    'icon
+    'main))
