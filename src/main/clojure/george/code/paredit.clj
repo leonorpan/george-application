@@ -10,6 +10,7 @@
     "}
     george.code.paredit
     (:require
+        [clojure.pprint :refer [pprint]]
         [paredit.core :as pe]
         [paredit.parser :as pep]
         [george.javafx :as fx]
@@ -25,21 +26,23 @@
     (let [txt (ca/text codearea)
           buffer (pep/edit-buffer nil 0 -1 txt)
           parse-tree (pep/buffer-parse-tree buffer :for-test)
-          ;parse-tree (pep/parse txt)
           sel (.getSelection codearea)
           sel-start (.getStart sel)
           sel-end (.getEnd sel)
           caret (.getCaretPosition codearea)
-          len (- sel-end sel-start)]
+          len (- sel-end sel-start)
 
+          parsetree-m {:parse-tree parse-tree :buffer buffer}
+          state-m {:offset (if (#{:paredit-backward-delete} cmd) sel-end sel-start)
+                   :length len
+                   :text txt}]
       (when *debug*
-        (printf "caret: %s  selection: %s-%s  len: %s\n" caret sel-start sel-end len))
+        (printf "cmd: %s  caret: %s  selection: %s-%s  len: %s\n" cmd caret sel-start sel-end len)
+        ;(pprint ["parsetree-m:" parsetree-m])
+        (pprint ["state-m:" state-m]))
       (pe/paredit cmd
-         {:parse-tree parse-tree :buffer buffer}
-         ;{:parse-tree parse-tree}
-         {:offset (if (#{:paredit-backward-delete} cmd) sel-end sel-start)
-          :length len
-          :text txt})))
+         parsetree-m
+         state-m)))
 
 
 
@@ -66,10 +69,12 @@
 
 
 (defn exec-paredit [cmd codearea]
+  (try
     (let [result (exec-command cmd codearea)]
         (when *debug* (println [cmd result]))
         (insert-result codearea result))
-    cmd)
+    (catch NullPointerException npe  ;; splice throws exception when no mor parens!
+      (when *debug* (.printStackTrace npe)))))
 
 
 (defn- consuming-commands [m]
