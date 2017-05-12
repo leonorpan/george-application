@@ -30,6 +30,8 @@
 
 
 (declare output)
+
+
 (defn- output-string-writer [typ] ;; type is one of :out :err
   (proxy [StringWriter] []
     (flush []
@@ -82,11 +84,24 @@
        (->OutputStyleSpec "ORANGE")))
 
 
+(def LINE_COUNT_LIMIT 500)
+(def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
+
+(defn- maybe-crop-output [outputarea]
+  (let [list (.getParagraphs outputarea)
+        cnt (count list)]
+    (when (> cnt LINE_COUNT_CROP_AT)
+      ;(.print standard-out (format "CROP NOW! %s  %s\n" cnt  (range (- cnt LINE_COUNT_LIMIT))))
+      (let [len (reduce +
+                        (map #(inc (count (.getParagraph outputarea %)))
+                             (range (- cnt LINE_COUNT_LIMIT))))]
+        (.replaceText outputarea 0  len "")))))
+
 
 (defn output [typ obj]  ;; type is one of :in :ns :res :out :err :system
-  ;; TODO: maybe crop old lines from beginning for speed?
   (if-let[oa (get-outputarea)]
     (fx/later
+      (maybe-crop-output oa)
       (let [start (.getLength oa)]
         (.insertText oa start (str obj))
         (.setStyle oa start (.getLength oa) (output-style typ)))))
@@ -123,7 +138,7 @@
       (apply-specs text style))))
 
 
-(defn- output-scene []
+(defn- output-root []
   (let [
         outputarea
         (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
@@ -151,26 +166,31 @@
           :alignment Pos/TOP_RIGHT
           :insets [0 0 5 0])
 
-        scene
-        (fx/scene (fx/borderpane
-                    :top button-box
-                    :center outputarea
-                    :insets 5))]
-    scene))
+        root
+         (fx/borderpane
+            :top button-box
+            :center outputarea
+            :insets 5)]
+    root))
 
 
-(defn- output-stage []
+
+(defn output-stage
+ ([]
+  (output-stage (output-root)))
+
+ ([root]
+
   (let [bounds (.getVisualBounds (fx/primary-screen))
-        size [1000 300]]
-
+        size [1000 330]]
     (fx/now
       (fx/stage
         :title "Output"
-        :location [(+ (.getMinX bounds) 20)
-                   (- (-> bounds .getMaxY (- (second size))) 20)]
+        :location [(+ (.getMinX bounds) 0)
+                   (- (-> bounds .getMaxY (- (second size))) 0)]
         :size size
         :sizetoscene false
-        :scene (output-scene)))))
+        :scene (fx/scene root))))))
 
 
 
