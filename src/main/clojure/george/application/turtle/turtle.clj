@@ -155,7 +155,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         ;duration (* (/ (Math/abs ^double diff) (* 3 360.)) 1000)
     (if speed
       (fx/synced-keyframe
-             (* (/ (Math/abs diff) ^double speed) 1000)
+             (* (/ (Math/abs diff)  (double speed)) 1000)
              [(.rotateProperty ^Group inst) (- ang)])
       (.setRotate ^Group inst (- ang)))))
 
@@ -211,7 +211,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (if speed
       (fx/synced-keyframe
            ;(* (/ (Math/abs ^double dist) 600) 1000)  ;; 600 px per second
-           (* (/ (Math/abs dist) ^double speed) 1000)
+           (* (/ (Math/abs (double dist)) (double speed)) 1000)
           [(.translateXProperty ^Group inst) target-x]
           [(.translateYProperty ^Group inst) target-y]
           (when line [(.endXProperty ^Line line) target-x])
