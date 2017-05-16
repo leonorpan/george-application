@@ -10,6 +10,7 @@
     "}
     george.code.paredit
     (:require
+        [clojure.pprint :refer [pprint]]
         [paredit.core :as pe]
         [paredit.parser :as pep]
         [george.javafx :as fx]
@@ -25,22 +26,23 @@
     (let [txt (ca/text codearea)
           buffer (pep/edit-buffer nil 0 -1 txt)
           parse-tree (pep/buffer-parse-tree buffer :for-test)
-          ;parse-tree (pep/parse txt)
           sel (.getSelection codearea)
           sel-start (.getStart sel)
           sel-end (.getEnd sel)
           caret (.getCaretPosition codearea)
-          len (- sel-end sel-start)]
+          len (- sel-end sel-start)
 
+          parsetree-m {:parse-tree parse-tree :buffer buffer}
+          state-m {:offset (if (#{:paredit-backward-delete} cmd) sel-end sel-start)
+                   :length len
+                   :text txt}]
       (when *debug*
-        (printf "caret: %s  selection: %s-%s  len: %s\n" caret sel-start sel-end len))
+        (printf "cmd: %s  caret: %s  selection: %s-%s  len: %s\n" cmd caret sel-start sel-end len)
+        ;(pprint ["parsetree-m:" parsetree-m])
+        (pprint ["state-m:" state-m]))
       (pe/paredit cmd
-         {:parse-tree parse-tree :buffer buffer}
-         ;{:parse-tree parse-tree}
-         {:offset (if (#{:paredit-backward-delete} cmd) sel-end sel-start)
-          :length len
-          :text txt})))
-
+         parsetree-m
+         state-m)))
 
 
 
@@ -66,72 +68,13 @@
         (.selectRange codearea offset (+ offset length))))))
 
 
-(comment def os-x-charmap
-  {"‚" ")" ;;close and round newline
-   "Æ" "\"" ;; meta double quote
-   "…" ";"  ;; paredit-commit-dwim
-   "∂" "d"  ;;paredit-forward-kill-word
-   "·" "(" ;; paredit-wrap-round
-   "ß" "s" ;;paredit splice
-   "®" "r" ;; raise expr
-   "Í" "S" ;; split
-   "Ô" "J"}) ;;join
-
-
 (defn exec-paredit [cmd codearea]
+  (try
     (let [result (exec-command cmd codearea)]
         (when *debug* (println [cmd result]))
         (insert-result codearea result))
-    cmd)
-
-
-(comment defn convert-input-method-event [event]
-  ["M" (os-x-charmap (str (.first (.getText event))))])
-
-
-(comment defn convert-key-event [event]
-  (let [
-        keyCode (.getKeyCode event)
-        keyChar (.getKeyChar event)
-        keyText (java.awt.event.KeyEvent/getKeyText keyCode)]
-
-    (if *debug* (println  [event keyCode keyChar keyText]))
-    [
-     (cond
-         (.isAltDown event) "M"
-         (.isControlDown event) "C"
-         true nil)
-
-     (if (.isControlDown event)
-         keyText
-         (if (#{"Left" "Right"} keyText)
-             keyText
-             (str keyChar)))]))
-
-
-
-(comment defn key-pressed-handler [w]
-  (reify java.awt.event.KeyListener
-
-      (keyReleased [this e] nil)
-
-      (keyTyped [this e]
-          (when (#{"(" ")" "[" "]" "{" "}" "\""} (str (.getKeyChar e)))
-              (.consume e)))
-
-      (keyPressed [this e]
-          (let [k (convert-key-event e)
-                p (exec-paredit k w)]
-              (when p (.consume e))))))
-
-
-
-(comment defn input-method-event-handler [w]
-  (reify java.awt.event.InputMethodListener
-    (inputMethodTextChanged [this e]
-      (let [k (convert-input-method-event e)
-            p (exec-paredit k w)]
-        (if p (.consume e))))))
+    (catch NullPointerException npe  ;; splice throws exception when no mor parens!
+      (when *debug* (.printStackTrace npe)))))
 
 
 (defn- consuming-commands [m]
@@ -170,28 +113,35 @@
 
 
 (def codes-map
-    (conj
-        (consuming-commands
-            {
-             #{:TAB}                    :paredit-indent-line
-             #{:ENTER}                  :paredit-newline
-             ;#{:ALT :RIGHT_PARENTHESIS} :paredit-close-round-and-newline
-             ;#{:ALT :LEFT_PARENTHESIS}  :paredit-wrap-round
-             #{:ALT :UP}                 :paredit-splice-sexp
-             ;#{:ALT :DOWN}                 :paredit-raise-sexp
-             #{:ALT :SHORTCUT :RIGHT}   :paredit-forward-slurp-sexp
-             #{:ALT :SHORTCUT :LEFT}    :paredit-backward-slurp-sexp
-             #{:ALT :SHORTCUT :SHIFT :RIGHT}    :paredit-forward-barf-sexp
-             #{:ALT :SHORTCUT :SHIFT :LEFT}     :paredit-backward-barf-sexp
-             ;#{:ALT :SHIFT :S}          :paredit-split-sexp
-             ;#{:ALT :SHIFT :J}          :paredit-join-sexps
-             ;#{:ALT :RIGHT}             :paredit-expand-right
-             ;#{:ALT :LEFT}              :paredit-expand-left
-             #{:BACK_SPACE}             :paredit-backward-delete
-             #{:DELETE}                 :paredit-forward-delete})
+  (conj
+    (consuming-commands
+      {
+       #{:TAB}             :paredit-indent-line
+       #{:ENTER}           :paredit-newline
+       #{:BACK_SPACE}      :paredit-backward-delete
+       #{:DELETE}          :paredit-forward-delete
 
-        (nonconsuming-commands
-          {})))
+       #{:ALT :UP}         :paredit-splice-sexp
+       #{:ALT :DOWN}       :paredit-wrap-round
+
+       #{:ALT :ENTER}           :paredit-split-sexp
+       #{:ALT :SHIFT :ENTER}    :paredit-join-sexps
+
+       #{:ALT :RIGHT}         :paredit-forward-slurp-sexp
+       #{:ALT :SHIFT :RIGHT}  :paredit-forward-barf-sexp
+
+       #{:ALT :LEFT}          :paredit-backward-slurp-sexp
+       #{:ALT :SHIFT :LEFT}   :paredit-backward-barf-sexp})
+
+
+    ;#{:ALT :RIGHT_PARENTHESIS} :paredit-close-round-and-newline
+    ;#{:ALT :DOWN}                 :paredit-raise-sexp
+
+    ;#{:ALT :RIGHT}             :paredit-expand-right
+    ;#{:ALT :LEFT}              :paredit-expand-left
+
+    (nonconsuming-commands
+      {})))
 
              ; #{:SHORTCUT :SHIFT :K} :paredit-kill not implemented in paredit.clj
 
@@ -200,4 +150,3 @@
     (doto a
       (.setOnKeyPressed (fx/key-pressed-handler codes-map))
       (.setOnKeyTyped (fx/char-typed-handler chars-map))))
-
