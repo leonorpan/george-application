@@ -206,6 +206,12 @@ and the body is called on 'changed'"
                          (println 2)))
 
 
+(defn children [^Parent parent]
+  (.getChildren parent))
+
+(defn children-set-all [^Parent parent children]
+  (.setAll (.getChildren parent) children))
+
 
 (defn XY [item]
     [(.getX item) (.getY item)])

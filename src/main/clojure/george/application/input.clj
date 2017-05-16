@@ -100,7 +100,7 @@
 
         run-button
         (fx/button
-          "Eval"
+          "Run"
           :width 130
           :tooltip (format
                      "Run code, then clear if checkbox ckecked.          %s-ENTER
@@ -167,8 +167,17 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
                                  #{:SHORTCUT :DOWN} #(do-history-fn hist/NEXT false)
                                  #{:SHIFT :SHORTCUT :DOWN} #(do-history-fn hist/NEXT true)
 
-                                 #{:SHORTCUT :ENTER} #(do-run-fn false)
-                                 #{:SHIFT :SHORTCUT :ENTER} #(do-run-fn true)})]
+                                 #{:SHORTCUT :ENTER}
+                                 #(when-not (.isDisabled run-button)
+                                   (do-run-fn false))
+
+                                 #{:SHIFT :SHORTCUT :ENTER}
+                                 #(when-not (.isDisabled run-button)
+                                    (do-run-fn true))
+
+                                 #{:SHORTCUT :ESCAPE}
+                                 #(when-not (.isDisabled interrupt-button)
+                                    (.fire interrupt-button))})]
 
     (.setOnAction run-button (fx/event-handler (do-run-fn false)))
 
