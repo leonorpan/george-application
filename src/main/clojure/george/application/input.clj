@@ -66,7 +66,7 @@
 
 
 
-(defn- input-scene [ns source-file]
+(defn input-root [ns source-file]
   (let [
         repl-uuid (gu/uuid)
 
@@ -154,10 +154,10 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
           :bottom button-box
           :insets 10)
 
-        scene
-        (doto
-          (fx/scene border-pane :size [500 200])
-          (fx/add-stylesheets "styles/codearea.css"))
+        ;scene
+        ;(doto
+        ;  (fx/scene border-pane :size [500 200])
+        ;  (fx/add-stylesheets "styles/codearea.css"))
 
         key-pressed-handler
         (fx/key-pressed-handler {
@@ -177,8 +177,15 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
     ;; TODO: colorcode also when history is the same
     ;; TODO: nicer tooltips.  (monospace and better colors)
 
-    scene))
+    border-pane))
 
+
+
+
+(defn- input-scene [root]
+  (doto
+    (fx/scene root :size [500 200])
+    (fx/add-stylesheets "styles/codearea.css")))
 
 
 ;; For Input stage layout
@@ -192,12 +199,13 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
   ;; TODO: consolidate/fix integrations/dependencies
   ;; TODO: add interupt-posibility (button) to/for run-thread
 
+  (println "   ## new version!")
   (fxj/thread (repl/session-ensured! true))
   (let [
         repl-nr
         (hist/next-repl-nr)
 
-        scene (input-scene ns (str \" "Input " repl-nr \"))
+        scene (input-scene (input-root ns (str \" "Input " repl-nr \")))
 
         screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
 

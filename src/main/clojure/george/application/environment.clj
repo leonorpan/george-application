@@ -14,6 +14,7 @@
     [george.application
      [input :as input]
      [output :as output]
+     [output-input :as oi]
      [eval :as eval]]
     [george.util.singleton :as singleton]
     [george.application.code :as code]
@@ -109,12 +110,12 @@
                             :width button-width
                             :onaction
                             #(input/new-input-stage user-ns-str)
-                            :tooltip "Open a new input window / REPL")
+                            :tooltip "Open a new input window")
 
                  (fx/button "Output"
                             :width button-width
-                            :onaction output/show-or-create-output-stage
-                            :tooltip "Open/show output-window")
+                            :onaction oi/show-or-create-stage
+                            :tooltip "Open/show output-window (with input)")
 
                  (fx/button "Code"
                             :width button-width
@@ -145,9 +146,10 @@
 
 
 (defn toolbar-stage [ide-type]
-    (singleton/get-or-create
-      [::toolbar-stage ide-type] #(create-toolbar-stage ide-type)))
-
+  (doto
+    (singleton/get-or-create [::toolbar-stage ide-type]
+                             #(create-toolbar-stage ide-type))
+    (.toFront)))
 
 ;;;; main ;;;;
 

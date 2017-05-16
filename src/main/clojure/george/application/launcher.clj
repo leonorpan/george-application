@@ -35,6 +35,8 @@ Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
 ")
 
+(def ABOUT_STAGE_KW ::about-stage)
+
 
 (defn- about-stage-create []
   (let [text
@@ -51,7 +53,7 @@ Powered by open source software.
          :style :utility
          :sizetoscene true
          :title "About George"
-         :onhidden #(singleton/remove ::about-stage)
+         :onhidden #(singleton/remove ABOUT_STAGE_KW)
          :scene (fx/scene
                   (fx/vbox
                     (ImageView. (Image. "graphics/George_logo.png"))
@@ -61,15 +63,10 @@ Powered by open source software.
                     :background (fx/color-background Color/WHITE))))))
 
 
-(def ABOUT_STAGE_KW ::about-stage)
-
-
 (defn- about-stage []
   (if-let [st (singleton/get ABOUT_STAGE_KW)]
-    (do (.hide st)
-        (singleton/remove ABOUT_STAGE_KW))
-    (singleton/get-or-create
-      ABOUT_STAGE_KW about-stage-create)))
+    (.hide st)
+    (singleton/get-or-create ABOUT_STAGE_KW about-stage-create)))
 
 
 (defn launcher-root-node []
@@ -232,3 +229,6 @@ Powered by open source software.
 ;;; DEV ;;;
 
 ;(do (println "WARNING: Running george.application.launcher/-main") (-main))
+
+;; TODO: sort out laucher-code/app-loader
+;; TODO: sort out sizes for app-tiles et al
