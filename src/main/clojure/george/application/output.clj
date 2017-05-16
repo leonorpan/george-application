@@ -4,7 +4,8 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.application.output
-  (:require [george.javafx :as fx])
+  (:require [george.javafx :as fx]
+            [george.util.singleton :as singleton])
   (:import (java.io StringWriter PrintStream OutputStreamWriter)
            (org.apache.commons.io.output WriterOutputStream)
            (java.util Collections)
@@ -20,13 +21,10 @@
 
 (defonce standard-out System/out)
 (defonce standard-err System/err)
-;(declare output)
 
-
-
-(defn- get-outputarea []
-  (when-let [stage @output-singleton]
-    (->  stage .getScene .getRoot .getChildrenUnmodifiable first)))
+(def LINE_COUNT_LIMIT 500)
+(def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
+(def OTA_KW ::output-textarea)
 
 
 (declare output)
@@ -65,8 +63,9 @@
   (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
   (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
 
+
 (defn output-showing? []
-  (boolean @output-singleton))
+  (boolean (singleton/get OTA_KW)))
 
 
 (defrecord OutputStyleSpec [color])
@@ -84,12 +83,9 @@
        (->OutputStyleSpec "ORANGE")))
 
 
-(def LINE_COUNT_LIMIT 500)
-(def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
 
 (defn- maybe-crop-output [outputarea]
-  (let [list (.getParagraphs outputarea)
-        cnt (count list)]
+  (let [cnt (count (.getParagraphs outputarea))]
     (when (> cnt LINE_COUNT_CROP_AT)
       ;(.print standard-out (format "CROP NOW! %s  %s\n" cnt  (range (- cnt LINE_COUNT_LIMIT))))
       (let [len (reduce +
@@ -98,8 +94,9 @@
         (.replaceText outputarea 0  len "")))))
 
 
+
 (defn output [typ obj]  ;; type is one of :in :ns :res :out :err :system
-  (if-let[oa (get-outputarea)]
+  (if-let[oa (singleton/get OTA_KW)]
     (fx/later
       (maybe-crop-output oa)
       (let [start (.getLength oa)]
@@ -138,7 +135,21 @@
       (apply-specs text style))))
 
 
-(defn- output-root []
+
+(defn- setup-output [ta]
+  (singleton/put OTA_KW ta)
+  (wrap-outs))
+
+
+(defn teardown-output
+  "Should be called when disposing of output-root - for maximal performacne/efficiency."
+  []
+  (unwrap-outs)
+  (singleton/remove OTA_KW))
+
+
+
+(defn output-root []
   (let [
         outputarea
         (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
@@ -159,7 +170,6 @@
 
         button-box
         (fx/hbox
-
           (fx/region :hgrow :always)
           clear-button
           :spacing 3
@@ -171,39 +181,40 @@
             :top button-box
             :center outputarea
             :insets 5)]
+
+    (setup-output outputarea)
+
     root))
 
 
 
-(defn output-stage
+(def OS_KW ::output-stage)
+
+
+(defn create-stage
  ([]
-  (output-stage (output-root)))
+  (create-stage (output-root)))
 
  ([root]
-
   (let [bounds (.getVisualBounds (fx/primary-screen))
         size [1000 330]]
     (fx/now
       (fx/stage
         :title "Output"
-        :location [(+ (.getMinX bounds) 0)
-                   (- (-> bounds .getMaxY (- (second size))) 0)]
+        :location [(.getMinX bounds)
+                   (- (.getMaxY bounds)  (second size))]
         :size size
         :sizetoscene false
-        :scene (fx/scene root))))))
+        :scene (fx/scene root)
+        :onhidden #(do (teardown-output)
+                       (singleton/remove OS_KW)))))))
 
 
+(defn show-or-create-stage []
+  (println "output/show-or-create-stage")
+  (doto
+    (singleton/get-or-create OS_KW create-stage)
+    (.toFront)))
 
 
-(defn show-or-create-output-stage []
-  (if @output-singleton
-    (fx/later (.toFront @output-singleton))
-    (do (wrap-outs)
-        (reset! output-singleton
-                (fx/setoncloserequest
-                  (output-stage)
-                  #(do
-                     (println "reset!-ing @output-singleton to nil")
-                     (reset! output-singleton nil)
-                     (unwrap-outs)))))))
-
+;; TODO:  make into split-screen!
