@@ -115,7 +115,8 @@
                 (.isSelected clear-checkbox)
                 do-clear
                 (if inverse-clear (not clear-checked) clear-checked)]
-            (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file)))
+            (fxj/thread
+              (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file))))
 
         prev-button
         (doto
