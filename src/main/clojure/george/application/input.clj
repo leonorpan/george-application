@@ -14,8 +14,10 @@
     [george.util :as gu]
     [george.application.output :as output]
     [george.util :as u]
-    [george.application.eval :as eval])
-  (:import (javafx.scene.input KeyEvent)))
+    [george.application.eval :as eval]
+    [george.code.paredit :as paredit])
+  (:import (javafx.scene.input KeyEvent)
+           (javafx.scene.control ComboBox)))
 
 
 
@@ -134,10 +136,27 @@ Previous 'global' history.   SHIFT-%s-LEFT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
                        "Next 'local' history.          %s-RIGHT
 Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
 
+
+        structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
+        paredit-kphandler (paredit/key-pressed-handler)
+        paredit-kthandler (paredit/key-typed-handler)
+        _ (doto code-area
+           (.setOnKeyPressed
+             (fx/event-handler-2 [_ event]
+                                 (when (-> structural-combo .getSelectionModel (.isSelected 0))
+                                       (.handle paredit-kphandler event))))
+           (.setOnKeyTyped
+             (fx/event-handler-2 [_ event]
+                                 (when (-> structural-combo .getSelectionModel (.isSelected 0))
+                                       (.handle paredit-kthandler event)))))
+        _ (-> structural-combo .getSelectionModel (.select 0))
+
         button-box
         (fx/hbox
           prev-button
           next-button
+          (fx/region :hgrow :always)
+          structural-combo
           (fx/region :hgrow :always)
           clear-checkbox
           (fx/region :hgrow :always)
@@ -156,7 +175,7 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
 
         scene
         (doto
-          (fx/scene border-pane :size [500 200])
+          (fx/scene border-pane :size [600 300])
           (fx/add-stylesheets "styles/codearea.css"))
 
         key-pressed-handler

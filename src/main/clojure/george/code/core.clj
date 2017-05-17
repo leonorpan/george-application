@@ -37,7 +37,7 @@
     (doto
         (ca/->codearea)
         (ca/set-linenumbers)
-        (paredit/set-handlers)
+        ;(paredit/set-handlers)
         (highlight/set-handlers)
         (.addEventHandler KeyEvent/KEY_TYPED (font-size-handler))))
 

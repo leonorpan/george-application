@@ -145,6 +145,11 @@
 
              ; #{:SHORTCUT :SHIFT :K} :paredit-kill not implemented in paredit.clj
 
+(defn key-pressed-handler []
+  (fx/key-pressed-handler codes-map))
+
+(defn key-typed-handler []
+  (fx/char-typed-handler chars-map))
 
 (defn set-handlers [a]
     (doto a
