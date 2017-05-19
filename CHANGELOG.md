@@ -5,16 +5,22 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+
+## [0.8.0] - 2017-05-17
+
 ### Changed
 - Adjusted coloring of code.
 
 ### Fixed
 - Turtle screen does not persistently take focus during code execution.
 - Paredit now works better - parens stay matched(!), and "slurp", "barf", "raise" work.  Also, better handling of marking and cursor location.
+- Starting a Run/Eval via keyboard shortcut for is now also disabled during an ongoing run.
 
 ### Added
 - Ability to copy or save Turtle screen snapshot from contextual menu.
 - Resizing code (text) via CTRL/CMD-+/- - from 6 to 72 px.
+- 'set-speed' in Turtle API - 10 is default 15 is as fast as it will animate, 'nil' skips all animation. 
+- A drop-down menu (in Input) disables/enables Paredit.
 
 
 ## [0.8.0] - 2017-05-03
