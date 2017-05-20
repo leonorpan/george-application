@@ -10,64 +10,65 @@
         [george.javafx.java :as fxj]
         [george.javafx.util :as fxu])
 
-    (:import
-        [javafx.animation
-         Timeline KeyFrame KeyValue]
+  (:import
+    [javafx.animation
+     Timeline KeyFrame KeyValue]
 
-        [javafx.application
-         Application Platform]
+    [javafx.application
+     Application Platform]
 
-        [javafx.beans.value
-         ChangeListener WritableValue]
+    [javafx.beans.value
+     ChangeListener WritableValue]
 
-        [javafx.collections
-         FXCollections]
+    [javafx.collections
+     FXCollections]
 
-        [javafx.embed.swing JFXPanel]
+    [javafx.embed.swing JFXPanel]
 
-        [javafx.event
-         EventHandler]
+    [javafx.event
+     EventHandler]
 
-        [javafx.geometry
-         Insets Pos VPos]
+    [javafx.geometry
+     Insets Pos VPos]
 
-        [javafx.scene
-         Group Node Parent Scene]
+    [javafx.scene
+     Group Node Parent Scene]
 
-        [javafx.scene.control
-         Alert Alert$AlertType
-         Button ButtonType ButtonBar$ButtonData
-         Label
-         ListView RadioButton
-         TextField TextArea
-         Tooltip
-         ScrollPane CheckBox]
+    [javafx.scene.control
+     Alert Alert$AlertType
+     Button ButtonType ButtonBar$ButtonData
+     Label
+     ListView RadioButton
+     TextField TextArea
+     Tooltip
+     ScrollPane CheckBox]
 
-        [javafx.scene.image
-         Image ImageView]
+    [javafx.scene.image
+     Image ImageView]
 
-        [javafx.scene.input
-         MouseEvent]
+    [javafx.scene.input
+     MouseEvent]
 
-        [javafx.scene.layout
-         BorderPane HBox Priority Region StackPane VBox
-         Border
-         BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
+    [javafx.scene.layout
+     BorderPane HBox Priority Region StackPane VBox
+     Border
+     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
 
-        [javafx.scene.paint
-         Color]
+    [javafx.scene.paint
+     Color]
 
-        [javafx.scene.text
-         Font Text]
+    [javafx.scene.text
+     Font Text]
 
-        [javafx.scene.shape
-         Line Rectangle Polygon]
+    [javafx.scene.shape
+     Line Rectangle Polygon]
 
-        [javafx.stage
-         FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
+    [javafx.stage
+     FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
 
-        [javafx.util
-         Duration]))
+    [javafx.util
+     Duration]
+    (javafx.beans.property SimpleDoubleProperty)))
 
 
 
@@ -110,7 +111,9 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
 
 
 
+(def Pos_TOP_LEFT Pos/TOP_LEFT)
 (def Pos_TOP_RIGHT Pos/TOP_RIGHT)
+(def Pos_TOP_CENTER Pos/TOP_CENTER)
 (def Pos_CENTER Pos/CENTER)
 (def VPos_TOP VPos/TOP)
 (def VPos_CENTER VPos/CENTER)
