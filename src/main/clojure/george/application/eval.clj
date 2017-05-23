@@ -69,7 +69,7 @@
           (.add label 0 0)
           (.add textarea 0 1))]
 
-    (doto (Alert. Alert$AlertType/ERROR)
+    (doto (Alert. Alert$AlertType/INFORMATION)
       (.setTitle "An error has occoured")
       (.setHeaderText header)
       (.setContentText message)
