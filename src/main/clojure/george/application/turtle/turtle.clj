@@ -306,7 +306,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-turtle []
-    (doto ^ITurtle (turtle-impl "Tom") .sayHello))
+    (doto (turtle-impl "Tom") .sayHello))
 
 
 ;; TODO: implement CRUD ref. spec
@@ -535,7 +535,7 @@ Returns turtle instance"
 
   Ex.: (set-speed 10)"
   [number]
-  (.setSpeed ^ITurtle (turtle) number))
+  (.setSpeed (turtle) number))
 
 
 (defn pen-color
@@ -636,7 +636,8 @@ Returns turtle instance"
   []
   (clear)
   (home)
-  (set-pen-color "black"))
+  (set-pen-color "black")
+  (set-speed 10))
 
 
 
