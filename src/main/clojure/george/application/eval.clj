@@ -70,7 +70,7 @@
           (.add textarea 0 1))]
 
     (doto (Alert. Alert$AlertType/INFORMATION)
-      (.setTitle "An error has occoured")
+      (.setTitle "An error has occured")
       (.setHeaderText header)
       (.setContentText message)
       (-> .getDialogPane (.setExpandableContent ex-content))
