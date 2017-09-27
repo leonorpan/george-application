@@ -121,22 +121,27 @@
         prev-button
         (doto
           (fx/button
-            (str  \u25B2)  ;; up: \u25B2,  left: \u25C0
-            :onaction #(do-history-fn hist/PREV false)
+            (str  \u25C0)  ;; up: \u25B2,  left: \u25C0
             :tooltip (format
-                       "Previous 'local' history.          %s-LEFT
-Previous 'global' history.   SHIFT-%s-LEFT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
-
+                       "Previous 'local' history.     click
+Previous 'global' history.   %s-click" u/SHORTCUT_KEY))
+          (.setOnMouseClicked
+            (fx/event-handler-2 [_ e]
+              (do-history-fn hist/PREV (.isShortcutDown e))
+              (.consume e))))
 
         next-button
         (doto
           (fx/button
-            (str \u25BC)  ;; down: \u25BC,  right: \u25B6
-            :onaction #(do-history-fn hist/NEXT false)
+            (str \u25B6)  ;; down: \u25BC,  right: \u25B6
             :tooltip (format
-                       "Next 'local' history.          %s-RIGHT
-Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
+                       "Next 'local' history.    click
+Next 'global' history.   %s-click" u/SHORTCUT_KEY u/SHORTCUT_KEY))
 
+          (.setOnMouseClicked
+            (fx/event-handler-2 [_ e]
+               (do-history-fn hist/NEXT (.isShortcutDown e))
+               (.consume e))))
 
         structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
         paredit-kphandler (paredit/key-pressed-handler)
@@ -181,12 +186,6 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
 
         key-pressed-handler
         (fx/key-pressed-handler {
-                                 #{:SHORTCUT :UP} #(do-history-fn hist/PREV false)
-                                 #{:SHIFT :SHORTCUT :UP} #(do-history-fn hist/PREV true)
-
-                                 #{:SHORTCUT :DOWN} #(do-history-fn hist/NEXT false)
-                                 #{:SHIFT :SHORTCUT :DOWN} #(do-history-fn hist/NEXT true)
-
                                  #{:SHORTCUT :ENTER}
                                  #(when-not (.isDisabled run-button)
                                    (do-run-fn false))
@@ -244,4 +243,8 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
 
     stage))
 
+
+;;; DEV ;;;
+
+;(do (println "WARNING: Running george.application.input/new-input-stage") (new-input-stage))
 
