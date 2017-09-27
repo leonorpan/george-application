@@ -1,0 +1,35 @@
+/* control the labels of the line number factory function */
+.lineno {
+    -fx-font-size: 16 "Source Code Pro Medium";
+    -fx-text-fill: #aaa;
+    -fx-background-color: transparent;
+    -fx-padding: 0 30 0 15;
+}
+
+.styled-text-area .caret {
+    -fx-stroke: BLUE;
+    -fx-stroke-width: 3;
+}
+
+
+.linetriangle {
+    -fx-fill: null;
+    -fx-stroke: #aaa;
+    -fx-stroke-width: 3;
+    -fx-translate-y: 5;
+    -fx-translate-x: -15;
+}
+
+.line-error-mark {
+    -fx-fill: red;
+    -fx-stroke: darkred;
+    -fx-stroke-width: 1;
+    -fx-translate-x: -42;
+    -fx-translate-y: 7;
+}
+
+.line-error-background {
+    -fx-fill: rgba(255, 0, 0, 0.2);
+    -fx-translate-x: -27;
+    -fx-translate-y: 0;
+}
