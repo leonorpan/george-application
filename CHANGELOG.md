@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Changed
+- Removed keyboard shortcuts from "history" buttons, as they were often accidentally triggered while navigating in code-editor.
+
 
 ## [0.8.1] - 2017-05-17
 
@@ -29,7 +32,7 @@ All notable changes to this project will be documented in this file. This change
 - George now uses nREPL for all evaluation - instead of custom REPL.
 
 ### Added
-- True REPL/Eval interupt from Input-window.
+- True REPL/Eval interrupt from Input-window.
 - Error-dialog informing user of error if Output not open.
 - Stacktrace in Output and Error-dialog - uses clj-stacktrace.
 - Attempts to parse location of error - displayed in Output and Error-dialog.
