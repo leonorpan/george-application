@@ -330,7 +330,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               ;_ (.setRotate root 180)
 
               origo (fx/rectangle :location [-1 -1] :size [3 3] :fill fx/RED)
-              _ (fx/add root origo)
+              ; _ (fx/add root origo)
 
               ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
               ;_ (fx/add root up-and-over)

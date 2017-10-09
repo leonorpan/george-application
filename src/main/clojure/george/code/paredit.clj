@@ -45,13 +45,14 @@
          state-m)))
 
 
-
-(defn insert-result [^StyledTextArea codearea pe]
+(defn insert-result [^StyledTextArea codearea pe cmd]
   (let [caret-left? (= (.getCaretPosition codearea)
                        (-> codearea .getSelection .getStart))
-        {:keys [length offset]} pe]
+        {:keys [length offset]} pe
+        delete? (#{:paredit-backward-delete :paredit-forward-delete} cmd)]
 
     (when *debug* (println "caret-left?:" caret-left?))
+    (when *debug* (println "delete?:" delete?))
 
     ;; make changes
     (doseq [{:keys [length offset text] :as mod} (:modifs pe)]
@@ -61,7 +62,7 @@
         (.replaceText codearea offset (+ offset length) text)))
 
     ;; adjust caret and selection
-    (if (zero? length)
+    (if (or (zero? length) delete?)
       (.selectRange codearea offset offset)
       (if caret-left?
         (.selectRange codearea (+ offset length) offset)
@@ -72,9 +73,11 @@
   (try
     (let [result (exec-command cmd codearea)]
         (when *debug* (println [cmd result]))
-        (insert-result codearea result))
+        (insert-result codearea result cmd))
     (catch NullPointerException npe  ;; splice throws exception when no mor parens!
-      (when *debug* (.printStackTrace npe)))))
+      (when *debug* (.printStackTrace npe)))
+    (catch StringIndexOutOfBoundsException ooe  ;;
+      (when *debug* (.printStackTrace ooe)))))
 
 
 (defn- consuming-commands [m]
@@ -150,8 +153,3 @@
 
 (defn key-typed-handler []
   (fx/char-typed-handler chars-map))
-
-(defn set-handlers [a]
-    (doto a
-      (.setOnKeyPressed (fx/key-pressed-handler codes-map))
-      (.setOnKeyTyped (fx/char-typed-handler chars-map))))
