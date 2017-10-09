@@ -4,41 +4,37 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.application.output
-  (:require [george.javafx :as fx])
+  (:require [george.javafx :as fx]
+            [george.code.codearea :as ca]
+            [george.util.singleton :as singleton]
+            [george.code.highlight :as highlight])
   (:import (java.io StringWriter PrintStream OutputStreamWriter)
            (org.apache.commons.io.output WriterOutputStream)
-           (java.util Collections)
-           (org.fxmisc.richtext StyledTextArea)
-           (java.util.function BiConsumer)
-           (javafx.scene.text Text)
-           (javafx.geometry Pos)))
+           (javafx.geometry Pos)
+           (org.fxmisc.flowless VirtualizedScrollPane)))
 
 
-
-
-(defonce ^:private output-singleton (atom nil))
 
 (defonce standard-out System/out)
 (defonce standard-err System/err)
-;(declare output)
+
+(declare print-output)
 
 
+(defn- output-area []
+  (when-let [stage (singleton/get ::output-stage)]
+    (->  stage .getScene .getUserData :output-area)))
 
-(defn- get-outputarea []
-  (when-let [stage @output-singleton]
-    (->  stage .getScene .getRoot .getChildrenUnmodifiable first)))
 
-
-(declare output)
 (defn- output-string-writer [typ] ;; type is one of :out :err
   (proxy [StringWriter] []
     (flush []
       ;; first print the content of StringWriter to output-stage
       (let [s (str this)]
         (if (= typ :err)
-          (.print standard-err  s)
+          (.print standard-err s)
           (.print standard-out s))
-        (output typ s))
+        (print-output typ s))
       ;; then flush the buffer of the StringWriter
       (let [sb (.getBuffer this)]
         (.delete  sb 0 (.length sb))))))
@@ -57,89 +53,59 @@
 
 
 (defn unwrap-outs []
-  (println "unwrap-outs")
   (System/setOut standard-out)
   (System/setErr standard-err)
   (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
-  (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
-
-(defn output-showing? []
-  (boolean @output-singleton))
+  (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err)))
+  (println "unwrap-outs"))
 
 
-(defrecord OutputStyleSpec [color])
-
-(def ^:private DEFAULT_SPEC (->OutputStyleSpec "GRAY"))
-
-(defn ^:private output-style [typ]
-  (get {:out (->OutputStyleSpec "#404042")
-        :err (->OutputStyleSpec "#CC0000")
-        :in (->OutputStyleSpec "BLUE")
-        :ns (->OutputStyleSpec "BROWN")
-        :system (->OutputStyleSpec "#bbbbbb")
-        :res (->OutputStyleSpec "GREEN")}
-       typ
-       (->OutputStyleSpec "ORANGE")))
+(defn output-showing?
+  "Used by eval to determine whether or not to show error in dialog."
+  []
+  (boolean (singleton/get ::output-stage)))
 
 
+(defn- output-style [typ]
+  ({:out "out"
+    :err "err"
+    :in "in"
+    :ns "ns"
+    :system "system"
+    :res "res"} typ "unknown"))
 
-(defn output [typ obj]  ;; type is one of :in :ns :res :out :err :system
+
+(defn print-output [typ obj]  ;; type is one of :in :ns :res :out :err :system
   ;; TODO: maybe crop old lines from beginning for speed?
-  (if-let[oa (get-outputarea)]
+  (if-let [oa (output-area)]
     (fx/later
-      (let [start (.getLength oa)]
-        (.insertText oa start (str obj))
-        (.setStyle oa start (.getLength oa) (output-style typ)))))
+      (try
+        (let [s (str obj)
+              start (.getLength oa)
+              end (+ start (count s))]
+          (doto oa
+            (.insertText start s) ;; append
+            (.showParagraphAtBottom  (-> oa .getParagraphs count)) ;; scroll
+            (highlight/set-style-on-range [start end] (output-style typ)))) ;; style
+        (catch Exception e (unwrap-outs) (.printStackTrace e)))))
+
   ;; else:  make sure these always also appear in stout
   (when (#{:in :res :system} typ)
     (.print standard-out (str obj))))
 
 
-(defn- style [spec]
-  (let [{c :color} spec]
-    (str
-      "-fx-fill: " (if c c "#404042") "; "
-      "-fx-font-weight: normal; "
-      "-fx-underline: false; "
-      "-fx-background-fill: null; ")))
-
-
-(defn- apply-specs [^Text text specs]
-  (cond
-    (instance? OutputStyleSpec specs)
-    (.setStyle text (style specs))
-
-    (= Collections/EMPTY_LIST specs)
-    (.setStyle text (style DEFAULT_SPEC))
-
-    :default
-    (doseq [spec specs]
-      (.setStyle text (style spec)))))
-
-
-(defn- style-biconsumer []
-  (reify BiConsumer
-    (accept [_ text style]
-      (apply-specs text style))))
-
-
 (defn- output-scene []
   (let [
-        outputarea
-        (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
-          (.setFont (fx/SourceCodePro "Regular" 14))
-          (.setStyle "-fx-padding: 0; -fx-background-color: WHITESMOKE;")
-          (.setUseInitialStyleForInsertion true)
-          (-> .getUndoManager .forgetHistory)
-          (-> .getUndoManager .mark)
-          (.selectRange 0 0)
+        codearea
+        (doto (ca/new-codearea false)
+          (.setStyle "-fx-font-size:14;")
           (.setEditable false))
 
         clear-button
         (fx/button
           "Clear"
           :width 150
-          :onaction #(.replaceText outputarea "")
+          :onaction #(ca/set-text codearea "")
           :tooltip (format "Clear output"))
 
         button-box
@@ -154,36 +120,37 @@
         scene
         (fx/scene (fx/borderpane
                     :top button-box
-                    :center outputarea
+                    :center (VirtualizedScrollPane. codearea)
                     :insets 5))]
-    scene))
+
+    (doto scene
+      (.setUserData {:output-area codearea}))))
 
 
-(defn- output-stage []
+
+(defn- create-output-stage []
+  (wrap-outs)
   (let [bounds (.getVisualBounds (fx/primary-screen))
         size [1000 300]]
-
     (fx/now
       (fx/stage
         :title "Output"
+        :tofront true
         :location [(+ (.getMinX bounds) 20)
                    (- (-> bounds .getMaxY (- (second size))) 20)]
         :size size
         :sizetoscene false
-        :scene (output-scene)))))
+        :scene (output-scene)
+        :onhidden
+        (fn []
+          (unwrap-outs)
+          (singleton/remove ::output-stage))))))
 
 
 
 
 (defn show-or-create-output-stage []
-  (if @output-singleton
-    (fx/later (.toFront @output-singleton))
-    (do (wrap-outs)
-        (reset! output-singleton
-                (fx/setoncloserequest
-                  (output-stage)
-                  #(do
-                     (println "reset!-ing @output-singleton to nil")
-                     (reset! output-singleton nil)
-                     (unwrap-outs)))))))
+  (if-let [stage (singleton/get ::output-stage)]
+    (.toFront stage)
+    (singleton/put ::output-stage (create-output-stage))))
 

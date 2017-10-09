@@ -16,8 +16,6 @@
                  ;; https://github.com/mmcgrana/clj-stacktrace
                  [clj-stacktrace "0.2.8"]
                  [leiningen "2.7.1" :exclusions [org.clojure/clojure clj-stacktrace]]
-                 [org.fxmisc.wellbehaved/wellbehavedfx "0.1.1"]
-                 [org.fxmisc.richtext/richtextfx "0.6.10" :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
                  ;; https://github.com/clojure/tools.namespace
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
@@ -28,14 +26,16 @@
                  ;; https://github.com/clojure/tools.nrepl
                  [org.clojure/tools.nrepl "0.2.13"]
                  ;; https://github.com/clojure-emacs/cider-nrepl
-                 [cider/cider-nrepl "0.14.0"]]
+                 [cider/cider-nrepl "0.14.0"]
+                 ;; https://github.com/FXMisc/RichTextFX
+                 [org.fxmisc.richtext/richtextfx "0.7-M5"]]
+
   :plugins [
             ;; https://github.com/weavejester/codox
             [lein-codox "0.10.3"]]
 
   :repositories [
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
-
 
   :deploy-repositories [
                         ["snapshots" :clojars]
@@ -84,7 +84,6 @@
           ;"https://github.com/weavejester/codox/blob/{version}/codox.example/{filepath}#L{basename}-{line}"
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
           :html {:namespace-list :flat}}
-
 
   :profiles {
              :uberjar {

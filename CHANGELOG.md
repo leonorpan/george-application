@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 - Removed keyboard shortcuts from "history" buttons, as they were often accidentally triggered while navigating in code-editor.
 
+### Fixed
+- Using undo/redo is now more stable and safe. It should no longer cause rendering artifacts or multiple (or no) cursors.
+
 
 ## [0.8.1] - 2017-05-17
 
@@ -22,7 +25,7 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 - Ability to copy or save Turtle screen snapshot from contextual menu.
 - Resizing code (text) via CTRL/CMD-+/- - from 6 to 72 px.
-- 'set-speed' in Turtle API - 10 is default 15 is as fast as it will animate, 'nil' skips all animation. 
+- 'set-speed' in Turtle API - 10 is default 15 is as fast as it will animate, 'nil' skips all animation.
 - A drop-down menu (in Input) disables/enables Paredit.
 
 

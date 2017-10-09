@@ -10,21 +10,19 @@
     [george.core.history :as hist]
     [george.application.repl :as repl]
     [george.javafx.java :as fxj]
-    [george.code.core :as gcode]
     [george.util :as gu]
     [george.application.output :as output]
     [george.util :as u]
     [george.application.eval :as eval]
-    [george.code.paredit :as paredit])
+    [george.code.paredit :as paredit]
+    [george.code.codearea :as ca])
   (:import (javafx.scene.input KeyEvent)
-           (javafx.scene.control ComboBox)))
-
-
-
+           (javafx.scene.control ComboBox)
+           (org.fxmisc.flowless VirtualizedScrollPane)))
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
-  (let [input (gcode/text code-area)
+  (let [input (ca/text code-area)
         update-ns-fn #(fx/later (.setText ns-textfield %))
         eval-id (gu/uuid)]
     (if (cs/blank? input)
@@ -40,7 +38,7 @@
             (fx/event-handler
               ;(println "Interrupting:" eval-id)
               (repl/eval-interrupt eval-id)
-              (output/output :system "Interrupted!\n"))))
+              (output/print-output :system "Interrupted!\n"))))
 
         (fxj/daemon-thread
           (try
@@ -77,12 +75,12 @@
         ns-label
         (doto
           (fx/label (or ns "user"))
-          ( .setStyle "
-                    -fx-font: 12 'Source Code Pro Regular';
+          (.setStyle "
+                    -fx-font: 12 'Source Code Pro Medium';
                     -fx-text-fill: gray;"))
 
         code-area
-        (doto (gcode/->codearea))
+        (ca/new-codearea-with-handlers)
 
         do-history-fn
         (fn [direction global?]
@@ -147,11 +145,12 @@ Next 'global' history.   %s-click" u/SHORTCUT_KEY u/SHORTCUT_KEY))
         paredit-kphandler (paredit/key-pressed-handler)
         paredit-kthandler (paredit/key-typed-handler)
         _ (doto code-area
-           (.setOnKeyPressed
-             (fx/event-handler-2 [_ event]
+           (.addEventFilter KeyEvent/KEY_PRESSED
+                            (fx/event-handler-2 [_ event]
                                  (when (-> structural-combo .getSelectionModel (.isSelected 0))
                                        (.handle paredit-kphandler event))))
-           (.setOnKeyTyped
+
+           (.addEventFilter KeyEvent/KEY_TYPED
              (fx/event-handler-2 [_ event]
                                  (when (-> structural-combo .getSelectionModel (.isSelected 0))
                                        (.handle paredit-kthandler event)))))
@@ -174,15 +173,13 @@ Next 'global' history.   %s-click" u/SHORTCUT_KEY u/SHORTCUT_KEY))
 
         border-pane
         (fx/borderpane
-          :center code-area
+          :center (VirtualizedScrollPane. code-area)
           :top ns-label
           :bottom button-box
           :insets 10)
 
         scene
-        (doto
-          (fx/scene border-pane :size [600 300])
-          (fx/add-stylesheets "styles/codearea.css"))
+        (fx/scene border-pane :size [600 300])
 
         key-pressed-handler
         (fx/key-pressed-handler {
