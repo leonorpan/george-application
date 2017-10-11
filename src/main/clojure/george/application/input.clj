@@ -120,25 +120,25 @@
         (doto
           (fx/button
             (str  \u25C0)  ;; up: \u25B2,  left: \u25C0
-            :tooltip (format
-                       "Previous 'local' history.     click
-Previous 'global' history.   %s-click" u/SHORTCUT_KEY))
+            :tooltip
+            "Previous 'local' history.     click
+Previous 'global' history.   SHIFT-click")
           (.setOnMouseClicked
             (fx/event-handler-2 [_ e]
-              (do-history-fn hist/PREV (.isShortcutDown e))
+              (do-history-fn hist/PREV (.isShiftDown e))
               (.consume e))))
 
         next-button
         (doto
           (fx/button
             (str \u25B6)  ;; down: \u25BC,  right: \u25B6
-            :tooltip (format
-                       "Next 'local' history.    click
-Next 'global' history.   %s-click" u/SHORTCUT_KEY u/SHORTCUT_KEY))
+            :tooltip
+            "Next 'local' history.    click
+Next 'global' history.   SHIFT-click")
 
           (.setOnMouseClicked
             (fx/event-handler-2 [_ e]
-               (do-history-fn hist/NEXT (.isShortcutDown e))
+               (do-history-fn hist/NEXT (.isShiftDown e))
                (.consume e))))
 
         structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
