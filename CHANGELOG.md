@@ -3,7 +3,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
-## [Unreleased]
+
+## [0.8.2] - 2017-10-11
 
 ### Changed
 - Removed keyboard shortcuts from "history" buttons, as they were often accidentally triggered while navigating in code-editor.
