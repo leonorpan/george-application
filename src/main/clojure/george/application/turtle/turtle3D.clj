@@ -567,7 +567,7 @@
 
 
 
-(defn- colored-square []
+(defn- colored-square-- []
     (doseq [c ["BLACK" "RED" "BLUE" "GREEN"]]
         (set-color c)
         (forward 30)
@@ -629,12 +629,12 @@
       (fxj/thread
           (Thread/sleep 700)
           (position 0 -50)
-          (colored-square)
+          (colored-square--)
           (Thread/sleep 700)
           (c-transition :2D state)
           (clear)
           (Thread/sleep 700)
-          (colored-square)
+          (colored-square--)
           (Thread/sleep 700)
           (clear)
           (heading 90)

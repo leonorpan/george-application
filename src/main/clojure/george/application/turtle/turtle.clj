@@ -711,10 +711,6 @@ Returns turtle instance"
 
   (reset)
 
-  (defn square []
-      (dotimes [_ 4]
-          (forward 50) (left 90)))
-
   ;(pen-up)
   (set-position [-75 -120])
   (left 90)
@@ -722,7 +718,8 @@ Returns turtle instance"
 
   (set-pen-color Color/CORNFLOWERBLUE)
   (rep 6
-       (square)
+       (dotimes [_ 4]
+         (forward 50) (left 90))
        (pen-up)
        (right 45)
        (forward 20)
