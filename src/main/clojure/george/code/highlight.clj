@@ -61,7 +61,7 @@
 (defn- cssclass
   "Returns a Sting naming a css class for the given key."
   [token]
-  ;(pprint ["/cssclass" "token:" token])
+  ;(pprint ["/cssclass" "token:" token "type:" (-> token :value type)])
   (let [
         value (:value token)
         typ
@@ -142,7 +142,7 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
 
 
 (defn- set-stylespans [tokens codearea]
-  ;(pprint ["/set-stylespans" "tokens:" tokens])
+  ;(pprint ["/set-stylespans tokens:" tokens])
   (when-not (empty? tokens)
     (let [
           tokens-and-classes

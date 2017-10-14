@@ -96,11 +96,9 @@
             ""
             (if (= (count items) (count items-global))
               "; No more 'global' history.\n"
-              (format
-                "; No more 'local' history.
+              "; No more 'local' history.
 ; To access 'global' history use:
-;    %s-click.
-" u/SHORTCUT_KEY))))]
+;    SHIFT-click.\n")))]
 
     (reset! current-history-index-atom i)
     (doto code-area
