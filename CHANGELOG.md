@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Fixed
+- Line comments ';' are now rendered gray consistently.  
+- A single paren at end of text after line comment is now matched correctly.
 
 
 ## [0.8.2] - 2017-10-11
