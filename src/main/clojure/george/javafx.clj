@@ -8,8 +8,8 @@
         [clojure.java.io :as cio]
         [clojure.string :as s]
         [george.javafx.java :as fxj]
-        [george.javafx.util :as fxu])
-
+        [george.javafx.util :as fxu]
+        [george.util.javafx :as ufx])
     (:import
         [javafx.animation
          Timeline KeyFrame KeyValue]
@@ -234,7 +234,10 @@ and the body is called on 'changed'"
                        color
                        BorderStrokeStyle/SOLID
                        (CornerRadii. rad)
-                       (BorderWidths. width))))))
+                       (if (vector? width)
+                         (let [[t r b l] width]
+                           (BorderWidths. t r b l))
+                         (BorderWidths. width)))))))
 
 
 
@@ -512,7 +515,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn stackpane* [nodes]
     (StackPane. (fxj/vargs-t* Node nodes)))
 
-(defn stackpane
+(defn ^StackPane stackpane
     ([& nodes]
      (stackpane* nodes)))
 
@@ -559,7 +562,7 @@ It must return a string (which may be wrapped to fit the width of the list."
              (.setStrokeWidth (:strokewidth kwargs)))))
 
 
-(defn rectangle [& args]
+(defn ^Rectangle rectangle [& args]
     (let [default-kwargs
           {:location [0 0]
            :size [50 50]
@@ -584,7 +587,7 @@ It must return a string (which may be wrapped to fit the width of the list."
           (.setArcHeight arc))))
 
 
-(defn label
+(defn ^Label label
     ([] (Label.))
     ([text] (Label. text)))
 
@@ -873,6 +876,9 @@ It must return a string (which may be wrapped to fit the width of the list."
 ;; (doto "A" .toLowerCase (fn [inst] (if (= 1 2) (.inst  (toUpperCase)) inst)))
 
 
+
+
+
 (defn key-pressed-handler
  "Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
 
@@ -887,26 +893,30 @@ Example of codes-map:
     #{:S :SHIFT :SHORTCUT} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
     #{:SHORTCUT :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (.consume event ))
     }"
-    [codes-map]
+    [codes-map & {:keys [handle-type consume-types]}]
     (event-handler-2
         [inst event]
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
-              code (str (.getCode event))
-              ;_ (println "  ## code:" code)
-              shift (when (.isShiftDown event) "SHIFT")
-              shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
-              alt (when (.isAltDown event) "ALT") ;;  "M-"
-              combo (set (map keyword (filter some? [code shift shortcut alt])))]
+              ev-typ (.getEventType event)
+              combo (ufx/code-modifier-set event)
               ;_ (println "combo:" (str combo))
+              do-handle
+              #(if (instance? EventHandler %)
+                   (.handle % event)
+                   (do (%) (.consume event)))]
 
-            (when-let [v (codes-map combo)]
-                (if (instance? EventHandler v)
-                    (.handle v  event)
-                    (do ;; else
-                        (v)
-                        (.consume event)))))))
-
+            (when-let [f (codes-map combo)]
+              ;(println "  ## f:" f)
+              (if handle-type
+                (if (= handle-type ev-typ)
+                  (do-handle f))
+                (do-handle f))
+              (println "  ## ev-typ:" ev-typ)
+              (println "  ## consume-types:" consume-types)
+              (when (and consume-types ((set consume-types) ev-typ))
+                (println "  ## consuming:" ev-typ)
+                (.consume event))))))
 
 
 (defn char-typed-handler

@@ -28,7 +28,13 @@
                  ;; https://github.com/clojure-emacs/cider-nrepl
                  [cider/cider-nrepl "0.14.0"]
                  ;; https://github.com/FXMisc/RichTextFX
-                 [org.fxmisc.richtext/richtextfx "0.7-M5"]]
+                 [org.fxmisc.richtext/richtextfx "0.7-M5"]
+                 ;; https://github.com/TomasMikula/Flowless
+                 [org.fxmisc.flowless/flowless  "0.6"]
+                 ;; https://github.com/brentonashworth/clj-diff
+                 [clj-diff "1.0.0-SNAPSHOT"]]
+
+
 
   :plugins [
             ;; https://github.com/weavejester/codox
@@ -86,6 +92,10 @@
           :html {:namespace-list :flat}}
 
   :profiles {
+             :dev {
+                   :resource-paths ["src/dev/resources"]}
+
+
              :uberjar {
                        :aot :all
                        :main no.andante.george.Main
