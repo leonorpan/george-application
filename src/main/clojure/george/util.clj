@@ -6,10 +6,13 @@
 (ns
   ^{:author "Terje Dahl"}
   george.util
-  (:require [clojure.pprint :as cpp])
+  (:require
+    [clojure.core.rrb-vector :as fv]
+    [clojure.pprint :as cpp])
   (:import (java.util UUID)
            (java.io File)
-           (clojure.lang PersistentVector)))
+           (clojure.lang PersistentVector)
+           (clojure.core.rrb_vector.rrbt Vector)))
 
 
 (set! *warn-on-reflection* true)
@@ -69,9 +72,16 @@
 ;(ns-unmap *ns* 'insert-at)
 (defmulti insert-at
           "Returns a new vector or seq with xs inlined at offset.
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
           Ex.: (insert-at [1 2 3 4] 2 '(10 11)) ;-> [1 2 10 11 3 4]
           Ex.: (insert-at '(1 2 3 4) 2 '(10 11)) ;-> (1 2 10 11 3 4)"
+          ;(fn [vec-or-coll offset xs] (class vec-or-coll))
           (fn [vec-or-coll offset xs] (class vec-or-coll)))
+
+
+(defmethod insert-at Vector [v offset xs]
+  ;(prn "  ## insert-at Vector:" v offset xs)
+  (fv/catvec (fv/subvec v 0 offset) xs (fv/subvec v offset)))
 
 (defmethod insert-at PersistentVector [v offset xs]
   (vec (concat (subvec v 0 offset) xs (subvec v offset))))
@@ -83,9 +93,13 @@
 ;(ns-unmap *ns* 'replace-at)
 (defmulti replace-at
           "Returns a new vector or seq with xs inlined in place of item at index.
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
           Ex.: (replace-at [1 2 3 4] 2 '(10 11)) ;-> [1 2 10 11 4]
           Ex.: (replace-at '(1 2 3 4) 2 '(10 11)) ;-> (1 2 10 11 4)"
           (fn [vec-or-coll index xs] (class vec-or-coll)))
+
+(defmethod replace-at Vector [v index xs]
+  (fv/catvec (fv/subvec v 0 index) xs (fv/subvec v (inc index))))
 
 (defmethod replace-at PersistentVector [v index xs]
   (vec (concat (subvec v 0 index) xs (subvec v (inc index)))))
@@ -97,9 +111,13 @@
 ;(ns-unmap *ns* 'replace-range)
 (defmulti replace-range
           "Returns a new vector or seq with xs inlined in place of range start (inclusive) end (exclusive).
-         Ex.: (replace-range [1 2 3 4] 1 3 '(10 11)) ;-> [1 10 11 4]
-         Ex.: (replace-range '(1 2 3 4) 1 3 '(10 11)) ;-> (1 10 11 4)"
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
+          Ex.: (replace-range [1 2 3 4] 1 3 '(10 11)) ;-> [1 10 11 4]
+          Ex.: (replace-range '(1 2 3 4) 1 3 '(10 11)) ;-> (1 10 11 4)"
           (fn [vec-or-coll start end xs] (class vec-or-coll)))
+
+(defmethod replace-range Vector [v start end xs]
+  (fv/catvec (fv/subvec v 0 start) xs (fv/subvec v end)))
 
 (defmethod replace-range PersistentVector [v start end xs]
   (vec (concat (subvec v 0 start) xs (subvec v end))))
@@ -112,9 +130,13 @@
 ;(ns-unmap *ns* 'remove-at)
 (defmulti remove-at
           "Returns a new vector or seq with item at index removed.
-         Ex.: (remove-at [1 2 3 4] 2) ;-> [1 2 4]
-         Ex.: (remove-at '(1 2 3 4) 2) ;-> (1 2 4)"
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
+          Ex.: (remove-at [1 2 3 4] 2) ;-> [1 2 4]
+          Ex.: (remove-at '(1 2 3 4) 2) ;-> (1 2 4)"
           (fn [vec-or-coll index] (class vec-or-coll)))
+
+(defmethod remove-at Vector [v index]
+  (fv/catvec (fv/subvec v 0 index) (fv/subvec v (inc index))))
 
 (defmethod remove-at PersistentVector [v index]
   (vec (concat (subvec v 0 index) (subvec v (inc index)))))
@@ -127,9 +149,13 @@
 ;(ns-unmap *ns* 'remove-range)
 (defmulti remove-range
           "Returns a new vector or seq with  range start (inclusive) end (exclusive) removed.
-         Ex.: (remove-range [1 2 3 4] 1 3) ;-> [1 4]
-         Ex.: (remove-range '(1 2 3 4) 1 3) ;-> (1 4)"
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
+          Ex.: (remove-range [1 2 3 4] 1 3) ;-> [1 4]
+          Ex.: (remove-range '(1 2 3 4) 1 3) ;-> (1 4)"
           (fn [vec-or-coll start end] (class vec-or-coll)))
+
+(defmethod remove-range Vector [v start end]
+  (fv/catvec (fv/subvec v 0 start) (fv/subvec v end)))
 
 (defmethod remove-range PersistentVector [v start end]
   (vec (concat (subvec v 0 start) (subvec v end))))
@@ -140,7 +166,9 @@
     (concat before (next after))))
 
 
-;(println (insert-at [1 2 3 4] 2 '(10 11)))
+;(prn (insert-at (fv/vector 1 2 3 4) 2 [\a]))
+;(println (time (insert-at (fv/vector 1 2 3 4) 2 (fv/vector 10 11))))
+;(println (time (insert-at [1 2 3 4] 2 '(10 11))))
 ;(println (insert-at '(1 2 3 4) 2 '(10 11)))
 ;(println (replace-at [1 2 3 4] 2 '(10 11)))
 ;(println (replace-at '(1 2 3 4) 2 '(10 11)))

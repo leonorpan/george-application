@@ -515,7 +515,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn stackpane* [nodes]
     (StackPane. (fxj/vargs-t* Node nodes)))
 
-(defn ^StackPane stackpane
+(defn stackpane
     ([& nodes]
      (stackpane* nodes)))
 
@@ -562,7 +562,7 @@ It must return a string (which may be wrapped to fit the width of the list."
              (.setStrokeWidth (:strokewidth kwargs)))))
 
 
-(defn ^Rectangle rectangle [& args]
+(defn rectangle [& args]
     (let [default-kwargs
           {:location [0 0]
            :size [50 50]
@@ -587,7 +587,7 @@ It must return a string (which may be wrapped to fit the width of the list."
           (.setArcHeight arc))))
 
 
-(defn ^Label label
+(defn label
     ([] (Label.))
     ([text] (Label. text)))
 

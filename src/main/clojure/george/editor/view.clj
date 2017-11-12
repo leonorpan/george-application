@@ -10,25 +10,28 @@
     [george.editor.state :as st]
     [george.util :as u])
 
-  (:import (org.fxmisc.flowless Cell  VirtualFlow)
+  (:import (org.fxmisc.flowless Cell VirtualFlow)
            (javafx.scene.text Text)
            (javafx.scene.layout Region StackPane Pane)
            (javafx.geometry Pos Insets BoundingBox)
            (javafx.scene Node Group)
            (javafx.scene.paint Color)
-           (javafx.scene.shape Ellipse Rectangle)))
+           (javafx.scene.shape Ellipse Rectangle)
+           (javafx.scene.control Label)))
 
 
 ;(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
+
 
 (def DEFAULT_FONT_SIZE 16)
 (def DEFAULT_FONT (fx/SourceCodePro "medium" DEFAULT_FONT_SIZE))
 
-(def DEFAULT_LINE_HEIGHT 28)
+(def DEFAULT_LINE_HEIGHT 28.0)
 (def DEFAULT_LINE_INSETS (fx/insets 0.0, 24.0, 0.0, 12.0))
 
-(def DEFAULT_TAB_WIDTH (/ DEFAULT_FONT_SIZE 2.0))
+(def DEFAULT_TAB_WIDTH (/ ^int DEFAULT_FONT_SIZE 2.0))
 
 (def DEFAULT_TEXT_COLOR fx/ANTHRECITE)
 (def DEFAULT_TEXT_SELECTION_COLOR (fx/web-color "#b3d8fd"))
@@ -49,11 +52,12 @@
 (def DEFAULT_GUTTER_BORDER (fx/make-border DEFAULT_CURRENT_LINE_BORDER_COLOR [0 1 0 0]))
 
 
-(defn- ^Node selection-background-factory [w h c]
+(defn- ^Node selection-background-factory [^double w ^double h c]
   (let [rect (fx/rectangle :size [(inc w) h] :fill DEFAULT_TEXT_SELECTION_COLOR)]
     (cond
       (= c \newline)
       (doto
+        ^StackPane
         (fx/stackpane
            (doto (Ellipse. w (/ h 2))
              (.setFill DEFAULT_TEXT_SELECTION_COLOR))
@@ -64,7 +68,6 @@
       rect)))
 
 
-
 (defn- ^Rectangle anchor-factory [height]
   (let [rect (fx/rectangle :size [0.5 height] :fill (Color/DODGERBLUE))]
     rect))
@@ -73,6 +76,7 @@
 (defn- cursor-factory [height]
   (let [rect (fx/rectangle :size [3 height ] :fill (Color/DODGERBLUE))]
     rect))
+
 
 (def DEFAULT_CURSOR_FACTORY cursor-factory)
 
@@ -94,15 +98,13 @@
   (dispose []))
 
 
-
 (defn- ^String nr-formatter
   "Returns a formatted string padded with zeros based on max-n"
   [max-n n]
   (let [digits (if (= max-n 0) 1 (inc (int (Math/log10 max-n))))]
-    (format (str "%0" digits "d") (inc n))))
+    (format (str "%0" digits "d") (inc ^int n))))
 ;(println (nr-formatter 3574 5))
 ;(println (nr-formatter 3574 115))
-
 
 
 (defn- new-paragraph-gutter
@@ -115,10 +117,10 @@
         n_ (atom 0)
 
         nr-label
-        (doto (fx/label (nr-formatter @line-count_ @n_))
+        (doto ^Label (fx/label (nr-formatter @line-count_ @n_))
           (.setFont DEFAULT_GUTTER_FONT)
           (.setBackground DEFAULT_GUTTER_BACKGROUND)
-          (.setPrefHeight (+ 2 DEFAULT_LINE_HEIGHT))
+          (.setPrefHeight (+ 2.0 ^double DEFAULT_LINE_HEIGHT))
           (.setTextFill DEFAULT_GUTTER_TEXT_FILL)
           (.setPadding DEFAULT_GUTTER_INSETS)
           (.setBorder DEFAULT_GUTTER_BORDER))
@@ -178,13 +180,15 @@
 (defn- calculate-offset
   "Returns the offset-x of where the mark (anchor/caret) should be inserted."
   [texts col]
-  (if (zero? col)
-    0
-    (let [t ^Text (get texts (dec col))]
+  (if (zero? ^int col)
+    0.0
+    (let [t ^Text (get texts (dec ^int col))]
       (-> t .getBoundsInParent .getMaxX))))
 
 
-(defn- insert-and-layout-markings [^StackPane pane state-derived row chars texts]
+(defn- set-markings
+  "Inserts and lays out markings (caret, anchor, select) if any, on the passed-in pane."
+  [^StackPane pane state-derived row chars texts]
   (->  pane .getChildren .clear)
   (let [
         {:keys [caret anchor caret-pos anchor-pos state]} state-derived
@@ -194,32 +198,39 @@
         caret-row? (= crow row)
         anchor-row? (= arow row)
 
-        [low high] (sort [caret anchor])
+        [low ^int high] (sort [caret anchor])
         do-mark? (partial u/in-range? low (dec high))
 
-        row-index (st/location->index_ state [row 0])]
+        ^int row-index (st/location->index_ state [row 0])]
 
     (loop [x 0.0 i 0 nodes texts chars chars]
       (when-let [n ^Text (first nodes)]
         (let [w (-> n .getBoundsInParent .getWidth)]
           (when (do-mark? (+ row-index i))
             (let [marking (selection-background-factory w DEFAULT_LINE_HEIGHT (first chars))]
-              (.setTranslateX marking (- x 0.5)) ;; offset half pixel to left
+              (.setTranslateX ^Node marking (- x 0.5)) ;; offset half pixel to left
               (-> pane .getChildren (.add marking))))
           (recur (+ x w) (inc i) (next nodes) (next chars)))))
 
     (when anchor-row?
       (let [anchor (anchor-factory DEFAULT_LINE_HEIGHT)]
-        (.setTranslateX anchor (- (calculate-offset texts acol) 0.25))
+        (.setTranslateX anchor (- ^double (calculate-offset texts acol) 0.25))
         (-> pane .getChildren (.add anchor))))
 
     (when caret-row?
       (let [caret ^Node (DEFAULT_CURSOR_FACTORY DEFAULT_LINE_HEIGHT)]
-        (.setTranslateX caret (- (calculate-offset texts ccol) 1)) ;; negative offset for cursor width
+        (.setTranslateX caret (- ^double (calculate-offset texts ccol) 1.0)) ;; negative offset for cursor width
         (-> pane .getChildren (.add caret))))))
 
 
-(defn- calculate-col [offset-x char-nodes]
+(defn- set-markings-maybe
+  "If the row is in the set, then delegates the task"
+  [^StackPane pane state-derived row chars texts]
+  (when ((:update-marking-rows state-derived) row)
+    (set-markings ^StackPane pane state-derived row chars texts)))
+
+
+(defn- calculate-col [^double offset-x char-nodes]
   ;(println "view/calculate-col offset-x:" offset-x)
   (if (neg? offset-x)
     0
@@ -244,20 +255,20 @@
   ;(println "ensure-caret-visible")
   (let [[^long row col] (:caret-pos derived)
         cell (.getCell flow row)
-        offset-x (.getOffsetX ^IRowCell cell col)
-        gutter-w (.getGutterWidth ^IRowCell cell)
-        scrolled-x (-> flow .breadthOffsetProperty .getValue)
+        ^double offset-x (.getOffsetX ^IRowCell cell col)
+        ^double gutter-w (.getGutterWidth ^IRowCell cell)
+        ^double scrolled-x (-> flow .breadthOffsetProperty .getValue)
         flow-w (.getWidth flow)
         main-w (- flow-w gutter-w)
-        visible-padding 8
+        visible-padding 8.0
         col-visible? (< (+ gutter-w visible-padding) offset-x (- flow-w visible-padding))
         bounding-x (- (+ offset-x scrolled-x) gutter-w (/ main-w 3))
         bounding-w main-w
         bounding-box (BoundingBox. bounding-x 0 bounding-w DEFAULT_LINE_HEIGHT)
 
         visible-cells (.visibleCells flow)
-        first-visible-row (.getIndex ^IRowCell (first visible-cells))
-        last-visible-row (.getIndex ^IRowCell (last visible-cells))]
+        ^int first-visible-row (.getIndex ^IRowCell (first visible-cells))
+        ^int last-visible-row (.getIndex ^IRowCell (last visible-cells))]
 
     (when-not col-visible?
       (.show flow row bounding-box))
@@ -265,8 +276,6 @@
       (.show flow (dec row)))
     (when (>= row last-visible-row)
       (.show flow (inc row)))))
-
-
 
 
 (defn- highlight-current-line [^StackPane pane state-derived row]
@@ -292,21 +301,21 @@
         (doto
           (proxy [StackPane IScrollableText] [(fxj/vargs marks-pane texts-pane)]
             ;; Impelements IScrollableText
-            (getColumn [offset-x] ;; offset-x already considers scrolled offset
-              (let [gw (.getWidth gutter)
+            (getColumn [^double offset-x] ;; offset-x already considers scrolled offset
+              (let [^double  gw (.getWidth gutter)
                     offset (- offset-x gw inset-left)
                     col
-                    (if (< (- offset-x @graphic-offset_) gw) ;; offset-x is in/under in gutter.
+                    (if (<  (- offset-x ^double @graphic-offset_) gw) ;; offset-x is in/under in gutter.
                       :gutter
                       (calculate-col offset texts))]
                 col))
             ;; Impelements IScrollableText
             (getOffsetX [col]
-                (+ (calculate-offset texts col) inset-left)))
+                (+ ^double (calculate-offset texts col) inset-left)))
 
           (.setAlignment Pos/CENTER_LEFT)
           (.setPrefHeight DEFAULT_LINE_HEIGHT)
-          (.setPrefWidth (+ inset-left texts-width inset-right))
+          (.setPrefWidth (+ inset-left ^double texts-width inset-right))
           (.setPadding insets))]
 
     scrolling-pane))
@@ -326,7 +335,7 @@
         (new-paragraph-gutter line-count_)
 
         texts-pane
-        (doto (fx/stackpane)
+        (doto ^StackPane (fx/stackpane)
           (.setAlignment Pos/CENTER_LEFT))
 
         [texts-width texts]
@@ -348,7 +357,7 @@
           (computePrefWidth [^double _]
             (.layout this)
             (let [insets  ^Insets (.getInsets ^Region this)]
-              (+ (.getWidth  gutter)
+              (+ ^double (.getWidth  gutter)
                  (.prefWidth ^Region scrolling-part -1.0)
                  (.getLeft  insets)
                  (.getRight insets))))
@@ -358,8 +367,8 @@
             DEFAULT_LINE_HEIGHT)
           ;; @override
           (layoutChildren []
-            (let [[w h] (-> ^Region this .getLayoutBounds fx/WH)
-                  gw (.getWidth gutter)
+            (let [[^double w h] (-> ^Region this .getLayoutBounds fx/WH)
+                  gw ^double (.getWidth gutter)
                   go @graphic-offset_]
 
               (.resizeRelocate ^StackPane scrolling-part gw 0 (- w gw) h)
@@ -376,7 +385,7 @@
     (add-watch graphic-offset_ k (fn [_ _ _ _]
                                    (.requestLayout node)))
     (add-watch state-derived_ k (fn [_ _ _ derived]
-                                  (insert-and-layout-markings marks-pane derived @row_ chars texts)
+                                  (set-markings-maybe marks-pane derived @row_ chars texts)
                                   (highlight-current-line line-background-pane derived @row_)
                                   (.requestLayout node)))
 
@@ -391,7 +400,7 @@
         (when (not= @row_ index) ;; only update box if index changes
           (reset! row_ index)
           (.setNumber gutter index)
-          (insert-and-layout-markings marks-pane @state-derived_ @row_ chars texts)
+          (set-markings-maybe marks-pane @state-derived_ @row_ chars texts)
           (highlight-current-line line-background-pane @state-derived_  @row_)
           (.requestLayout node)))
       ;; implements
@@ -405,9 +414,9 @@
         (.getColumn scrolling-part offset-x))
       (getOffsetX [_ col]
         (-
-         (+ (.getWidth gutter)
-            (.getOffsetX scrolling-part col))
-         @graphic-offset_))
+         (+ ^double (.getWidth gutter)
+            ^double (.getOffsetX scrolling-part col))
+         ^double @graphic-offset_))
       (getGutterWidth [_]
         (.getWidth gutter))
       (getIndex [_]

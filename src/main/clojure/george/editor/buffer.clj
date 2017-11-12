@@ -8,14 +8,17 @@
 
   george.editor.buffer
   (:require
+    [clojure.core.rrb-vector :as fv]
     [clojure.java.io :as cio]
     [clojure.data :as cd]
     [clj-diff.core :as diff]
     [george.util :as u])
   (:import (java.io PushbackReader StringReader)
-           (javafx.collections ObservableList)))
+           (javafx.collections ObservableList)
+           (clojure.core.rrb_vector.rrbt Vector)))
 
-;(set! *warn-on-reflection* true)
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -57,13 +60,13 @@
 
 
 
-(defn- string->normalized->vec
+(defn- string->normalized->fvec
   "Returns a 2-part vector containing the original newline-str and a vector or chars.
   Use the newline-str when writing (back) to file."
   [^String s]
   (loop [rdr (pushback-stringreader s)
          ich (.read rdr)
-         chars (transient [])
+         chars (transient (fv/vector))
          orig-nl "\n"]
 
     (if (not= ich -1)
@@ -75,7 +78,7 @@
 (defn new-buffer
   "Returns a 2-part vector containing the buffer and the original newline-combo as str."
   [^String s]
-  (let [[nl-str buf] (string->normalized->vec s)]
+  (let [[nl-str buf] (string->normalized->fvec s)]
     [buf nl-str]))
 
 
@@ -109,34 +112,41 @@
          (conj lines (.substring sb frst end)))))))
 
 
-(defn split-buffer-lines [buffer]
-  ;(println "/split-buffer-lines" buffer)
+;(defn split-buffer-lines [buffer]
+;  ;(println "/split-buffer-lines" buffer)
+;  (loop [lines (transient [])
+;         line (transient [])
+;         [ch & rst] buffer]
+;    (if ch
+;      (if (newline-char? ch)
+;        (recur
+;          (conj! lines (persistent! (conj! line ch))) ;; add ch to current line and add it to lines
+;          (transient [])  ;; create a new line
+;          rst)
+;        (recur
+;          lines
+;          (conj! line ch) ;; add ch to current line
+;          rst))
+;      ;; add current line to lines and return lines
+;      (persistent! (conj! lines (persistent! line))))))
+
+(defn split-buffer-lines [^Vector buffer]
+  ;(println "/split-buffer-lines")
   (loop [lines (transient [])
-         line (transient [])
-         [ch & rst] buffer]
-    (if ch
+         chs buffer
+         start 0 end 0]
+    (if-let [ch (first chs)]
       (if (newline-char? ch)
         (recur
-          (conj! lines (persistent! (conj! line ch))) ;; add ch to current line and add it to lines
-          (transient [])  ;; create a new line
-          rst)
+          (conj! lines (fv/subvec buffer start (inc end))) ;; add ch to current line and add it to lines
+          (rest chs)
+          (inc end) (inc end))
         (recur
           lines
-          (conj! line ch) ;; add ch to current line
-          rst))
+          (rest chs)
+          start (inc end)))
       ;; add current line to lines and return lines
-      (persistent! (conj! lines (persistent! line))))))
-
-
-(defn insert-at [buffer offset chars]
-  (u/insert-at buffer offset chars))
-
-(defn replace-range [buffer start end chars]
-  (u/replace-range buffer start end chars))
-
-(defn delete-range [buffer start end]
-  (u/remove-range buffer start end))
-
+      (persistent! (conj! lines (fv/subvec buffer start))))))
 
 
 ;;;;;;
@@ -157,7 +167,7 @@
       (.set list i DEL_SYM))
     ;; apply additions
     ;(prn "  ## additions:" additions)
-    (doseq [[i & items] additions]
+    (doseq [[^long i & items] additions]
       (loop [i (inc i) items items]
         (when-let [item (first items)]
           ;(prn "  ## item:" item)
@@ -218,11 +228,11 @@
   (read-resource "texts/text-180k.html"))
 
 (defn bufferize-triangle []
-  (string->normalized->vec (read-triangle-code)))
+  (string->normalized->fvec (read-triangle-code)))
 ;(prn (time (bufferize-triangle)))
 
 (defn bufferize-large-text []
-  (string->normalized->vec (read-large-text)))
+  (string->normalized->fvec (read-large-text)))
 ;(prn (time (bufferize-large-text)))
 
 

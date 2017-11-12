@@ -38,7 +38,6 @@
     (test-stage view)))
 
 
-
 ;(no-text-editor)
 ;(small-text-editor)
 ;(code-text-editor)
