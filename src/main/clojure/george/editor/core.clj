@@ -17,7 +17,8 @@
            (java.util List)))
 
 
-;(set! *warn-on-reflection* true)
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -77,10 +78,10 @@
       (-> .widthProperty
           (.addListener
             (fx/changelistener [_ _ prev-width width]
-                               (when (and (zero? prev-width) (pos? width))
-                                 ;; to re-layout so as to ensure-visible on caret
-                                 ;; after flow has been made visible.
-                                 (swap! state-derived_ assoc :triggering-hack (Object.)))))))
+                               ;; to re-layout so as to ensure-visible on caret after flow has been made visible.
+                               (when (and (zero? ^double prev-width) (pos? ^double width))
+                                 (swap! state-derived_ assoc :triggering-hack (Object.))
+                                 (reset! line-count_ (:line-count @state-derived_)))))))
 
     [flow state_]))
 

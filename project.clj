@@ -32,8 +32,9 @@
                  ;; https://github.com/TomasMikula/Flowless
                  [org.fxmisc.flowless/flowless  "0.6"]
                  ;; https://github.com/brentonashworth/clj-diff
-                 [clj-diff "1.0.0-SNAPSHOT"]]
-
+                 [clj-diff "1.0.0-SNAPSHOT"]
+                 ;; https://github.com/clojure/core.rrb-vector
+                 [org.clojure/core.rrb-vector "0.0.11"]]
 
 
   :plugins [

@@ -14,7 +14,8 @@
            (java.util List)))
 
 
-;(set! *warn-on-reflection* true)
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -32,11 +33,12 @@
 
 (defn new-state [^PersistentVector buffer ^String line-sep ^ObservableList list]
   (let [buf (or buffer [])
+        lns (b/split-buffer-lines buf)
         lst (if (and list (pos? (count list)))
               list
-              (FXCollections/observableArrayList ^List (b/split-buffer-lines buf)))]
+              (FXCollections/observableArrayList ^List lns))]
     {:buffer    buf
-     :lines    (b/split-buffer-lines buf)
+     :lines    lns
      :list     lst
      :line-sep (or line-sep "\n")
      :marks    (new-marks)}))
@@ -45,14 +47,35 @@
 
 (declare index->location_)
 
-(defn- derived-values [state]
-  (let [{{:keys [caret anchor]} :marks} state]
+
+
+(defn- update-marking-rows-set
+  "Calculates which rows need to re-layout their markings.
+  Returns a set of row-indicies, i.e. '#{0,1,3}'"
+  [car-pos anc-pos prev-derived]
+  ;(println "/update-marking-rows-set prev-derived:" prev-derived)
+  (let [crow (first car-pos)
+        arow (first anc-pos)
+        [^int low ^int high] (sort [crow arow])]
+    (if-not prev-derived
+      (set (range low (inc high)))
+      (let [prev-sorted (sort (:update-marking-rows prev-derived))
+            low0 (first prev-sorted)
+            high0 (last prev-sorted)]
+        (set (range (min low ^int low0) (inc  (max high ^int high0))))))))
+
+
+(defn- derived-values [state prev-derived]
+  (let [{{:keys [caret anchor]} :marks} state
+        cpos (index->location_ state caret)
+        apos (index->location_ state anchor)]
     {:state state
      :caret caret
      :anchor anchor
-     :caret-pos (index->location_ state caret)
-     :anchor-pos (index->location_ state anchor)
-     :line-count (-> state :lines count)}))
+     :caret-pos cpos
+     :anchor-pos apos
+     :line-count (-> state :lines count)
+     :update-marking-rows (update-marking-rows-set cpos apos prev-derived)}))
 
 
 (defn new-line-count
@@ -71,11 +94,11 @@
   "Returns an atom which is updated with useful values whenever state changes.
   The purpose is to prevent each paragraph from calculating many of same values over and over."
   [state_]
-  (let [derived_ (atom (derived-values @state_))]
+  (let [derived_ (atom (derived-values @state_ nil))]
     (add-watch state_
                (Object.)
                (fn [_ _ _ state]
-                 (reset! derived_ (derived-values state))))
+                 (reset! derived_ (derived-values state @derived_))))
     derived_))
 
 
@@ -139,13 +162,13 @@
           (inc curr-row))))))
 
 (defn location->index_ [state [row col]]
-  (+ (row->index-col0_ state row) col))
+  (+ ^int (row->index-col0_ state row) ^int col))
 
 
 
 (defn index->location_ [state index]
   (let [lns (lines_ state)]
-    (loop [ix index
+    (loop [ix ^int index
            row 0]
       (let [ln (lns row)
             ln-len (count ln)
@@ -179,7 +202,7 @@
 
 
 
-(defn- set_ [state index move-prefcol? move-anchor? & [anchor-index]]
+(defn- set-marks_ [state index move-prefcol? move-anchor? & [anchor-index]]
   (let [anc (or anchor-index index)
 
         state
@@ -193,20 +216,20 @@
 
 
 (defn- move_ [state steps move-prefcol? move-anchor? move-caret-if-sel-reset?]
-  (let [car (caret_ state)
-        anc (anchor_ state)
+  (let [car (int (caret_ state))
+        anc (int (anchor_ state))
 
         sel-reset? (and (not= car anc) move-anchor?)
 
         car1
-        (u/clamp 0 (+ car steps) (length_ state))
+        (u/clamp 0 (+ car ^int steps) (length_ state))
 
         car2
         (if (and sel-reset? (not move-caret-if-sel-reset?))
-          (if (neg? steps) (min car anc) (max car anc))
+          (if (neg? ^int steps) (min car anc) (max car anc))
           car1)]
 
-    (set_ state car2 move-prefcol? move-anchor?)))
+    (set-marks_ state car2 move-prefcol? move-anchor?)))
 
 
 (defn- move-col_ [state steps move-prefcol? move-anchor? move-caret-if-sel-reset? aux]
@@ -216,9 +239,9 @@
         newline-end? (u/newline-end? ln)
         ln-len (count ln)
         steps1
-        (if limit? (if (neg? steps)
-                     (- col)
-                     (- ln-len (if newline-end? 1 0) col))
+        (if limit? (if (neg? ^int steps)
+                     (- ^int col)
+                     (- ln-len (if newline-end? 1 0) ^int col))
           steps)]
     (move_ state steps1 move-prefcol? move-anchor? move-caret-if-sel-reset?)))
 
@@ -226,47 +249,40 @@
 (defn- move-row_ [state steps reset-anchor? aux]
 
   (if (= aux :limit)
-    (let [car (caret_ state)
-          len (length_ state)
+    (let [^int car (caret_ state)
+          ^int len (length_ state)
           steps1
-          (if (neg? steps)
+          (if (neg? ^int steps)
             (- car)
             (- len car))]
       (move_ state steps1 true reset-anchor? true))
 
     (if (= aux :step)
       (let [
-            [row _] (index->location_ state (caret_ state))
+            [^int row _] (index->location_ state (caret_ state))
             lns-cnt (count (lines_ state))
             steps1
-            (if (neg? steps)
+            (if (neg? ^int steps)
               (- row)
               (- lns-cnt 1 row))]
         (move-row_ state steps1 reset-anchor? nil))
 
-      (let [car (caret_ state)
-            [row col :as loc] (index->location_ state car)
-            ;_ (println "loc:" loc)
+      (let [^int car (caret_ state)
+            [^int row _] (index->location_ state car)
             pcol (prefcol_ state)
             lns (lines_ state)
             lns-cnt (count lns)
-            ;_ (println "lns-cnt:" lns-cnt)
-            row1 (+ row steps)
-            ;_ (println "row1:" row1)
+            row1 (+ row ^int steps)
             row2 (u/clamp 0  row1 (dec lns-cnt))
-            ;_ (println "row2:" row2)
             ln (lns row2)
             newline-end? (= (last ln) \newline)
             ln-len (count ln)
-            ;_ (println "ln-len:" ln-len)
-            col1  (u/clamp 0 pcol (max 0 (if newline-end? (dec ln-len) ln-len)))
-            ;_ (println "col1:" col1)
+            col1  (u/clamp 0 pcol (max 0 (int (if newline-end? (dec ln-len) ln-len))))
             col2
             (if (not= row1 row2)  ;; were were clamped! Move to end or row.
-              (if (neg? steps) 0 ln-len)
+              (if (neg? ^int steps) 0 ln-len)
               col1)
-            ;_ (println "col2:" col2)
-            index-new (location->index_ state [row2 col2])]
+            ^int index-new  (location->index_ state [row2 col2])]
 
         (move_ state (- index-new car)
               ;; reset prefcol if the move changes the col, or does not change the row
@@ -284,8 +300,20 @@
   state)
 
 
+(defn- insert-at [buffer offset chars]
+  (u/insert-at buffer offset chars))
+
+(defn- replace-range [buffer start end chars]
+  (u/replace-range buffer start end chars))
+
+(defn- delete-range [buffer start end]
+  (u/remove-range buffer start end))
+
+
 (defn update-buffer_ [state f & args]
-  (let [buffer (apply f (concat [(buffer_ state)] args))
+  ;(println "/update-buffer" f args)
+  (let [buffer (buffer_ state)
+        buffer (apply f (cons buffer args))
         lines (b/split-buffer-lines buffer)]
     (assoc state :buffer buffer :lines lines)))
 
@@ -294,17 +322,17 @@
   "Returns an updated state (or the old one)."
   [state ch]
   ;(prn "state/keytyped_" ch)
-  (let [[car anc :as car-anc] (caret-anchor_ state)
+  (let [[^int car anc :as car-anc] (caret-anchor_ state)
         state
         (if (not= car anc) ;; there is a selection
-          (let [[start end] (sort car-anc)]
+          (let [[^int start end] (sort car-anc)]
              (-> state
-                 (update-buffer_ b/replace-range start end [ch])
-                 (set_ state (inc start) true true)))
+                 (update-buffer_ replace-range start end [ch])
+                 (set-marks_ (inc start) true true)))
           (-> state
-              (update-buffer_ b/insert-at car [ch])
-              (set_ (inc car) true true)))]
-
+              (update-buffer_ insert-at car [ch])
+              (set-marks_ (inc car) true true)))]
+    ;(-> state buffer_ (subvec 0 5) println)
     (do-update-list_ state)))
 
 
@@ -313,7 +341,7 @@
   "Handles deletes (backspace/forward-delete)"
   [state direction]
 
-  (let [[car _ :as car-anc]
+  (let [[^int car _ :as car-anc]
         (caret-anchor_ state)
 
         [start end]
@@ -322,25 +350,23 @@
         state
         (if (not= start end)
           (-> state
-              (update-buffer_ b/delete-range start end)
-              (set_ start true true))
+              (update-buffer_ delete-range start end)
+              (set-marks_ start true true))
 
-          (if (and (neg? direction))
+          (if (and (neg? ^int direction))
             ;; backspace
             (if (> car 0)
               (-> state
-                  (update-buffer_ b/delete-range (dec car) car)
-                  (set_ (dec car) true true))
+                  (update-buffer_ delete-range (dec car) car)
+                  (set-marks_ (dec car) true true))
               state)
             ;; delete (forward)
-            (if (< car (length_ state))
+            (if (< car ^int (length_ state))
               (-> state
-                  (update-buffer_ b/delete-range car (inc car)))
+                  (update-buffer_ delete-range car (inc car)))
               state)))]
 
     (do-update-list_ state)))
-
-
 
 
 (def CB (fx/now (Clipboard/getSystemClipboard)))
@@ -379,18 +405,18 @@
       state
       (-> state
           copy_
-          (update-buffer_ b/delete-range start end)
-          (set_ start true true)
+          (update-buffer_ delete-range start end)
+          (set-marks_ start true true)
           do-update-list_))))
 
 
 (defn- paste_ [state]
   (if-let [s (clipboard-str)]
-    (let [[start end] (sort (caret-anchor_ state))
+    (let [[^int start end] (sort (caret-anchor_ state))
           len (count s)]
       (-> state
-          (update-buffer_ b/replace-range start end (seq s))
-          (set_ (+ start len) true true)
+          (update-buffer_ replace-range start end (vec s))
+          (set-marks_ (+ start len) true true)
           do-update-list_))
     state))
 
@@ -413,7 +439,7 @@
     (delete_ state 1)
 
     :selectall
-    (set_ state (length_ state) true true 0)
+    (set-marks_ state (length_ state) true true 0)
 
     :cut
     (cut_ state)
@@ -438,9 +464,6 @@
         state1))))
 
 
-
-
-
 (defn- mouse-loc->index [state loc]
   (if (= loc :end)
     (length_ state)
@@ -451,22 +474,20 @@
           col1 (cond
                  ;; TODO: Clicking on gutter should select whole line (placing caret at beginning).
                  gutter? 0
-                 (and newline-end? (= col (count ln))) (dec col)
+                 (and newline-end? (= col (count ln))) (dec ^int col)
                  :default col)]
       (location->index_ state [row col1]))))
-
-
 
 
 (defn- mouseaction_ [state  prev-e-typ e-typ typ loc]
   ;(println "/mouseaction_"  prev-e-typ e-typ typ loc)
 
-  (let [index (mouse-loc->index state loc)
+  (let [index (int (mouse-loc->index state loc))
         gutter? (and (not= loc :end)
                      (let [[_ col] loc]  (= col :gutter)))
         ;_ (println "  ## gutter?" gutter?)
 
-        [line-end-offset line-end-offset-adjusted]
+        [^int line-end-offset ^int line-end-offset-adjusted]
         (if gutter?
           (let [ln ((lines_ state) (first loc))
                 cnt (count ln)
@@ -478,7 +499,7 @@
 
         [caret anchor] (caret-anchor_ state)
 
-        [low high] (sort [caret anchor])
+        [^int low ^int high] (sort [caret anchor])
 
         [c1 a1 move?]
         (if (= typ :select)
@@ -491,7 +512,7 @@
            (and (= typ :move) (= e-typ :pressed))])]
 
     ;(println "  ## [c1 a1 move?]:" [c1 a1 move?])
-    (set_ state c1 true move? a1)))
+    (set-marks_ state c1 true move? a1)))
 
 
 (defn keypressed [state_ kw]
