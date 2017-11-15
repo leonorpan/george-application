@@ -4,17 +4,17 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.editor.core
-  (:require [george.javafx :as fx]
-            [george.util.java :as j]
-            [george.editor.buffer :as b]
-            [george.editor.state :as st]
-            [george.editor.view :as v]
-            [george.editor.input :as i])
+  (:require
+    [clojure.pprint :refer [pprint]]
+    [george.javafx :as fx]
+    [george.util.java :as j]
+    [george.editor.buffer :as b]
+    [george.editor.state :as st]
+    [george.editor.view :as v]
+    [george.editor.input :as i])
 
   (:import (org.fxmisc.flowless VirtualFlow VirtualizedScrollPane)
-           (javafx.collections FXCollections ObservableList)
-           (javafx.scene.input KeyEvent)
-           (java.util List)))
+           (javafx.scene.input KeyEvent)))
 
 
 (set! *warn-on-reflection* true)
@@ -22,39 +22,28 @@
 ;(set! *unchecked-math* true)
 
 
-(defn- new-flow
-  "Takes an observable list (as a device for updating its content) and a 1-arg function (the arg is an item from the list), which, when called, will return an instance of org.fxmisc.flowless.Cell.
-  Returns a new (vertical) org.fxmisc.flowless.VirtualFlow"
-  [^ObservableList items cell-factory-fn]
-  (VirtualFlow/createVertical items (j/function cell-factory-fn)))
-
-
 (defn- editor [s]
   (let [
-        [buf nl-str]
-        (b/new-buffer s)
+        [buf nl-str] (b/new-buffer s)
 
-        lines-list (FXCollections/observableArrayList ^List (b/split-buffer-lines buf))
+        state_ (st/new-state-atom buf nl-str)
 
-        state_ (atom (st/new-state buf nl-str lines-list))
-        state-derived_ (st/new-state-derived state_)
-        line-count_ (st/new-line-count state-derived_)
+        scroll-offset_  (atom 0.0)
 
-        graphic-offset_  (atom 0.0)
-
-        flow ^VirtualFlow
-        (new-flow (st/observable-list state_)
-                  (partial v/new-paragraph-cell state-derived_ graphic-offset_ line-count_))
-
-        _ (add-watch state-derived_ (Object.) (fn [_ _ _ derived]
-                                                  (v/ensure-caret-visible flow derived)))
-
-
+        flow
+        (VirtualFlow/createVertical
+          (st/observable-list state_)
+          (j/function
+            (partial v/new-paragraph-cell state_ scroll-offset_)))
+        
         ;;  Needs to get some information from 'flow'
         ;; (and from clicked-in 'cell') before determining appropriate action.
         mouse-event-handler
         (i/mouse-event-handler flow (partial st/mouseaction state_))]
-
+  
+    (add-watch state_ :ensure-caret-visible
+               (fn [_ _ _ state]
+                 (v/ensure-caret-visible flow state)))
 
     (doto flow
 
@@ -63,7 +52,7 @@
 
       (-> .breadthOffsetProperty
           (.addListener (fx/changelistener [_ _ _ offset]
-                                           (reset! graphic-offset_ offset))))
+                                           (reset! scroll-offset_ offset))))
 
       (.addEventHandler KeyEvent/ANY (i/key-event-handler
                                        (partial st/keypressed state_)
@@ -77,19 +66,17 @@
 
       (-> .widthProperty
           (.addListener
-            (fx/changelistener [_ _ prev-width width]
+            (fx/changelistener [_ _ prev-w w]
                                ;; to re-layout so as to ensure-visible on caret after flow has been made visible.
-                               (when (and (zero? ^double prev-width) (pos? ^double width))
-                                 (swap! state-derived_ assoc :triggering-hack (Object.))
-                                 (reset! line-count_ (:line-count @state-derived_)))))))
+                               (when (and (zero? ^double prev-w) (pos? ^double w))
+                                 (swap! state_ assoc :triggering-hack :hacked))))))
+
 
     [flow state_]))
 
 
-
 (definterface IEditorPane
-  (getState []))
-
+  (getStateAtom []))
 
 
 (defn editor-view
@@ -98,6 +85,5 @@
  ([s]
   (let [[flow state_] (editor s)]
     (proxy [VirtualizedScrollPane IEditorPane] [flow]
-      (getState [] state_)))))
-
+      (getStateAtom [] state_)))))
 
