@@ -49,19 +49,25 @@
 
 (defn char-actions [key-pressed-fn]
   {
+   ;; Both cases - in case user has (accidentally) activated Tabs Lock
+   #{:SHORTCUT \A}      #(key-pressed-fn :selectall)
    #{:SHORTCUT \a}      #(key-pressed-fn :selectall)
+   #{:SHORTCUT \C}      #(key-pressed-fn :copy)
    #{:SHORTCUT \c}      #(key-pressed-fn :copy)
+   #{:SHORTCUT \X}      #(key-pressed-fn :cut)
    #{:SHORTCUT \x}      #(key-pressed-fn :cut)
+   #{:SHORTCUT \V}      #(key-pressed-fn :paste)
    #{:SHORTCUT \v}      #(key-pressed-fn :paste)
 
+   #{:SHORTCUT \Z}         #(key-pressed-fn :undo)
    #{:SHORTCUT \z}         #(key-pressed-fn :undo)
    #{:SHORTCUT :SHIFT \Z}  #(key-pressed-fn :redo)
+   #{:SHORTCUT :SHIFT \z}  #(key-pressed-fn :redo)
 
    ;; simply consume these
    #{\return}          #(do)
-   #{:SHIFT \return}   #(do)
+   #{:SHIFT \return}   #(do)})
 
-   #{:SHORTCUT \r}         #(key-pressed-fn :refresh)}) ;; DEV: Refresh the view (from george.editor.buffer).
 
 
    ;; save (and maybe save-as) should have state-API functions, but GUI is separate.

@@ -165,7 +165,7 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 
 (defmacro event-handler
     "Returns an instance of javafx.event.EventHander,
-where input is ingored,
+where input is ignored,
 and the the body is called on 'handle' "
 
     [& body]

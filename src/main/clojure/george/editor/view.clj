@@ -5,6 +5,7 @@
 
 (ns george.editor.view
   (:require
+    [clojure.pprint :refer [pprint]]
     [george.javafx.java :as fxj]
     [george.javafx :as fx]
     [george.editor.state :as st]
@@ -36,14 +37,11 @@
 (def DEFAULT_TEXT_COLOR fx/ANTHRECITE)
 (def DEFAULT_TEXT_SELECTION_COLOR (fx/web-color "#b3d8fd"))
 
-(def DEFAULT_HIDDEN_CHAR_COLOR Color/GRAY)
-
-
+(def DEFAULT_HIDDEN_CHAR_COLOR Color/DARKGRAY)
 
 (def DEFAULT_LINE_BACKGROUND_COLOR fx/WHITESMOKE)
 (def DEFAULT_CURRENT_LINE_BACKGROUND_COLOR (fx/web-color "#F0F0FF"))
 (def DEFAULT_CURRENT_LINE_BORDER_COLOR (fx/web-color "#E5E5FF"))
-
 
 (def DEFAULT_GUTTER_INSETS (fx/insets 0.0, 14.0, 0.0, 14.0))
 (def DEFAULT_GUTTER_TEXT_FILL (fx/web-color "#999"))
@@ -94,52 +92,28 @@
 
 (definterface IGutter
   ^double (getWidth [])
-  (setNumber [n])
-  (dispose []))
-
-
-(defn- ^String nr-formatter
-  "Returns a formatted string padded with zeros based on max-n"
-  [max-n n]
-  (let [digits (if (= max-n 0) 1 (inc (int (Math/log10 max-n))))]
-    (format (str "%0" digits "d") (inc ^int n))))
-;(println (nr-formatter 3574 5))
-;(println (nr-formatter 3574 115))
+  (setText [^String s]))
 
 
 (defn- new-paragraph-gutter
   "AKA (left) margin, graphic, number-row.
   Let's use this as a general data-carrier for the line"
-  [line-count_]
-
-  (let [
-        k (Object.)
-        n_ (atom 0)
-
-        nr-label
-        (doto ^Label (fx/label (nr-formatter @line-count_ @n_))
+  []
+  (let [nr-label
+        (doto (Label.)
           (.setFont DEFAULT_GUTTER_FONT)
           (.setBackground DEFAULT_GUTTER_BACKGROUND)
           (.setPrefHeight (+ 2.0 ^double DEFAULT_LINE_HEIGHT))
           (.setTextFill DEFAULT_GUTTER_TEXT_FILL)
           (.setPadding DEFAULT_GUTTER_INSETS)
-          (.setBorder DEFAULT_GUTTER_BORDER))
-        node
-        (proxy [Group IGutter] [(fxj/vargs nr-label)]
-          (getWidth []
-            (.getWidth nr-label))
+          (.setBorder DEFAULT_GUTTER_BORDER))]
 
-          (setNumber [n]
-            (reset! n_ n)
-            (.setText nr-label (nr-formatter @line-count_ @n_)))
-
-          (dispose []
-            (remove-watch line-count_ k)))]
-    (add-watch line-count_ k
-               (fn [_ _ _ cnt]
-                   (.setText nr-label (nr-formatter cnt @n_))))
-
-    node))
+       (proxy [Group IGutter] [(fxj/vargs nr-label)]
+         (getWidth []
+           (.layout this)
+           (.getWidth nr-label))
+         (setText [s]
+           (.setText nr-label s)))))
 
 
 (defn- new-text [char]
@@ -191,7 +165,7 @@
   [^StackPane pane state-derived row chars texts]
   (->  pane .getChildren .clear)
   (let [
-        {:keys [caret anchor caret-pos anchor-pos state]} state-derived
+        {:keys [caret anchor caret-pos anchor-pos lines]} state-derived
         [crow ccol] caret-pos
         [arow acol] anchor-pos
 
@@ -201,7 +175,7 @@
         [low ^int high] (sort [caret anchor])
         do-mark? (partial u/in-range? low (dec high))
 
-        ^int row-index (st/location->index_ state [row 0])]
+        ^int row-index (st/location->index-- lines [row 0])]
 
     (loop [x 0.0 i 0 nodes texts chars chars]
       (when-let [n ^Text (first nodes)]
@@ -225,9 +199,9 @@
 
 (defn- set-markings-maybe
   "If the row is in the set, then delegates the task"
-  [^StackPane pane state-derived row chars texts]
-  (when ((:update-marking-rows state-derived) row)
-    (set-markings ^StackPane pane state-derived row chars texts)))
+  [^StackPane pane derived row chars texts]
+  (when ((:update-marking-rows derived) row)
+    (set-markings ^StackPane pane derived row chars texts)))
 
 
 (defn- calculate-col [^double offset-x char-nodes]
@@ -251,30 +225,44 @@
         col))))
 
 
-(defn ensure-caret-visible [^VirtualFlow flow derived]
-  ;(println "ensure-caret-visible")
-  (let [[^long row col] (:caret-pos derived)
+(defn ensure-caret-visible [^VirtualFlow flow state]
+  (let [[^long row col] (:caret-pos state)
         cell (.getCell flow row)
+        ;; The "absolute" offset (of the caret) - i.e. number of pixels from the left of the flow
         ^double offset-x (.getOffsetX ^IRowCell cell col)
         ^double gutter-w (.getGutterWidth ^IRowCell cell)
+        ;; How much has been scrolled
         ^double scrolled-x (-> flow .breadthOffsetProperty .getValue)
         flow-w (.getWidth flow)
+        ;; The width between the gutter and the right side of the flow - i.e. the visible text area width
         main-w (- flow-w gutter-w)
-        visible-padding 8.0
+        ;; We want to keep the caret from touching the outer borders of 'main-w'
+        visible-padding 12.0
+        ;; Is the caret visible between the right of the gutter and and the right edge of the flow?
         col-visible? (< (+ gutter-w visible-padding) offset-x (- flow-w visible-padding))
+        ;; If we need to scroll (horizontally),
+        ;; we need want to pass inn a bounding-box which should be made visible.
+        ;; This works (through thinking + trial-and-error). Please update this comment with a logical explanation.
         bounding-x (- (+ offset-x scrolled-x) gutter-w (/ main-w 3))
+        ;; It should be as wide as the 'main-w'
         bounding-w main-w
         bounding-box (BoundingBox. bounding-x 0 bounding-w DEFAULT_LINE_HEIGHT)
 
+        ;; We also want the caret to be vertically visible.
+        ;; And we don't want it to reach the very top or bottom row if avoidable.
+        ;; So get the current first and last visible rows.
         visible-cells (.visibleCells flow)
         ^int first-visible-row (.getIndex ^IRowCell (first visible-cells))
         ^int last-visible-row (.getIndex ^IRowCell (last visible-cells))]
 
     (when-not col-visible?
+      ;; Scroll horizontally.
       (.show flow row bounding-box))
-    (when (<= row first-visible-row)
+    (when (<= row (inc first-visible-row))
+      ;; Scroll up.
       (.show flow (dec row)))
-    (when (>= row last-visible-row)
+    (when (>= row (dec last-visible-row))
+      ;; Scroll down.
       (.show flow (inc row)))))
 
 
@@ -291,7 +279,7 @@
         (.setBackground (fx/color-background DEFAULT_LINE_BACKGROUND_COLOR))))))
 
 
-(defn- new-scrolling-part [texts-pane marks-pane gutter graphic-offset_ texts texts-width]
+(defn- new-scrolling-part [texts-pane marks-pane gutter scroll-offset_ texts texts-width]
   (let [
         insets ^Insets DEFAULT_LINE_INSETS
         inset-left (.getLeft  insets)
@@ -305,7 +293,7 @@
               (let [^double  gw (.getWidth gutter)
                     offset (- offset-x gw inset-left)
                     col
-                    (if (<  (- offset-x ^double @graphic-offset_) gw) ;; offset-x is in/under in gutter.
+                    (if (<  (- offset-x ^double @scroll-offset_) gw) ;; offset-x is in/under in gutter.
                       :gutter
                       (calculate-col offset texts))]
                 col))
@@ -321,7 +309,7 @@
     scrolling-pane))
 
 
-(defn new-paragraph-cell [state-derived_ graphic-offset_ line-count_ line-data]
+(defn new-paragraph-cell [state_ scroll-offset_ line-data]
   (let [k (Object.)
 
         row_ (atom -1)
@@ -332,7 +320,10 @@
         (Pane.)
 
         gutter
-        (new-paragraph-gutter line-count_)
+        (new-paragraph-gutter)
+
+        set-gutter-text
+        #(.setText gutter ((:line-count-formatter @state_) (inc ^int @row_)))
 
         texts-pane
         (doto ^StackPane (fx/stackpane)
@@ -346,7 +337,7 @@
           (.setAlignment Pos/CENTER_LEFT))
 
         scrolling-part
-        (new-scrolling-part texts-pane marks-pane gutter graphic-offset_ texts texts-width)
+        (new-scrolling-part texts-pane marks-pane gutter scroll-offset_ texts texts-width)
 
         node
         (proxy [Region] []
@@ -369,25 +360,24 @@
           (layoutChildren []
             (let [[^double w h] (-> ^Region this .getLayoutBounds fx/WH)
                   gw ^double (.getWidth gutter)
-                  go @graphic-offset_]
-
+                  go @scroll-offset_]
               (.resizeRelocate ^StackPane scrolling-part gw 0 (- w gw) h)
-              ;; maybe check if 'gutter' is present (maybe nil?)
               (.resizeRelocate ^Region gutter go 0 gw h)
               (.resizeRelocate  line-background-pane go 0 w h))))]
-
 
     (-> node .getChildren (.setAll  (fxj/vargs-t Node
                                                  line-background-pane
                                                  scrolling-part
                                                  gutter)))
 
-    (add-watch graphic-offset_ k (fn [_ _ _ _]
-                                   (.requestLayout node)))
-    (add-watch state-derived_ k (fn [_ _ _ derived]
-                                  (set-markings-maybe marks-pane derived @row_ chars texts)
-                                  (highlight-current-line line-background-pane derived @row_)
-                                  (.requestLayout node)))
+    (add-watch scroll-offset_ k (fn [_ _ _ _] (.requestLayout node)))
+
+    (add-watch state_ k (fn [_ _ {prev-digits :line-count-digits} {digits :line-count-digits :as state}]
+                            (set-markings-maybe marks-pane state @row_ chars texts)
+                            (highlight-current-line line-background-pane state @row_)
+                            (when (not= prev-digits digits)
+                              (set-gutter-text))
+                            (.requestLayout node)))
 
     (reify
       Cell
@@ -399,15 +389,14 @@
         ;(println "  ## updateIndex index:" index)
         (when (not= @row_ index) ;; only update box if index changes
           (reset! row_ index)
-          (.setNumber gutter index)
-          (set-markings-maybe marks-pane @state-derived_ @row_ chars texts)
-          (highlight-current-line line-background-pane @state-derived_  @row_)
+          (set-gutter-text)
+          (set-markings-maybe marks-pane @state_ @row_ chars texts)
+          (highlight-current-line line-background-pane  @state_  @row_)
           (.requestLayout node)))
       ;; implements
       (dispose [_]
-        (remove-watch graphic-offset_ k)
-        (remove-watch state-derived_ k)
-        (.dispose gutter))
+        (remove-watch scroll-offset_ k)
+        (remove-watch state_ k))
       IRowCell
       ;; implements
       (getColumn [_ offset-x]
@@ -416,7 +405,7 @@
         (-
          (+ ^double (.getWidth gutter)
             ^double (.getOffsetX scrolling-part col))
-         ^double @graphic-offset_))
+         ^double @scroll-offset_))
       (getGutterWidth [_]
         (.getWidth gutter))
       (getIndex [_]
