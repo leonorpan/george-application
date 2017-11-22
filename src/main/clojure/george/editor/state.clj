@@ -7,17 +7,17 @@
   (:require
     [clojure.string :as cs]
     [clojure.pprint :refer [pprint]]
+    [clj-diff.core :as diff]
     [george.util :as u]
     [george.editor.buffer :as b]
     [george.javafx :as fx]
-    [clojure.core.rrb-vector :as fv]
-    [clj-diff.core :as diff])
+    [clojure.core.rrb-vector :as fv])
   (:import
     (javafx.collections FXCollections ObservableList)
     (javafx.scene.input ClipboardContent Clipboard)
     (java.util List)
     (clojure.core.rrb_vector.rrbt Vector)
-    (clojure.lang PersistentVector Keyword IFn)))
+    (clojure.lang PersistentVector Keyword IFn Atom)))
 
 
 (set! *warn-on-reflection* true)
@@ -28,11 +28,14 @@
 (declare
   index->location--
   index->location_
+  update-buffer_
+  set-marks_
   invalidate-derived_
   update-derived_
   ensure-derived_
   caret-anchor_
-  apply-formatter_)
+  apply-formatter_
+  do-update-list_)
 
 
 
@@ -187,15 +190,32 @@
   (:buffer state))
 
 
-(defn buffer [state_]
+(defn buffer [^Atom state_]
   (buffer_ @state_))
 
+
+(defn text [^Atom state_]
+  (-> state_ buffer (#(String. (char-array %)))))
+
+
+(defn- set-text_ [state ^String txt & [caret anchor]]
+  (let [buffer (buffer_ state)
+        edits (diff/diff buffer (seq txt))
+        buffer (diff/patch buffer edits)]
+    (-> state
+        (update-buffer_ (constantly buffer))
+        (set-marks_ (or caret 0) true (or anchor true) (or anchor caret))
+        (apply-formatter_ false)
+        do-update-list_)))
+
+(defn set-text [^Atom state_ ^String txt]
+  (swap! state_ set-text_ txt))
 
 (defn- observable-list_ [state]
   (:list state))
 
 
-(defn observable-list [state_]
+(defn observable-list [^Atom state_]
   (observable-list_ @state_))
 
 
@@ -813,15 +833,15 @@
            (apply-formatter_ false)
            ensure-derived_)))
 
-(defn keypressed [state_ kw]
+(defn keypressed [^Atom state_ kw]
   (swap! state_ keypressed_ kw))
 
 
-(defn keytyped [state_ ch]
+(defn keytyped [^Atom state_ ch]
   (swap! state_ keytyped_ ch))
 
 
-(defn mouseaction [state_ prev-e-typ e-typ sel-typ loc]
+(defn mouseaction [^Atom state_ prev-e-typ e-typ sel-typ loc]
   (swap! state_ mouseaction_ prev-e-typ e-typ sel-typ loc))
 
 

@@ -12,7 +12,7 @@
     [george.util :as u])
 
   (:import (org.fxmisc.flowless Cell VirtualFlow)
-           (javafx.scene.text Text)
+           (javafx.scene.text Text Font FontPosture)
            (javafx.scene.layout Region StackPane Pane)
            (javafx.geometry Pos Insets BoundingBox)
            (javafx.scene Node Group)
@@ -45,6 +45,7 @@
 
 (def DEFAULT_GUTTER_INSETS (fx/insets 0.0, 14.0, 0.0, 14.0))
 (def DEFAULT_GUTTER_TEXT_FILL (fx/web-color "#999"))
+;(def DEFAULT_GUTTER_FONT (Font/font "monospace" FontPosture/ITALIC 13.))
 (def DEFAULT_GUTTER_FONT (fx/SourceCodePro "medium" 14))
 (def DEFAULT_GUTTER_BACKGROUND (fx/color-background DEFAULT_LINE_BACKGROUND_COLOR));(fx/web-color "#ddd")))
 (def DEFAULT_GUTTER_BORDER (fx/make-border DEFAULT_CURRENT_LINE_BORDER_COLOR [0 1 0 0]))
@@ -375,7 +376,7 @@
                   gw ^double (.getWidth gutter)
                   go @scroll-offset_]
               (.resizeRelocate ^StackPane scrolling-part gw 0 (- w gw) h)
-              (.resizeRelocate ^Region gutter go 0 gw h)
+              (.resizeRelocate gutter go 0 gw h)
               (.resizeRelocate  line-background-pane go 0 w h))))]
 
     (-> node .getChildren (.setAll  (fxj/vargs-t Node

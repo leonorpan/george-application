@@ -6,7 +6,7 @@
 (ns george.javafx
     (:require
         [clojure.java.io :as cio]
-        [clojure.string :as s]
+        [clojure.string :as cs]
         [george.javafx.java :as fxj]
         [george.javafx.util :as fxu]
         [george.util.javafx :as ufx])
@@ -308,7 +308,14 @@ and the body is called on 'changed'"
   (preload-fonts some-fonts))
  ([fonts]
   (doseq [f fonts]
-    (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.) println))))
+    (-> (format "fonts/%s" f)
+        cio/resource str
+        (cs/replace "%20" " ")
+        (Font/loadFont  12.)
+        println))))
+
+
+(preload-fonts)
 
 
 
@@ -317,15 +324,17 @@ and the body is called on 'changed'"
 ;; So we pre-load them here, and they should then be available in css
 #_(let
     (doseq [f fonts]
-        (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
+        (-> (format "fonts/%s" f) cio/resource str (cs/replace "%20" " ") (Font/loadFont  12.))))
 
 
-(defn SourceCodePro [weight size]  ;; "Regular" / "Medium", etc
-    (-> (format "fonts/SourceCodePro-%s.ttf" weight)
-        cio/resource
-        str
-        (s/replace "%20" " ")
-        (Font/loadFont (double size))))
+(defn SourceCodePro
+ ([size] (SourceCodePro size))
+ ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
+  (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
+      cio/resource
+      str
+      (cs/replace "%20" " ")
+      (Font/loadFont (double size)))))
 
 
 

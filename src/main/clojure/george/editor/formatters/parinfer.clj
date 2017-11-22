@@ -14,13 +14,11 @@
     [clojure.java.io :as cio]
     [clojure.data.json :as json]
     [clojure.pprint :refer [pp pprint]]
+    [clj-diff.core :as diff]
     [george.util]  ;; important - to ensure loading of 'defmethod diff/patch Vector'
     [george.javafx.java :as j]
     [george.editor.state :as st]
-    :reload
-    [clojure.core.rrb-vector :as fv]
-    [george.editor.buffer :as b]
-    [clj-diff.core :as diff])
+    [george.editor.buffer :as b])
   (:import (javax.script ScriptEngineManager)
            (jdk.nashorn.api.scripting ScriptObjectMirror NashornScriptEngine)))
 
