@@ -13,7 +13,7 @@
 (defn- test-stage [view]
   (fx/now
     (fx/stage :title "Editor demo stage"
-              :scene (fx/scene view :size [300 400]))))
+              :scene (fx/scene view :size [400 400]))))
 
 
 (defn no-text-editor []
@@ -24,12 +24,19 @@
 (defn small-text-editor []
   (test-stage
     (e/editor-view
-      "This is a text.\nThe quick brown fox jumped over ...\n ... the what?")))
+      "This is a text.\nThe quick brown fox jumped over ...\n ... the what?"
+      "clj")))
 
-
-(defn code-text-editor []
+(defn sample-code-editor []
   (test-stage
-    (e/editor-view (b/read-triangle-code))))
+    (e/editor-view
+      "(defn foo\n  \"hello, this is a docstring\"\n  [a b]\n  (let [sum (+ a b)\n        prod (* a b)]\n     {:sum sum\n      :prod prod}))"
+      :clj)))
+
+(defn triangle-code-editor []
+  (test-stage
+    (e/editor-view
+      (b/read-triangle-code) "clj")))
 
 
 (defn large-text-editor []
@@ -40,5 +47,6 @@
 
 ;(no-text-editor)
 ;(small-text-editor)
-;(code-text-editor)
+;(sample-code-editor)
+;(triangle-code-editor)
 ;(large-text-editor)

@@ -25,19 +25,24 @@
 (declare read-char unread-char peek-char)
 
 
-(defn- return-char? [ch]
+(defn return-char? [ch]
   (identical? \return ch))
 
-(defn- newline-char? [ch]
+(defn newline-char? [ch]
   (identical? \newline ch))
 
-(defn- formfeed-char? [ch]
+(defn formfeed-char? [ch]
   (identical? \formfeed ch))
 
-(defn- newline-formfeed-char? [ch]
+(defn newline-formfeed-char? [ch]
   (or (newline-char? ch) (formfeed-char? ch)))
 
 
+(defn space-char? [ch]
+  (identical? \space ch))
+
+(defn tab-char? [ch]
+  (identical? \tab ch))
 
 (defn- normalized-newline
   "Returns a 2-part vector containing: [ch str-or-nil]
@@ -151,39 +156,6 @@
 
 ;;;;;;
 
-
-(def DEL_SYM "LINE_TO_BE_DELETED")  ;; used as a marker for lines to be deleted
-
-
-(defn do-update-list
-  "Updates the observable-list  so it matches the buffer.
-  It uses the Meyer's Diff Algorithm: http://simplygenius.net/Article/DiffTutorial1"
-
-  [lines ^ObservableList list]
-  (let [edit-script (diff/diff (vec list) lines)
-        {additions :+ deletions :-} edit-script]
-    ;; apply deletions
-    (doseq [i deletions]
-      (.set list i DEL_SYM))
-    ;; apply additions
-    ;(prn "  ## additions:" additions)
-    (doseq [[^long i & items] additions]
-      (loop [i (inc i) items items]
-        (when-let [item (first items)]
-          ;(prn "  ## item:" item)
-          (.add list i item)
-          (recur (inc i) (next items)))))
-    ;; clean up
-    (loop [removed-one (.remove list DEL_SYM)]
-      (when removed-one
-        ;(println "  ## removed 1 del-sym:" removed-one)
-        (recur (.remove list DEL_SYM))))))
-
-
-;;;;;;
-
-
-
 (defn- test-linestarts []
   (let [sb (StringBuilder. ^String (slurp (cio/resource "texts/triangle.clj")))
         sb (StringBuilder. "")
@@ -196,26 +168,6 @@
                       [i (lines-at i) (lines i)])]
            (prn i c l))))
 ;(test-linestarts)
-
-
-
-
-(defn- test-linediffs []
-  (let [l1 [0 2 4 6]
-        l2 [0 3 5 7]
-        l3 [0 1 2 3 7]
-        l4 [0 1 2 4 7]
-        r1 (cd/diff l1 l2)
-        r2 (cd/diff l2 l3)
-        r3 (cd/diff l3 l4)
-        r4 (cd/diff [[0 0], [1 2], [2 4], [3 6]]
-                    [[0 0], [1 1], [2 3], [3 5], [4 7]])]
-    (println r1)
-    (println r2)
-    (println r3)))
-    ;(println r4)))
-;(test-linediffs)
-
 
 
 (defn ^String read-resource [resource-filepath-str]

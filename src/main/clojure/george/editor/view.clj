@@ -154,47 +154,60 @@
 (defn- calculate-offset
   "Returns the offset-x of where the mark (anchor/caret) should be inserted."
   [texts col]
+  ;(println "/calculate-offset" "col:"  col)
   (if (zero? ^int col)
     0.0
-    (let [t ^Text (get texts (dec ^int col))]
-      (-> t .getBoundsInParent .getMaxX))))
+    (try
+      (let [t ^Text (get texts (dec ^int col))]
+        (-> t .getBoundsInParent .getMaxX))
+      (catch NullPointerException e
+        (printf "NullPointerException at 'george.editor.view/calculate-offset' col: %s , texts: %s\n"
+                col (str texts))
+        (.printStackTrace e)))))
 
 
 (defn- set-markings
   "Inserts and lays out markings (caret, anchor, select) if any, on the passed-in pane."
-  [^StackPane pane state-derived row chars texts]
+  [^StackPane pane state row chars texts]
+  ;(println "view/set-markings " "state:" state "row:" row)
   (->  pane .getChildren .clear)
-  (let [
-        {:keys [caret anchor caret-pos anchor-pos lines]} state-derived
-        [crow ccol] caret-pos
-        [arow acol] anchor-pos
+  (try
+    (let [
+          {:keys [caret anchor caret-pos anchor-pos lines]} state
+          [crow ccol] caret-pos
+          [arow acol] anchor-pos
 
-        caret-row? (= crow row)
-        anchor-row? (= arow row)
+          caret-row? (= crow row)
+          anchor-row? (= arow row)
 
-        [low ^int high] (sort [caret anchor])
-        do-mark? (partial u/in-range? low (dec high))
+          [low ^int high] (sort [caret anchor])
+          do-mark? (partial u/in-range? low (dec high))
 
-        ^int row-index (st/location->index-- lines [row 0])]
+          ^int row-index (st/location->index-- lines [row 0])]
 
-    (loop [x 0.0 i 0 nodes texts chars chars]
-      (when-let [n ^Text (first nodes)]
-        (let [w (-> n .getBoundsInParent .getWidth)]
-          (when (do-mark? (+ row-index i))
-            (let [marking (selection-background-factory w DEFAULT_LINE_HEIGHT (first chars))]
-              (.setTranslateX ^Node marking (- x 0.5)) ;; offset half pixel to left
-              (-> pane .getChildren (.add marking))))
-          (recur (+ x w) (inc i) (next nodes) (next chars)))))
+      (loop [x 0.0 i 0 nodes texts chars chars]
+        (when-let [n ^Text (first nodes)]
+          (let [w (-> n .getBoundsInParent .getWidth)]
+            (when (do-mark? (+ row-index i))
+              (let [marking (selection-background-factory w DEFAULT_LINE_HEIGHT (first chars))]
+                (.setTranslateX ^Node marking (- x 0.5)) ;; offset half pixel to left
+                (-> pane .getChildren (.add marking))))
+            (recur (+ x w) (inc i) (next nodes) (next chars)))))
 
-    (when anchor-row?
-      (let [anchor (anchor-factory DEFAULT_LINE_HEIGHT)]
-        (.setTranslateX anchor (- ^double (calculate-offset texts acol) 0.25))
-        (-> pane .getChildren (.add anchor))))
+      (when anchor-row?
+        (let [anchor (anchor-factory DEFAULT_LINE_HEIGHT)]
+          (.setTranslateX anchor (- ^double (calculate-offset texts acol) 0.25))
+          (-> pane .getChildren (.add anchor))))
 
-    (when caret-row?
-      (let [caret ^Node (DEFAULT_CURSOR_FACTORY DEFAULT_LINE_HEIGHT)]
-        (.setTranslateX caret (- ^double (calculate-offset texts ccol) 1.0)) ;; negative offset for cursor width
-        (-> pane .getChildren (.add caret))))))
+      (when caret-row?
+        (let [caret ^Node (DEFAULT_CURSOR_FACTORY DEFAULT_LINE_HEIGHT)]
+          (.setTranslateX caret (- ^double (calculate-offset texts ccol) 1.0)) ;; negative offset for cursor width
+          (-> pane .getChildren (.add caret)))))
+
+    (catch NullPointerException e
+      (printf "NullPointerException at 'george.editor.view/set-markings' row: %s , state: %s\n"
+              row state)
+      (.printStackTrace e))))
 
 
 (defn- set-markings-maybe
@@ -266,8 +279,8 @@
       (.show flow (inc row)))))
 
 
-(defn- highlight-current-line [^StackPane pane state-derived row]
-  (let [crow (-> state-derived :caret-pos first)
+(defn- highlight-current-line [^StackPane pane state row]
+  (let [crow (-> state :caret-pos first)
         caret-row? (= crow row)]
 
     (if caret-row?

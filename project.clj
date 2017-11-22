@@ -34,8 +34,9 @@
                  ;; https://github.com/brentonashworth/clj-diff
                  [clj-diff "1.0.0-SNAPSHOT"]
                  ;; https://github.com/clojure/core.rrb-vector
-                 [org.clojure/core.rrb-vector "0.0.11"]]
-
+                 [org.clojure/core.rrb-vector "0.0.11"]
+                 ;; https://github.com/clojure/data.json
+                 [org.clojure/data.json "0.2.6"]]
 
   :plugins [
             ;; https://github.com/weavejester/codox
