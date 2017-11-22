@@ -7,7 +7,7 @@
   (:require [george.javafx :as fx]
             [george.util.javafx :as ufx])
   (:import (javafx.event EventType)
-           (javafx.scene.input MouseEvent MouseDragEvent KeyEvent)
+           (javafx.scene.input MouseEvent MouseDragEvent KeyEvent KeyCode)
            (org.fxmisc.flowless VirtualFlow)))
 
 
@@ -43,9 +43,13 @@
 
    #{:ENTER}       #(key-pressed-fn :enter)
    #{:BACK_SPACE}  #(key-pressed-fn :backspace)
-   #{:DELETE}      #(key-pressed-fn :delete)})
+   #{:DELETE}      #(key-pressed-fn :delete)
+
+   #{:TAB}         #(key-pressed-fn :tab)
+   #{:SHIFT :TAB}  #(key-pressed-fn :untab)})
 
 
+(def MAC?_SHIFT_TAB_CHAR (char 25))
 
 (defn char-actions [key-pressed-fn]
   {
@@ -65,8 +69,11 @@
    #{:SHORTCUT :SHIFT \z}  #(key-pressed-fn :redo)
 
    ;; simply consume these
-   #{\return}          #(do)
-   #{:SHIFT \return}   #(do)})
+   #{\tab}                       #(do) ;#(println "Consumed TAB")
+   #{:SHIFT \tab}                #(do) ;#(println "Consumed SHIFT-TAB")
+   #{:SHIFT MAC?_SHIFT_TAB_CHAR} #(do) ;#(println "Consumed Mac? SHIFT-TAB")
+   #{\return}                    #(do)
+   #{:SHIFT \return}             #(do)})
 
 
 

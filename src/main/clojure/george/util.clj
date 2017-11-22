@@ -7,16 +7,20 @@
   ^{:author "Terje Dahl"}
   george.util
   (:require
+    [clojure.pprint :refer [pprint]]
     [clojure.core.rrb-vector :as fv]
+    [clj-diff.core :as diff]
     [clojure.pprint :as cpp])
   (:import (java.util UUID)
            (java.io File)
            (clojure.lang PersistentVector)
-           (clojure.core.rrb_vector.rrbt Vector)))
+           (clojure.core.rrb_vector.rrbt Vector)
+           (javafx.collections ObservableList)))
 
 
-(set! *warn-on-reflection* true)
-(set! *unchecked-math* true)
+;(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* true)
 
 (defn pprint-str
   "returns a pprint-formatted str"
@@ -55,13 +59,40 @@
       (str txt \newline))))
 
 
-(defn clamp
+;(defn clamp
+;  "low and high (both inclusive)"
+;  [low  x  high]
+;  ;(println "::clamp" low x high)
+;  (if (< x low)
+;      low
+;      (if (> x high)
+;        high
+;        x)))
+
+
+(defn clamp-int
   "low and high (both inclusive)"
-  [low x high]
+  [low  x  high]
   ;(println "::clamp" low x high)
-  (if (< x low) low
-                (if (> x high) high
-                               x)))
+  ;(if (< ^int x ^int low)
+  ;  low
+  ;  (if (> ^int x ^int high)
+  ;    high
+  ;    x))
+  (max ^int low (min ^int x ^int high)))
+
+
+(defn clamp-double
+  "low and high (both inclusive)"
+  [low  x  high]
+  ;(println "::clamp" low x high)
+  ;(if (< ^double x ^double low)
+  ;  low
+  ;  (if (> ^double x ^double high)
+  ;    high
+  ;    x)))
+  (max ^double low (min ^double x ^double high)))
+
 
 (defn in-range?
   "returns true if x is in range of low and high (both inclusive)"
@@ -90,23 +121,6 @@
   (let [[before after] (split-at offset coll)]
     (concat before xs after)))
 
-;(ns-unmap *ns* 'replace-at)
-(defmulti replace-at
-          "Returns a new vector or seq with xs inlined in place of item at index.
-          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
-          Ex.: (replace-at [1 2 3 4] 2 '(10 11)) ;-> [1 2 10 11 4]
-          Ex.: (replace-at '(1 2 3 4) 2 '(10 11)) ;-> (1 2 10 11 4)"
-          (fn [vec-or-coll index xs] (class vec-or-coll)))
-
-(defmethod replace-at Vector [v index xs]
-  (fv/catvec (fv/subvec v 0 index) xs (fv/subvec v (inc index))))
-
-(defmethod replace-at PersistentVector [v index xs]
-  (vec (concat (subvec v 0 index) xs (subvec v (inc index)))))
-
-(defmethod replace-at :default [coll index xs]
-  (let [[before after] (split-at index coll)]
-    (concat before xs (next after))))
 
 ;(ns-unmap *ns* 'replace-range)
 (defmulti replace-range
@@ -124,27 +138,25 @@
 
 (defmethod replace-range :default [coll start end xs]
   (let [[before _] (split-at start coll)
-        [_ after] (split-at (dec end) coll)]
+        [_ after] (split-at (dec ^int end) coll)]
     (concat before xs (next after))))
 
-;(ns-unmap *ns* 'remove-at)
-(defmulti remove-at
-          "Returns a new vector or seq with item at index removed.
+;(ns-unmap *ns* 'replace-at)
+(defmulti replace-at
+          "Returns a new vector or seq with xs inlined in place of item at index.
           Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
-          Ex.: (remove-at [1 2 3 4] 2) ;-> [1 2 4]
-          Ex.: (remove-at '(1 2 3 4) 2) ;-> (1 2 4)"
-          (fn [vec-or-coll index] (class vec-or-coll)))
+          Ex.: (replace-at [1 2 3 4] 2 '(10 11)) ;-> [1 2 10 11 4]
+          Ex.: (replace-at '(1 2 3 4) 2 '(10 11)) ;-> (1 2 10 11 4)"
+          (fn [vec-or-coll index xs] (class vec-or-coll)))
 
-(defmethod remove-at Vector [v index]
-  (fv/catvec (fv/subvec v 0 index) (fv/subvec v (inc index))))
+(defmethod replace-at Vector [v index xs]
+  (replace-range v index (inc ^int index) xs))
 
-(defmethod remove-at PersistentVector [v index]
-  (vec (concat (subvec v 0 index) (subvec v (inc index)))))
+(defmethod replace-at PersistentVector [v index xs]
+  (replace-range v index (inc ^int index) xs))
 
-(defmethod remove-at :default [coll index]
-  (let [[before after] (split-at index coll)]
-    (concat before (next after))))
-
+(defmethod replace-at :default [coll index xs]
+  (replace-range coll index (inc ^int index) xs))
 
 ;(ns-unmap *ns* 'remove-range)
 (defmulti remove-range
@@ -162,11 +174,30 @@
 
 (defmethod remove-range :default [coll start end]
   (let [[before _] (split-at start coll)
-        [_ after] (split-at (dec end) coll)]
+        [_ after] (split-at (dec ^int end) coll)]
     (concat before (next after))))
 
 
+;(ns-unmap *ns* 'remove-at)
+(defmulti remove-at
+          "Returns a new vector or seq with item at index removed.
+          Implemented for PersistentVector, clojure.core.rrb_vector.rrbt.Vector, collection (default).
+          Ex.: (remove-at [1 2 3 4] 2) ;-> [1 2 4]
+          Ex.: (remove-at '(1 2 3 4) 2) ;-> (1 2 4)"
+          (fn [vec-or-coll index] (class vec-or-coll)))
+
+(defmethod remove-at Vector [v index]
+  (remove-range v index (inc ^int index)))
+
+(defmethod remove-at PersistentVector [v index]
+  (remove-range v index (inc ^int index)))
+
+(defmethod remove-at :default [coll index]
+  (remove-range coll index (inc ^int index)))
+
+
 ;(prn (insert-at (fv/vector 1 2 3 4) 2 [\a]))
+;(prn (replace-at (fv/vector 1 2 3 4) 2 [\a]))
 ;(println (time (insert-at (fv/vector 1 2 3 4) 2 (fv/vector 10 11))))
 ;(println (time (insert-at [1 2 3 4] 2 '(10 11))))
 ;(println (insert-at '(1 2 3 4) 2 '(10 11)))
@@ -178,3 +209,126 @@
 ;(println (remove-at '(1 2 3 4) 2))
 ;(println (remove-range [1 2 3 4] 1 3))
 ;(println (remove-range '(1 2 3 4) 1 3))
+
+
+
+;(defn char-sequence
+;  [seq-of-chars]
+;  (reify
+;    CharSequence
+;    (length [_]
+;      ^int (count seq-of-chars))
+;    (charAt [_ ^int index] ;; This one doesn't compile!
+;      ^char (nth seq-of-chars index))
+;    (subSequence [_ ^int start ^int end]
+;      (char-sequence
+;        (cond
+;          (instance? Vector seq-of-chars)
+;          (fv/subvec  seq-of-chars start end)
+;
+;          (vector? seq-of-chars)
+;          (subvec  seq-of-chars start end)
+;
+;          ;; default
+;          (first (split-at (- end start) (second (split-at start seq-of-chars)))))))
+;    ^String
+;    (toString [_]
+;      ;; TODO: Can we do better?!
+;      (String. (char-array seq-of-chars)))))
+;    ;; TODO: 'chars' and 'codePoints' should probably be implemented ...
+
+;(def chars '(\a \b \c \d \e))
+;(println chars)
+;(println (.charAt (char-sequence chars) 1))
+;(println (.subSequence (char-sequence '(\a \b \c \d \e)) 1 3))
+
+
+
+(def DEL_OBJ (Object.))  ;; used as a marker for elements to be deleted
+
+(defmethod diff/patch Vector [v edit-script]
+  ;(println "diff/patch Vector")
+  (let [{adds :+ dels :-} edit-script
+        adds (reverse adds)
+        ;; Reverse because the insertion indexes don't take into account that
+        ;; the previous insertion offsets what follows.
+        ;; By starting at the back, it has no effect on the indexes before.
+
+        v ;;apply deletions  (Mark elements to delete with DEL_OBJ)
+        (reduce (fn [v i] (replace-at v i (fv/vector DEL_OBJ))) v dels)
+        v ;; apply additions
+        (reduce (fn [v add]
+                    (insert-at v
+                               (inc ^int (first add)) ;; increment because of how 'insert-at' works.
+                               (fv/vec (rest add))))
+                v adds)
+
+        v  ;; clean up (remove DEL_OBJs)
+        (if (empty? dels)  ;; Optimization: Don't bother looking.
+            v
+            (let [find-start (first dels) ;; Optimization: Start at index of first DEL_OBJ.
+                  find-limit (count dels)] ;; Optimization: Stop once all DEL_OBJs are found.
+              (loop [v v
+                     [i & ix] (range find-start (count v)) ;; We need an index for getting elements
+                     find-cnt 0]
+                (if (= find-cnt find-limit)  ;; We found them all. We're done!
+                  v
+                  (let [item (get v i)]
+                    (if (= item DEL_OBJ)
+                      (recur (remove-at v i) (cons i ix) (inc find-cnt))
+                      (recur v ix find-cnt)))))))]
+
+    v))
+
+
+
+(defn- fv-diffpatch-test
+  "Testing diff-patch for fast vector"
+  []
+  (let [a (fv/vec "This is a test. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj")
+        b (fv/vec "Thiz was tested a lot. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj")
+        edit-script (diff/diff a b)
+        r (diff/patch a edit-script)]
+    ;(prn "  ## a:" a)
+    ;(prn "  ## b:" b)
+    ;(prn "  ## r:" r)))
+    r))
+;(prn (apply str (time (fv-diffpatch-test))))
+
+
+
+(defmethod diff/patch ObservableList [^ObservableList olist edit-script]
+  ;(println "diff/patch ObservableList")
+  (let [{adds :+ dels :-} edit-script
+        adds (reverse adds)]
+    ;; apply deletions
+    (doseq [^int i dels] (.set olist i DEL_OBJ))
+    ;; apply additions
+    (doseq [[^int i & items] adds]
+      (.addAll olist (inc i) items))
+    ;; clean up
+    (when-not (empty? dels)
+      (let [find-start (first dels)
+            find-limit (count dels)]
+        (loop [[^int i & ix] (range find-start (count olist))
+               find-cnt 0]
+          (when-not (= find-cnt find-limit)
+            (if (= (.get olist i) DEL_OBJ)
+              (do (.remove olist i)
+                  (recur (cons i ix) (inc find-cnt)))
+              (recur ix find-cnt))))))
+    olist))
+
+
+(defn- olist-diffpatch-test
+  "Testing diff-patch for ObservableList"
+  []
+  (let [a (javafx.collections.FXCollections/observableArrayList (seq "This is a test. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj"))
+        _ (prn "  ## a:" a)
+        b (fv/vec "Thiz was tested a lot. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj")
+        _ (prn "  ## b:" b)
+        edit-script (diff/diff a b)
+        r (diff/patch a edit-script)
+        _ (prn "  ## r:" r)]
+    r))
+;(prn (apply str (time (olist-diffpatch-test))))

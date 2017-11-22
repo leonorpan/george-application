@@ -11,8 +11,8 @@
     [george.editor.buffer :as b]
     [george.editor.state :as st]
     [george.editor.view :as v]
-    [george.editor.input :as i])
-
+    [george.editor.input :as i]
+    [george.editor.formatters.parinfer :as parinfer] :reload)
   (:import (org.fxmisc.flowless VirtualFlow VirtualizedScrollPane)
            (javafx.scene.input KeyEvent)))
 
@@ -22,11 +22,14 @@
 ;(set! *unchecked-math* true)
 
 
-(defn- editor [s]
+(defn- editor
+ ([s typ]
   (let [
         [buf nl-str] (b/new-buffer s)
+        typ (keyword typ)
+        formatter (when (= typ :clj) (parinfer/new-formatter))
 
-        state_ (st/new-state-atom buf nl-str)
+        state_ (st/new-state-atom buf nl-str typ formatter)
 
         scroll-offset_  (atom 0.0)
 
@@ -72,7 +75,7 @@
                                  (swap! state_ assoc :triggering-hack :hacked))))))
 
 
-    [flow state_]))
+    [flow state_])))
 
 
 (definterface IEditorPane
@@ -80,10 +83,19 @@
 
 
 (defn editor-view
+ "Returns a subclass of VirtualizedScrollPane.
+
+ No args, or 'content-string' and optional 'content-type'.
+
+ 'content-type' can be 'nil' (for plain text)
+ or (currently) one of: :clj or \"clj\".
+
+ 'content-type' will effect formatting and coloring."
+
  ([]
-  (editor-view ""))
- ([s]
-  (let [[flow state_] (editor s)]
+  (editor-view "" nil))
+ ([^String content-string & [content-type]]
+  (let [[flow state_] (editor content-string content-type)]
     (proxy [VirtualizedScrollPane IEditorPane] [flow]
       (getStateAtom [] state_)))))
 
