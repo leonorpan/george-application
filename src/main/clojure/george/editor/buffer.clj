@@ -71,13 +71,13 @@
   [^String s]
   (loop [rdr (pushback-stringreader s)
          ich (.read rdr)
-         chars (transient (fv/vector))
+         chars (transient [])
          orig-nl "\n"]
 
     (if (not= ich -1)
       (let [[ch nl] (normalized-newline rdr (char ich))]
         (recur rdr (.read rdr) (conj! chars ch) (or nl orig-nl)))
-      [orig-nl (persistent! chars)])))
+      [orig-nl (fv/vec (persistent! chars))])))
 
 
 (defn new-buffer

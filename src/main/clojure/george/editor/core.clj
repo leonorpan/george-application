@@ -12,12 +12,12 @@
     [george.editor.state :as st]
     [george.editor.view :as v]
     [george.editor.input :as i]
-    [george.editor.formatters.parinfer :as parinfer] :reload)
+    [george.editor.formatters.parinfer :as parinfer])
   (:import (org.fxmisc.flowless VirtualFlow VirtualizedScrollPane)
            (javafx.scene.input KeyEvent)))
 
 
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
@@ -99,3 +99,10 @@
     (proxy [VirtualizedScrollPane IEditorPane] [flow]
       (getStateAtom [] state_)))))
 
+
+(defn text [editor-view]
+  (-> editor-view  .getStateAtom st/text))
+
+
+(defn set-text [editor-view ^String txt]
+  (-> editor-view .getStateAtom (st/set-text txt)))
