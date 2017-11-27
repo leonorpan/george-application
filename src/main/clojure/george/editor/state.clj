@@ -460,7 +460,7 @@
 (defn- keytyped_
   "Returns an updated state (or the old one)."
   [state ch]
-  ;(prn "state/keytyped_" ch)
+  ;(prn "state/keytyped_" ch (int ch))
   (let [[^int car anc :as car-anc] (caret-anchor_ state)
         state
         (if (not= car anc) ;; there is a selection

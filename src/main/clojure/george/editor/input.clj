@@ -11,6 +11,27 @@
            (org.fxmisc.flowless VirtualFlow)))
 
 
+(def MAC_SHIFT_TAB_CHAR (char 25))
+(def WIN_CTRL_A_CHAR (char 1))
+(def WIN_CTRL_C_CHAR (char 3))
+(def WIN_CTRL_X_CHAR (char 24))
+(def WIN_CTRL_V_CHAR (char 22))
+(def WIN_CTRL_Z_CHAR (char 26))
+(def WIN_DELETE_CHAR (char 127))
+
+(def OPEN_SQARE_CHAR (char 91)) ;; [
+(def CLOSE_SQARE_CHAR (char 93)) ;; ]
+(def OPEN_CURLY_CHAR (char 123)) ;; {
+(def CLOSE_CURLY_CHAR (char 125)) ;; }
+(def AT_CHAR (char 64)) ;; @
+
+(def win-problem-char-set #{OPEN_SQARE_CHAR
+                            CLOSE_SQARE_CHAR
+                            OPEN_CURLY_CHAR
+                            CLOSE_CURLY_CHAR
+                            AT_CHAR})
+
+
 (defn code-actions [key-pressed-fn]
   {
    #{:UP}                   #(key-pressed-fn :move-up)
@@ -49,37 +70,43 @@
    #{:SHIFT :TAB}  #(key-pressed-fn :untab)})
 
 
-(def MAC?_SHIFT_TAB_CHAR (char 25))
-
 (defn char-actions [key-pressed-fn]
   {
    ;; Both cases - in case user has (accidentally) activated Tabs Lock
-   #{:SHORTCUT \A}      #(key-pressed-fn :selectall)
-   #{:SHORTCUT \a}      #(key-pressed-fn :selectall)
-   #{:SHORTCUT \C}      #(key-pressed-fn :copy)
-   #{:SHORTCUT \c}      #(key-pressed-fn :copy)
-   #{:SHORTCUT \X}      #(key-pressed-fn :cut)
-   #{:SHORTCUT \x}      #(key-pressed-fn :cut)
-   #{:SHORTCUT \V}      #(key-pressed-fn :paste)
-   #{:SHORTCUT \v}      #(key-pressed-fn :paste)
+   #{:SHORTCUT \A}              #(key-pressed-fn :selectall)
+   #{:SHORTCUT \a}              #(key-pressed-fn :selectall)
+   #{:SHORTCUT WIN_CTRL_A_CHAR} #(key-pressed-fn :selectall)
+   #{:SHORTCUT \C}              #(key-pressed-fn :copy)
+   #{:SHORTCUT \c}              #(key-pressed-fn :copy)
+   #{:SHORTCUT WIN_CTRL_C_CHAR} #(key-pressed-fn :copy)
+   #{:SHORTCUT \X}              #(key-pressed-fn :cut)
+   #{:SHORTCUT \x}              #(key-pressed-fn :cut)
+   #{:SHORTCUT WIN_CTRL_X_CHAR} #(key-pressed-fn :cut)
+   #{:SHORTCUT \V}              #(key-pressed-fn :paste)
+   #{:SHORTCUT \v}              #(key-pressed-fn :paste)
+   #{:SHORTCUT WIN_CTRL_V_CHAR} #(key-pressed-fn :paste)
 
-   #{:SHORTCUT \Z}         #(key-pressed-fn :undo)
-   #{:SHORTCUT \z}         #(key-pressed-fn :undo)
-   #{:SHORTCUT :SHIFT \Z}  #(key-pressed-fn :redo)
-   #{:SHORTCUT :SHIFT \z}  #(key-pressed-fn :redo)
+   #{:SHORTCUT \Z}              #(key-pressed-fn :undo)
+   #{:SHORTCUT \z}              #(key-pressed-fn :undo)
+   #{:SHORTCUT WIN_CTRL_Z_CHAR} #(key-pressed-fn :undo)
+   #{:SHORTCUT :SHIFT \Z}              #(key-pressed-fn :redo)
+   #{:SHORTCUT :SHIFT \z}              #(key-pressed-fn :redo)
+   #{:SHORTCUT :SHIFT WIN_CTRL_Z_CHAR} #(key-pressed-fn :redo)
 
    ;; simply consume these
-   #{\tab}                       #(do) ;#(println "Consumed TAB")
-   #{:SHIFT \tab}                #(do) ;#(println "Consumed SHIFT-TAB")
-   #{:SHIFT MAC?_SHIFT_TAB_CHAR} #(do) ;#(println "Consumed Mac? SHIFT-TAB")
+   #{\tab}                       #(do)
+   #{:SHIFT \tab}                #(do)
+   #{:SHIFT MAC_SHIFT_TAB_CHAR}  #(do)
    #{\return}                    #(do)
-   #{:SHIFT \return}             #(do)})
-
+   #{:SHIFT \return}             #(do)
+   #{\backspace}                 #(do)
+   #{:SHIFT \backspace}          #(do)
+   #{WIN_DELETE_CHAR}            #(do)})
 
 
    ;; save (and maybe save-as) should have state-API functions, but GUI is separate.
    ;; varieties find and replace are should be implemented in the george.editor.buffer-API, but GUI is separate.
-   ;; open and close are filehandling and should be implemented in (GUI) separately
+   ;; open and close are file handling and should be implemented in (GUI) separately
 
 
 (defn key-event-handler [key-pressed-fn char-entered-fn]
@@ -98,6 +125,11 @@
 
          (when (= e-type KeyEvent/KEY_TYPED)
            (let [combo (ufx/char-modifier-set e)]
+             (doseq [c combo]
+               (when (and (char? c) (win-problem-char-set c))
+                 ;(println "Handled a problem-char:" c)
+                 (char-entered-fn c)
+                 (.consume e)))
 
              (when-let [f (chars combo)]
                (f)
