@@ -11,7 +11,9 @@
 
   :dependencies [
                  [org.clojure/clojure "1.8.0"]
-                 [org.clojure/core.async "0.2.374"]
+                 ;; https://github.com/clojure/core.async
+                 [org.clojure/core.async "0.3.465"]
+                 ;; https://github.com/clojure/tools.reader
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  ;; https://github.com/mmcgrana/clj-stacktrace
                  [clj-stacktrace "0.2.8"]
@@ -36,7 +38,9 @@
                  ;; https://github.com/clojure/core.rrb-vector
                  [org.clojure/core.rrb-vector "0.0.11"]
                  ;; https://github.com/clojure/data.json
-                 [org.clojure/data.json "0.2.6"]]
+                 [org.clojure/data.json "0.2.6"]
+                 ;; https://github.com/ztellman/potemkin
+                 [potemkin "0.4.4"]]
 
   :plugins [
             ;; https://github.com/weavejester/codox

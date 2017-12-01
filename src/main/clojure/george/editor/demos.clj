@@ -24,8 +24,8 @@
 (defn small-text-editor []
   (test-stage
     (e/editor-view
-      "This is a text.\nThe quick brown fox jumped over ...\n ... the what?"
-      "clj")))
+      "This is a text.\nThe quick brown fox jumped over ...\n ... the what?")))
+
 
 (defn sample-code-editor []
   (test-stage
@@ -39,8 +39,8 @@
       (b/read-triangle-code) "clj")))
 
 
-(defn large-text-editor []
-  (let [view (e/editor-view (b/read-large-text))]
+(defn large-text-editor [& [content-type]]
+  (let [view (e/editor-view (b/read-large-text) content-type)]
     ;(println "view's state_:" (.getState view))
     (test-stage view)))
 
@@ -50,3 +50,4 @@
 ;(sample-code-editor)
 ;(triangle-code-editor)
 ;(large-text-editor)
+;(large-text-editor :clj)
