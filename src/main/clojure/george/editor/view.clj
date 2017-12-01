@@ -6,6 +6,7 @@
 (ns george.editor.view
   (:require
     [clojure.pprint :refer [pprint]]
+    [clojure.core.async :as a]
     [george.javafx.java :as fxj]
     [george.javafx :as fx]
     [george.editor.state :as st]
@@ -96,7 +97,7 @@
   (setText [^String s]))
 
 
-(defn- new-paragraph-gutter
+(defn- new-row-gutter
   "AKA (left) margin, graphic, number-row.
   Let's use this as a general data-carrier for the line"
   []
@@ -167,55 +168,62 @@
         (.printStackTrace e)))))
 
 
-(defn- set-markings
+(defn- set-marks
   "Inserts and lays out markings (caret, anchor, select) if any, on the passed-in pane."
-  [^StackPane pane state row chars texts]
-  ;(println "view/set-markings " "state:" state "row:" row)
-  (->  pane .getChildren .clear)
-  (try
-    (let [
-          {:keys [caret anchor caret-pos anchor-pos lines]} state
-          [crow ccol] caret-pos
-          [arow acol] anchor-pos
+  [^StackPane pane {:keys [caret anchor caret-pos anchor-pos lines]} row chars texts]
+  ;(println "view/set-marks " "o-marks:" (dissoc o-marks :lines) "row:" row)
+  (let [
+        [crow ccol] caret-pos
+        [arow acol] anchor-pos
 
-          caret-row? (= crow row)
-          anchor-row? (= arow row)
+        [low ^int high] (sort [caret anchor])
+        do-mark? (partial u/in-range? low (dec high))
 
-          [low ^int high] (sort [caret anchor])
-          do-mark? (partial u/in-range? low (dec high))
+        ^int row-index (st/location->index-- lines [row 0])]
 
-          ^int row-index (st/location->index-- lines [row 0])]
+    (loop [x 0.0 i 0 nodes texts chars chars]
+      (when-let [n ^Text (first nodes)]
+        (let [w (-> n .getBoundsInParent .getWidth)]
+          (when (do-mark? (+ row-index i))
+            (let [marking (selection-background-factory w DEFAULT_LINE_HEIGHT (first chars))]
+              (.setTranslateX ^Node marking (- x 0.5)) ;; offset half pixel to left
+              (-> pane .getChildren (.add marking))))
+          (recur (+ x w) (inc i) (next nodes) (next chars)))))
 
-      (loop [x 0.0 i 0 nodes texts chars chars]
-        (when-let [n ^Text (first nodes)]
-          (let [w (-> n .getBoundsInParent .getWidth)]
-            (when (do-mark? (+ row-index i))
-              (let [marking (selection-background-factory w DEFAULT_LINE_HEIGHT (first chars))]
-                (.setTranslateX ^Node marking (- x 0.5)) ;; offset half pixel to left
-                (-> pane .getChildren (.add marking))))
-            (recur (+ x w) (inc i) (next nodes) (next chars)))))
+    (when (= arow row)
+      (let [anchor (anchor-factory DEFAULT_LINE_HEIGHT)]
+        (.setTranslateX anchor (- ^double (calculate-offset texts acol) 0.25))
+        (-> pane .getChildren (.add anchor))))
 
-      (when anchor-row?
-        (let [anchor (anchor-factory DEFAULT_LINE_HEIGHT)]
-          (.setTranslateX anchor (- ^double (calculate-offset texts acol) 0.25))
-          (-> pane .getChildren (.add anchor))))
-
-      (when caret-row?
-        (let [caret ^Node (DEFAULT_CURSOR_FACTORY DEFAULT_LINE_HEIGHT)]
-          (.setTranslateX caret (- ^double (calculate-offset texts ccol) 1.0)) ;; negative offset for cursor width
-          (-> pane .getChildren (.add caret)))))
-
-    (catch NullPointerException e
-      (printf "NullPointerException at 'george.editor.view/set-markings' row: %s , state: %s\n"
-              row state)
-      (.printStackTrace e))))
+    (when (= crow row)
+      (let [caret ^Node (DEFAULT_CURSOR_FACTORY DEFAULT_LINE_HEIGHT)]
+        (.setTranslateX caret (- ^double (calculate-offset texts ccol) 1.0)) ;; negative offset for cursor width
+        (-> pane .getChildren (.add caret))))))
 
 
-(defn- set-markings-maybe
+(defn- highlight-current-row [^StackPane pane current-row?]
+  (let []
+    (if current-row?
+      (doto pane
+        (.setBorder (fx/make-border  DEFAULT_CURRENT_LINE_BORDER_COLOR [1 0 1 0]))
+        (.setBackground (fx/color-background DEFAULT_CURRENT_LINE_BACKGROUND_COLOR)))
+      (doto pane
+        (.setBorder (fx/make-border  DEFAULT_LINE_BACKGROUND_COLOR [1 0 1 0]))
+        (.setBackground (fx/color-background DEFAULT_LINE_BACKGROUND_COLOR))))))
+
+
+(defn- set-marks-and-line
   "If the row is in the set, then delegates the task"
-  [^StackPane pane derived row chars texts]
-  (when ((:update-marking-rows derived) row)
-    (set-markings ^StackPane pane derived row chars texts)))
+  [line-background-pane
+   ^StackPane marks-pane
+   {:keys [current-row-p? marked-row-p?] :as derived}
+   row chars texts]
+
+  (highlight-current-row line-background-pane (current-row-p? row))
+
+  (->  marks-pane .getChildren .clear)
+  (when (marked-row-p? row)
+    (set-marks ^StackPane marks-pane derived row chars texts)))
 
 
 (defn- calculate-col [^double offset-x char-nodes]
@@ -280,20 +288,7 @@
       (.show flow (inc row)))))
 
 
-(defn- highlight-current-line [^StackPane pane state row]
-  (let [crow (-> state :caret-pos first)
-        caret-row? (= crow row)]
-
-    (if caret-row?
-      (doto pane
-        (.setBorder (fx/make-border  DEFAULT_CURRENT_LINE_BORDER_COLOR [1 0 1 0]))
-        (.setBackground (fx/color-background DEFAULT_CURRENT_LINE_BACKGROUND_COLOR)))
-      (doto pane
-        (.setBorder (fx/make-border  DEFAULT_LINE_BACKGROUND_COLOR [1 0 1 0]))
-        (.setBackground (fx/color-background DEFAULT_LINE_BACKGROUND_COLOR))))))
-
-
-(defn- new-scrolling-part [texts-pane marks-pane gutter scroll-offset_ texts texts-width]
+(defn- new-scrolling-part [gutter text-pane marks-pane blocks-pane scroll-offset_ texts texts-width]
   (let [
         insets ^Insets DEFAULT_LINE_INSETS
         inset-left (.getLeft  insets)
@@ -301,7 +296,7 @@
 
         scrolling-pane
         (doto
-          (proxy [StackPane IScrollableText] [(fxj/vargs marks-pane texts-pane)]
+          (proxy [StackPane IScrollableText] [(fxj/vargs blocks-pane marks-pane text-pane)]
             ;; Impelements IScrollableText
             (getColumn [^double offset-x] ;; offset-x already considers scrolled offset
               (let [^double  gw (.getWidth gutter)
@@ -323,7 +318,7 @@
     scrolling-pane))
 
 
-(defn new-paragraph-cell [state_ scroll-offset_ line-data]
+(defn new-line-cell [state_ scroll-offset_ line-data]
   (let [k (Object.)
 
         row_ (atom -1)
@@ -334,24 +329,28 @@
         (Pane.)
 
         gutter
-        (new-paragraph-gutter)
+        (new-row-gutter)
 
         set-gutter-text
         #(.setText gutter ((:line-count-formatter @state_) (inc ^int @row_)))
 
-        texts-pane
+        text-pane
         (doto ^StackPane (fx/stackpane)
           (.setAlignment Pos/CENTER_LEFT))
 
         [texts-width texts]
-        (insert-and-layout-chars-as-texts texts-pane chars)
+        (insert-and-layout-chars-as-texts text-pane chars)
 
         marks-pane
         (doto ^StackPane (fx/stackpane)
           (.setAlignment Pos/CENTER_LEFT))
 
+        blocks-pane
+        (doto ^StackPane (fx/stackpane)
+          (.setAlignment Pos/CENTER_LEFT))
+
         scrolling-part
-        (new-scrolling-part texts-pane marks-pane gutter scroll-offset_ texts texts-width)
+        (new-scrolling-part gutter text-pane marks-pane blocks-pane  scroll-offset_ texts texts-width)
 
         node
         (proxy [Region] []
@@ -386,12 +385,13 @@
 
     (add-watch scroll-offset_ k (fn [_ _ _ _] (.requestLayout node)))
 
-    (add-watch state_ k (fn [_ _ {prev-digits :line-count-digits} {digits :line-count-digits :as state}]
-                            (set-markings-maybe marks-pane state @row_ chars texts)
-                            (highlight-current-line line-background-pane state @row_)
-                            (when (not= prev-digits digits)
-                              (set-gutter-text))
-                            (.requestLayout node)))
+    (add-watch state_ k
+               (fn [_ _ {prev-digits :line-count-digits}
+                        {digits :line-count-digits :as state}]
+                 (set-marks-and-line line-background-pane marks-pane state @row_ chars texts)
+                 (when (not= prev-digits digits)
+                   (set-gutter-text))
+                 (.requestLayout node)))
 
     (reify
       Cell
@@ -404,8 +404,7 @@
         (when (not= @row_ index) ;; only update box if index changes
           (reset! row_ index)
           (set-gutter-text)
-          (set-markings-maybe marks-pane @state_ @row_ chars texts)
-          (highlight-current-line line-background-pane  @state_  @row_)
+          (set-marks-and-line line-background-pane marks-pane @state_ @row_ chars texts)
           (.requestLayout node)))
       ;; implements
       (dispose [_]

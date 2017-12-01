@@ -12,7 +12,7 @@
     [george.editor.state :as st]
     [george.editor.view :as v]
     [george.editor.input :as i]
-    [george.editor.formatters.parinfer :as parinfer])
+    [george.editor.formatters.core :as formatters])
   (:import (org.fxmisc.flowless VirtualFlow VirtualizedScrollPane)
            (javafx.scene.input KeyEvent)))
 
@@ -22,22 +22,22 @@
 ;(set! *unchecked-math* true)
 
 
+(declare set-content-type)
+
+
 (defn- editor
  ([s typ]
   (let [
         [buf nl-str] (b/new-buffer s)
-        typ (keyword typ)
-        formatter (when (= typ :clj) (parinfer/new-formatter))
-
-        state_ (st/new-state-atom buf nl-str typ formatter)
-
+        state_ (st/new-state-atom buf nl-str typ)
+        _ (swap! state_ formatters/set-formatters_)
         scroll-offset_  (atom 0.0)
 
         flow
         (VirtualFlow/createVertical
           (st/observable-list state_)
           (j/function
-            (partial v/new-paragraph-cell state_ scroll-offset_)))
+            (partial v/new-line-cell state_ scroll-offset_)))
         
         ;;  Needs to get some information from 'flow'
         ;; (and from clicked-in 'cell') before determining appropriate action.
@@ -106,3 +106,12 @@
 
 (defn set-text [editor-view ^String txt]
   (-> editor-view .getStateAtom (st/set-text txt)))
+
+
+(defn set-content-type [editor-view type-str-or-kw]
+  (let [state_ (.getStateAtom editor-view)]
+    (swap! state_
+           #(-> %
+                (st/set-content-type_ type-str-or-kw)
+                formatters/set-formatters_))
+    editor-view))

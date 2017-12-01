@@ -7,6 +7,7 @@
   (:require
     [clojure.string :as cs]
     [clojure.pprint :refer [pprint]]
+    [clojure.core.async :as a]
     [clj-diff.core :as diff]
     [george.util :as u]
     [george.editor.buffer :as b]
@@ -30,11 +31,14 @@
   index->location_
   update-buffer_
   set-marks_
+  lines_
   invalidate-derived_
   update-derived_
   ensure-derived_
+  ensure-prefcol_
   caret-anchor_
   apply-formatter_
+  set-content-type_
   do-update-list_)
 
 
@@ -89,12 +93,12 @@
 
 
 (defn- ensure-lines_ [state]
-  (if (:lines state)
+  (if (lines_ state)
     state
     (update-lines_ state)))
 
 
-(defn- new-state_ [^Vector buffer ^String line-sep content-type content-formatter]
+(defn- new-state_ [^Vector buffer ^String line-sep content-type]
   (let [buf (or buffer (fv/vector))
         lines (b/split-buffer-lines buf)
         olist (FXCollections/observableArrayList ^List lines)
@@ -107,9 +111,12 @@
          :caret    0
          :anchor   0
          :prefcol  0  ;; used when up/down cause cursor to shift sideways.
-         :content-type content-type
-         :content-formatter content-formatter
-         ;; These are derived values. They are initially nil.
+
+         :content-type       nil ;; set/updated in 'set-content-type_'
+         :content-formatter  nil ;; -''-
+         :tabber             nil;; -''-
+
+         ;; The following are derived values. They are initially nil.
          ;; They are "invalidated" by setting them back to nil.
 
          ;;  Is invalidated only when the buffer changes.
@@ -120,30 +127,33 @@
 
          ;; These are invalidated both when the buffer changes or when caret or anchor changes
          :caret-pos       nil  ;; [^int row ^int col]
-         :anchor-pos      nil  ;;  - '' -
-         :caret-pos-prev  nil  ;; For use by "update-markings"
-         :anchor-pos-prev nil  ;;  - '' -
-         :update-marking-rows nil}]  ;;  A 'set' of row numbers e.g. '#{0 1 2}',
-                                     ;; indicating which ones need markings (selection and marks) repainted.
+         :anchor-pos      nil}]  ;;  - '' -
     (-> state
         ;; TODO: Should be '(apply-formatter_ true)' - but only when colorcoding is in place - to show where the error is!
+        (set-content-type_ content-type)
         (apply-formatter_ false)
-      ensure-derived_)))
+        ensure-derived_)))
 
 
-(defn new-state-atom [^Vector buffer ^String line-sep ^Keyword content-type ^IFn content-formatter]
-  (atom (new-state_ buffer line-sep content-type content-formatter)))
+(defn new-state-atom [^Vector buffer ^String line-sep ^Keyword content-type]
+  (atom (new-state_ buffer line-sep content-type)))
 
 
-(defn- calculate-marking-rows
-  "Calculates which rows need to re-layout their markings.
-  Returns a set of row-indicies, i.e. '#{0,1,3}'"
-  [[crow _] [arow _] {[crow0 _] :caret-pos-prev [arow0 _] :anchor-pos-prev}]
-  (let [[^int low ^int high] (sort [crow arow])]
-    (if-not crow0
-      (set (range low (inc high)))
-      (let [[low0 high0] (sort [crow0 arow0])]
-        (set (range (min low ^int low0) (inc  (max high ^int high0))))))))
+(defn content-type_ [state]
+  (:content-type state))
+
+
+(defn set-content-type_ [state type-str-or-kw]
+  (let [typ (keyword type-str-or-kw)]
+    (assoc state :content-type typ)))
+
+
+(defn set-formatter_ [state formatter]
+  (assoc state :content-formatter formatter))
+
+
+(defn set-tabber_ [state tabber]
+  (assoc state :tabber tabber))
 
 
 (defn- update-derived_
@@ -152,38 +162,34 @@
   It will in turn update the states list when it is done."
   ;; TODO: Maybe called async in future.
   [state]
-  ;(pprint ["/update-derived_ partial state:" (dissoc state :buffer :lines :list)])
+  ;(pprint ["/update-derived_ partial state:" (dissoc state :buffer :lines :o-list)])
   (let [state (ensure-lines_ state)
         [caret anchor] (caret-anchor_ state)
-        lines (:lines state)
-        cpos (index->location-- lines caret)
-        apos (index->location-- lines anchor)]
+        lines (lines_ state)
+        [crow _ :as cpos] (index->location-- lines caret)
+        [arow _ :as apos] (index->location-- lines anchor)
+        [low-row high-row] (sort  [crow arow])]
 
     (assoc state
            :caret-pos cpos
            :anchor-pos apos
-           :update-marking-rows (calculate-marking-rows cpos apos state))))
+           :marked-row-p?  #(<= low-row % high-row)
+           :current-row-p? #(= crow %))))
 
 
 (defn- invalidate-derived_ [state]
   ;; don't invalidate twice, because then we loose the :update-marking-rows-prev
-  ;(pprint ["/invalidate-derived_ partial state:" (dissoc state :buffer :lines :list)])
+  ;(pprint ["/invalidate-derived_ partial state:" (dissoc state :buffer :lines :o-list)])
   (if-not (:caret-pos state)
     state
     (assoc state :caret-pos nil
-                 :anchor-pos nil
-                 :caret-pos-prev (:caret-pos state)
-                 :anchor-pos-prev (:anchor-pos state)
-                 :update-marking-rows nil)))
+                 :anchor-pos nil)))
 
 
 (defn ensure-derived_ [state]
   (if (:caret-pos state)
     state
     (update-derived_ state)))
-
-
-;;;; GETTERS / CALCULATORS
 
 
 (defn buffer_ [state]
@@ -208,8 +214,10 @@
         (apply-formatter_ false)
         do-update-list_)))
 
+
 (defn set-text [^Atom state_ ^String txt]
   (swap! state_ set-text_ txt))
+
 
 (defn- observable-list_ [state]
   (:list state))
@@ -231,15 +239,20 @@
     [(caret_ state) (anchor_ state)])
 
 
-(defn prefcol_ [state]
-  (:prefcol state))
+(defn prefcol_ [state & [ensured?]]
+  (if ensured?
+    (-> state
+        ensure-prefcol_
+        prefcol_)
+    (:prefcol state)))
 
 
 (defn lines_ [state]
   (-> state :lines))
 
+
 (defn line_ [state row]
-  (-> state :lines (nth row)))
+  (nth (lines_ state) row))
 
 
 (defn length_ [state]
@@ -292,9 +305,6 @@
   (index->location-- (lines_ state) index))
 
 
-;;;; SETTERS
-
-
 (defn set-caret_ [state index]
   (assoc state :caret index))
 
@@ -303,29 +313,40 @@
   (assoc state :anchor index))
 
 
-(defn set-prefcol_ [state caret]
-  (assoc state :prefcol (second (index->location_ state caret))))
+(defn set-prefcol_ [state index]
+  ;(println "/set-prefcol_:" index)
+  (assoc state :prefcol (second (index->location_ state index))))
 
 
 (defn reset-prefcol_ [state]
+  ;(println "/reset-prefcol_")
   (set-prefcol_ state (caret_ state)))
+
+
+(defn- ensure-prefcol_  [state]
+  (if (:prefcol state)
+    state
+    (reset-prefcol_ state)))
+
+
+(defn- invalidate-prefcol_ [state]
+  ;(println "/invalidate-prefcol_")
+  (assoc state :prefcol nil))
 
 
 (defn set-marks_ [state index move-prefcol? move-anchor? & [anchor-index]]
   ;(println "/set-marks_" "_" index move-prefcol? move-anchor? anchor-index)
   (let [clamper #(u/clamp-int 0 %  (length_ state))
         anc
-        (or anchor-index index)
+        (or anchor-index index)]
         ;_ (println "  ## anc:" anc)
-        state
-        (-> state
-            ensure-lines_
-            (set-caret_ (clamper index))
-            (#(if move-prefcol? (set-prefcol_ % (clamper index)) %))
-            (#(if move-anchor? (set-anchor_ % (clamper anc)) %))
-            invalidate-derived_)]
+    (-> state
+        ensure-lines_
+        (set-caret_ (clamper index))
+        (#(if move-prefcol? (set-prefcol_ % (clamper index)) %))
+        (#(if move-anchor? (set-anchor_ % (clamper anc)) %))
+        invalidate-derived_)))
 
-    state))
 
 (defn- apply-formatter_
   "Applies formatter on state, if a formatter has been set.
@@ -333,8 +354,7 @@
   [state & [strict? selection-start-line]]
   (if-let [formatter (:content-formatter state)]
     (formatter state strict? selection-start-line)
-
-    ;; Else no formatting
+    ;; else no formatting
     state))
 
 
@@ -396,7 +416,7 @@
             state (ensure-lines_ state)
             ^int car (caret_ state)
             [^int row _] (index->location_ state car)
-            pcol (prefcol_ state)
+            pcol (prefcol_ state true)
             lns (lines_ state)
             lns-cnt (count lns)
             row1 (+ row ^int steps)
@@ -406,7 +426,7 @@
             ln-len (count ln)
             col1  (u/clamp-int 0 pcol (max 0 (int (if newline-end? (dec ln-len) ln-len))))
             col2
-            (if (not= row1 row2)  ;; were were clamped! Move to end or row.
+            (if (not= row1 row2)  ;; we got clamped! Move to end or row.
               (if (neg? ^int steps) 0 ln-len)
               col1)
             ^int index-new  (location->index_ state [row2 col2])]
@@ -419,14 +439,11 @@
               true)))))
 
 
-;;;; HANDLERS / LISTENERS
-
-
 (defn- do-update-list_
   "Updates the observable-list  so it matches the buffer.
   It uses the Meyer's Diff Algorithm: http://simplygenius.net/Article/DiffTutorial1
 
-  Make sure to require george.util-namspace, as installs the method 'diff/patch' for ObservableList."
+  Make sure to require george.util-namespace, as installs the method 'diff/patch' for ObservableList."
   [state]
   (let [state (ensure-derived_ state)
         ^ObservableList olist (observable-list_ state)
@@ -435,15 +452,15 @@
     state))
 
 
-(defn- insert-at [buffer offset chars]
+(defn insert-at [buffer offset chars]
   (u/insert-at buffer offset chars))
 
 
-(defn- replace-range [buffer start end chars]
+(defn replace-range [buffer start end chars]
   (u/replace-range buffer start end chars))
 
 
-(defn- delete-range [buffer start end]
+(defn delete-range [buffer start end]
   (u/remove-range buffer start end))
 
 
@@ -457,8 +474,8 @@
         invalidate-lines_)))
 
 
-(defn- keytyped_
-  "Returns an updated state (or the old one)."
+(defn keytyped_
+  "Returns an updated state."
   [state ch]
   ;(prn "state/keytyped_" ch (int ch))
   (let [[^int car anc :as car-anc] (caret-anchor_ state)
@@ -510,184 +527,19 @@
            (apply-formatter_ false)
            do-update-list_)))
 
-(defn- tabbable-rows_ [state]
-  (let [[start end] (sort (caret-anchor_ state))
-        [srow _] (index->location_ state start)
-        [erow ecol] (index->location_ state end)]
-    (if (= srow erow)
-      [srow]
-      (if (zero? ^int ecol)
-        (range srow erow)
-        (range srow (inc ^int erow))))))
 
-
-(defn spaces-at-row-start-- [lines row]
-  (let [line (lines row)]
-    (loop [cnt 0 line line]
-      (if-let [ch (first line)]
-        (if (b/space-char? ch)
-          (recur (inc cnt) (rest line))
-          cnt)
-        cnt))))
-
-(defn spaces
-  "Returns a vector containing 'n' space-chars"
-  [n]
-  (vec (repeat n \space)))
-
-
-;; # Alternative TAB-action
-;; ## Cursive
-;; Any marker on the first (or only) line always move with the line.
-;; Any marker on the last line never move, if more than one row.
-;; The last line moves only if the marker is col != 0.
-;; If no selection, moves no matter where caret is in line.
-;; ## IntelliJ
-;; If no selection, caret moves line only when before first text, otherwise inserts tabe expanded to spaces.
-;; Moves ending mark with line, if line moves.
-;; ## Parinfer demo - http://shaunlebron.github.io/parinfer/demo
-;; Inserts spaces like IntelliJ
-;; Moves starting mark with line if no selection or if selection starting col != 0
-;; Moves ending mark to beginning of line if line moves.
-;; ## George
-;; If the mark is on a line that moves then the mark moves!
-;; If end-line>start-line, but end-mark at col=0 the end-line does not move.
-;; Tab always moves line, never inserts spaces.
-
-(defn- tab_ [state]
-  ;(println "/tab_")
-  (let [TAB 2
-        lines (lines_ state) ;; Get lines, as first update will invalidate them.
-        rows (tabbable-rows_ state)
-        ;_ (println "tabbable-rows:" rows)
-
-        ;; calculate insertion points and data: row -> [index items]
-        insertions
-        (map #(vector (location->index-- lines [% 0])  TAB) rows)
-
-        ^int insertions-sum
-        (reduce + (map second insertions))
-
-        ;; apply insertions to state
-        state
-        (reduce (fn [state [i cnt]]
-                  (update-buffer_ state insert-at i (spaces cnt)))
-                state
-                (reverse insertions)) ;; reverse to avoid offset-issues for following insertions
-
-
-        [^int c ^int a] (caret-anchor_ state)
-        caret-first? (<= c a)
-        caret-last? (>= c a)
-        [^int crow _] (index->location-- lines c)
-        [^int arow _] (index->location-- lines a)
-
-        [c1 a1]
-        (if (= crow arow)
-          [(+ c TAB) (+ a TAB)]
-          [(if caret-first?
-               (+ c TAB)
-               (+ c
-                  insertions-sum
-                  (if (zero? crow) (- TAB) 0)))
-           (if (not caret-first?)
-               (+ a TAB)
-               (+ a
-                  insertions-sum
-                  (if (zero? arow ) (- TAB) 0)))])]
-
-
+(defn tab_ [state]
+  (let [[state first-row] ((:tabber state) state :tab)]
     (-> state
-        (set-marks_ c1 true true a1)
-        (apply-formatter_ false (first rows))
-        do-update-list_)))
+      (apply-formatter_ false first-row)
+      do-update-list_)))
 
 
-
-(defn test-code []
-    (println "test-code"))
-(def nothing "nothing")
-
-
-(defn- clamp-untab--
-  "Ensures that untab is not bigger than leading spaces. Adjusts nr of spaces to untab."
-  [lines row ^long requested-dels]
-  (let [^int spaces-cnt (spaces-at-row-start-- lines row)]
-    (min spaces-cnt requested-dels)))
-
-
-(defn- untab_ [state]
-  ;; Algorithm:
-  ;; Calculate possible untabs for each line, relative to the requested
-  ;; Apply the untabs (in reverse).
-  ;; Shift the start-marker the same as the first line
-  ;; Sum the untabs and shift the end-tab - incl/excl tabbing if the end-line also was untabbed.
-
-  ;; for the end-marker:
-  ;; If I am at col0, then simply subtract all previous untabs.
-  ;; Else
-  ;; 1: What col am I at now.  Say 1 or 3
-  ;; Subtract all previous untabs and current col to get col0.
-  ;; Subtract all untabs, but do (max new-index col0-index)
-  ;; su
-  (let [UNTAB 2
-        lines (lines_ state)
-        rows (tabbable-rows_ state)
-
-        deletions
-        (map #(vector (location->index-- lines [% 0]) (clamp-untab-- lines % UNTAB)) rows)
-
-        ;; apply deletions to state
-        state
-        (reduce (fn [state [^int i ^int cnt]]
-                  (update-buffer_ state delete-range i (+ i cnt)))
-                state
-                (reverse deletions)) ;; reverse to avoid offset-issues for following insertions
-
-        ^int deletions-sum
-        (reduce + (map second deletions))
-        ^int butlast-sum (reduce + (map second (butlast deletions)))
-
-        [^int c ^int a] (caret-anchor_ state)
-        caret-first? (<= c a)
-        caret-last? (>= c a)
-
-        [^int crow ^int ccol] (index->location-- lines c)
-        [^int arow ^int acol] (index->location-- lines a)
-
-        ^int first-sum (-> deletions first second)
-        ^int butlast-sum (reduce + (map second (butlast deletions)))
-
-        start-col0-clamper
-        (fn [^long index ^long col]
-            (let [col0-index (- index  col)
-                  new-index (- index first-sum)]
-                 (max col0-index new-index)))
-
-
-        end-col0-clamper
-        (fn [^long index ^long col]
-            (let [col0-index (- index butlast-sum col)
-                  new-index (- index deletions-sum)]
-              (if (zero? col)
-                (- index deletions-sum)
-                (max col0-index new-index))))
-
-
-        [^int c1 ^int a1]
-        (if (= crow arow)
-          [(start-col0-clamper c ccol)    (start-col0-clamper a acol)]
-          (if caret-first?
-            [(start-col0-clamper c ccol)  (end-col0-clamper a acol)]
-            [(end-col0-clamper c ccol)    (start-col0-clamper a acol)]))]
-
+(defn untab_ [state]
+  (let [[state first-row] ((:tabber state) state :untab)]
     (-> state
-        (set-marks_ c1 true true a1)
-        (apply-formatter_ false (first rows))
+        (apply-formatter_ false first-row)
         do-update-list_)))
-
-
-
 
 
 (def CB (fx/now (Clipboard/getSystemClipboard)))
@@ -784,6 +636,7 @@
           (apply-formatter_ false)
           ensure-derived_))))
 
+
 (defn- mouse-loc->index [state loc]
   (if (= loc :end)
     (length_ state)
@@ -833,6 +686,7 @@
            (apply-formatter_ false)
            ensure-derived_)))
 
+
 (defn keypressed [^Atom state_ kw]
   (swap! state_ keypressed_ kw))
 
@@ -843,6 +697,4 @@
 
 (defn mouseaction [^Atom state_ prev-e-typ e-typ sel-typ loc]
   (swap! state_ mouseaction_ prev-e-typ e-typ sel-typ loc))
-
-
 
