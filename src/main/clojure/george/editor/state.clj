@@ -10,7 +10,9 @@
     [clojure.core.async :as a]
     [clj-diff.core :as diff]
     [george.util :as u]
+    [george.util.text :as ut]
     [george.editor.buffer :as b]
+    [george.editor.readers.core :as readers]
     [george.javafx :as fx]
     [clojure.core.rrb-vector :as fv])
   (:import
@@ -32,6 +34,7 @@
   update-buffer_
   set-marks_
   lines_
+  buffer_
   invalidate-derived_
   update-derived_
   ensure-derived_
@@ -71,6 +74,37 @@
   #(format (line-count-format-str digits) %))
 
 
+(defn invalidate-blocks_ [state]
+  (assoc state :blocks nil))
+
+
+(defn- calculate-blocks [buffer]
+  (let [blocks (readers/block-spans buffer)]
+    ;(pprint blocks)
+    blocks))
+
+(defn- calculate-block-ranges
+  "Returns a map keyed on rows, with spans for each row"
+  [blocks line-count]
+  (into {}
+    (map
+      (fn [row] ;; returns a 2-element vector: [row spans]
+        [row
+         (filter (fn [{[frow _] :first [lrow _] :last}]  (<= frow row lrow))
+                 blocks)])
+      (range line-count))))
+
+
+(defn update-blocks_ [state]
+  (let [blocks (calculate-blocks (buffer_ state))
+        spans (calculate-block-ranges blocks (count (lines_ state)))]
+    (assoc state :blocks blocks
+                 :block-ranges spans
+                 ;; See view/max-offset-x-mem
+                 :max-offset-x-mem_ (atom {}))))
+
+
+
 (defn update-lines_ [{:keys [buffer line-count line-count-digits line-count-formatter] :as state}]
   (let [lines (b/split-buffer-lines buffer)
         cnt (count lines)
@@ -82,20 +116,24 @@
         (assoc :lines lines
                :line-count cnt
                :line-count-digits digits
-               :line-count-formatter formatter))))
+               :line-count-formatter formatter)
+        update-blocks_)))
 
 
 (defn invalidate-lines_ [state]
   (-> state
     (assoc :lines nil)
     ;;; When lines are invalidated, then positions based on those must also be invalidated.
+    invalidate-blocks_
     invalidate-derived_))
 
 
 (defn- ensure-lines_ [state]
   (if (lines_ state)
     state
-    (update-lines_ state)))
+    (-> state
+        update-lines_
+        update-blocks_)))
 
 
 (defn- new-state_ [^Vector buffer ^String line-sep content-type]
@@ -127,7 +165,8 @@
 
          ;; These are invalidated both when the buffer changes or when caret or anchor changes
          :caret-pos       nil  ;; [^int row ^int col]
-         :anchor-pos      nil}]  ;;  - '' -
+         :anchor-pos      nil  ;;  - '' -
+         :blocks nil}]  ;; ?
     (-> state
         ;; TODO: Should be '(apply-formatter_ true)' - but only when colorcoding is in place - to show where the error is!
         (set-content-type_ content-type)
@@ -169,7 +208,6 @@
         [crow _ :as cpos] (index->location-- lines caret)
         [arow _ :as apos] (index->location-- lines anchor)
         [low-row high-row] (sort  [crow arow])]
-
     (assoc state
            :caret-pos cpos
            :anchor-pos apos
@@ -380,7 +418,7 @@
         state (ensure-lines_ state)
         [row col] (index->location_ state (caret_ state))
         ln ((lines_ state) row)
-        newline-end? (u/newline-end? ln)
+        newline-end? (ut/newline-end? ln)
         ln-len (count ln)
         steps1
         (if limit? (if (neg? ^int steps)
@@ -472,7 +510,6 @@
     (-> state
         (assoc :buffer buffer)
         invalidate-lines_)))
-
 
 (defn keytyped_
   "Returns an updated state."

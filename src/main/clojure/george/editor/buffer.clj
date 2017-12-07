@@ -12,7 +12,8 @@
     [clojure.java.io :as cio]
     [clojure.data :as cd]
     [clj-diff.core :as diff]
-    [george.util :as u])
+    [george.util :as u]
+    [george.util.text :as ut])
   (:import (java.io PushbackReader StringReader)
            (javafx.collections ObservableList)
            (clojure.core.rrb_vector.rrbt Vector)))
@@ -25,34 +26,16 @@
 (declare read-char unread-char peek-char)
 
 
-(defn return-char? [ch]
-  (identical? \return ch))
-
-(defn newline-char? [ch]
-  (identical? \newline ch))
-
-(defn formfeed-char? [ch]
-  (identical? \formfeed ch))
-
-(defn newline-formfeed-char? [ch]
-  (or (newline-char? ch) (formfeed-char? ch)))
-
-
-(defn space-char? [ch]
-  (identical? \space ch))
-
-(defn tab-char? [ch]
-  (identical? \tab ch))
 
 (defn- normalized-newline
   "Returns a 2-part vector containing: [ch str-or-nil]
   where ch is a possibly the original char or a normalized newline
   and str-or-nil is the original newline-combo if a normalization occured"
   [^PushbackReader rdr ch]
-  (if (return-char? ch)
+  (if (ut/return-char? ch)
     (let [ich (.read rdr)]
       (if (not= ich -1)
-        (if (newline-formfeed-char? (char ich))
+        (if (ut/newline-formfeed-char? (char ich))
           [\newline (str \return (char ich))]
           (do (.unread rdr ich)
               [\newline "\r"]))
@@ -141,7 +124,7 @@
          chs buffer
          start 0 end 0]
     (if-let [ch (first chs)]
-      (if (newline-char? ch)
+      (if (ut/newline-char? ch)
         (recur
           (conj! lines (fv/subvec buffer start (inc end))) ;; add ch to current line and add it to lines
           (rest chs)

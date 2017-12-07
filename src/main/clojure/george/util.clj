@@ -47,17 +47,6 @@
 
 (def SHORTCUT_KEY (if IS_MAC "CMD" "CTRL"))
 
-(defn newline-end? [seq-of-chars-or-string]
-  (= \newline (last (seq seq-of-chars-or-string))))
-
-
-(defn ensure-newline [obj]
-  "ensures that the txt ends with a newline"
-  (let [txt (if (nil? obj) "nil" (str obj))]
-    (if (newline-end? txt)
-      txt
-      (str txt \newline))))
-
 
 ;(defn clamp
 ;  "low and high (both inclusive)"
@@ -73,24 +62,12 @@
 (defn clamp-int
   "low and high (both inclusive)"
   [low  x  high]
-  ;(println "::clamp" low x high)
-  ;(if (< ^int x ^int low)
-  ;  low
-  ;  (if (> ^int x ^int high)
-  ;    high
-  ;    x))
   (max ^int low (min ^int x ^int high)))
 
 
 (defn clamp-double
   "low and high (both inclusive)"
   [low  x  high]
-  ;(println "::clamp" low x high)
-  ;(if (< ^double x ^double low)
-  ;  low
-  ;  (if (> ^double x ^double high)
-  ;    high
-  ;    x)))
   (max ^double low (min ^double x ^double high)))
 
 
@@ -244,7 +221,10 @@
 
 
 
-(def DEL_OBJ (Object.))  ;; used as a marker for elements to be deleted
+;; Used as a marker for elements to be deleted.
+;; Must be seq of chars, so as not to cause trouble in case it is temporarily rendered.
+(def DEL_OBJ (seq "DEL_OBJ"))
+
 
 (defmethod diff/patch Vector [v edit-script]
   ;(println "diff/patch Vector")
@@ -262,7 +242,6 @@
                                (inc ^int (first add)) ;; increment because of how 'insert-at' works.
                                (fv/vec (rest add))))
                 v adds)
-
         v  ;; clean up (remove DEL_OBJs)
         (if (empty? dels)  ;; Optimization: Don't bother looking.
             v
@@ -310,13 +289,13 @@
     (when-not (empty? dels)
       (let [find-start (first dels)
             find-limit (count dels)]
-        (loop [[^int i & ix] (range find-start (count olist))
+        (loop [ix (range find-start (count olist))
                find-cnt 0]
           (when-not (= find-cnt find-limit)
-            (if (= (.get olist i) DEL_OBJ)
-              (do (.remove olist i)
-                  (recur (cons i ix) (inc find-cnt)))
-              (recur ix find-cnt))))))
+            (if (= (.get olist (int (first ix))) DEL_OBJ)
+              (do (.remove olist (int (first ix)))
+                  (recur ix (inc find-cnt)))
+              (recur (rest ix) find-cnt))))))
     olist))
 
 

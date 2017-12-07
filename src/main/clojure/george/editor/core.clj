@@ -33,12 +33,17 @@
         _ (swap! state_ formatters/set-formatters_)
         scroll-offset_  (atom 0.0)
 
+        ;; The cell needs access to it's containing flow - to communicate with other cells
+        flow_ (atom nil)
+
         flow
         (VirtualFlow/createVertical
           (st/observable-list state_)
           (j/function
-            (partial v/new-line-cell state_ scroll-offset_)))
-        
+            (partial v/new-line-cell state_ scroll-offset_ flow_)))
+
+        _ (reset! flow_ flow)
+
         ;;  Needs to get some information from 'flow'
         ;; (and from clicked-in 'cell') before determining appropriate action.
         mouse-event-handler
