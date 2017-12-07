@@ -6,6 +6,7 @@
 (ns george.editor.input
   (:require [george.javafx :as fx]
             [george.util.javafx :as ufx])
+
   (:import (javafx.event EventType)
            (javafx.scene.input MouseEvent MouseDragEvent KeyEvent KeyCode)
            (org.fxmisc.flowless VirtualFlow)))

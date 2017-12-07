@@ -55,7 +55,7 @@
          BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
 
         [javafx.scene.paint
-         Color]
+         Color Paint]
 
         [javafx.scene.text
          Font Text]
@@ -81,18 +81,20 @@
 (set-implicit-exit false)
 
 
-(defn init []
+(defn init-toolkit
     "An easy way to 'initalize [JavaFX] Toolkit'
 Needs only be called once in the applications life-cycle.
 Has to be called before the first call to/on FxApplicationThread (javafx/later)"
-    (JFXPanel.))
+  []
+  (println (str *ns*"/init-toolkit ..."))
+  (JFXPanel.))
 
-(init)
+(init-toolkit)
 
 
 
-(defn web-color [s]
-    (Color/web s))
+(defn web-color [s & [opacity]]
+  (Color/web s (if opacity opacity 1.0)))
 
 
 ;; A nice combo for black text on white background
@@ -117,12 +119,17 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 (def MouseEvent_ANY MouseEvent/ANY)
 
 
-
-
-
-(defn color-background [color]
+(defn color-background [^Paint color]
     (Background. (fxj/vargs (BackgroundFill. color nil nil))))
 
+
+(defn set-background [^Region r paint-or-background]
+  (if (instance? Background paint-or-background)
+    (.setBackground r  paint-or-background)
+    (if (instance? Paint paint-or-background)
+      (.setBackground r (color-background paint-or-background))
+      (throw (IllegalArgumentException.
+               (format "Don't know how to convert %s to javafx.scene.layout.Background" paint-or-background))))))
 
 (defn later*
     "Utility function for 'thread'."
@@ -223,6 +230,12 @@ and the body is called on 'changed'"
         [(.getWidth item) (.getHeight item)]))
 
 
+(defn set-translate-XY [^Node n [x y]]
+  (doto n
+    (.setTranslateX x)
+    (.setTranslateY y)))
+
+
 (defn make-border
     ([color]
      (make-border color 1.))
@@ -298,43 +311,37 @@ and the body is called on 'changed'"
 
 
 
-
-(def ^:private some-fonts
-  ["SourceCodePro-Medium.ttf"])
-
-
-(defn preload-fonts
- ([]
-  (preload-fonts some-fonts))
- ([fonts]
-  (doseq [f fonts]
-    (-> (format "fonts/%s" f)
-        cio/resource str
-        (cs/replace "%20" " ")
-        (Font/loadFont  12.)
-        println))))
-
-
-(preload-fonts)
-
+(defn SourceCodePro
+  ([size] (SourceCodePro size))
+  ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
+   (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
+       cio/resource
+       str
+       (cs/replace "%20" " ")
+       (Font/loadFont (double size)))))
 
 
 ;; This is a hack!
 ;; loading fonts from CSS doesn't work now, if there is a space in the file path.
 ;; So we pre-load them here, and they should then be available in css
-#_(let
-    (doseq [f fonts]
-        (-> (format "fonts/%s" f) cio/resource str (cs/replace "%20" " ") (Font/loadFont  12.))))
 
+(def ^:private some-fonts
+  ["SourceCodePro-Medium.ttf"])
 
-(defn SourceCodePro
- ([size] (SourceCodePro size))
- ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
-  (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
-      cio/resource
-      str
-      (cs/replace "%20" " ")
-      (Font/loadFont (double size)))))
+(defn preload-fonts
+ ([]
+  (preload-fonts some-fonts))
+ ([fonts]
+  (println (str *ns* "/preload-fonts ..."))
+  (doseq [f fonts]
+    (-> (format "fonts/%s" f)
+        cio/resource
+        str
+        (cs/replace "%20" " ")
+        (Font/loadFont  12.)))))
+
+(preload-fonts)
+
 
 
 

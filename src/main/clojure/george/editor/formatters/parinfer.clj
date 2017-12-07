@@ -20,7 +20,9 @@
     [george.editor.state :as st]
     [george.editor.formatters.defs :as defs]
     [george.editor.buffer :as b]
-    [george.util :as u])
+    [george.util :as u]
+    [george.util.text :as ut])
+
   (:import (javax.script ScriptEngineManager)
            (jdk.nashorn.api.scripting ScriptObjectMirror NashornScriptEngine)))
 
@@ -153,7 +155,7 @@ It will be synchronous, and it will operate on content directly.
   (let [line (lines row)]
     (loop [cnt 0 line line]
       (if-let [ch (first line)]
-        (if (b/space-char? ch)
+        (if (ut/space-char? ch)
           (recur (inc cnt) (rest line))
           cnt)
         cnt))))
@@ -310,8 +312,8 @@ It will be synchronous, and it will operate on content directly.
     (untab_ state)))
 
 
-(defmethod defs/type-test String [x]
-  (println "A string:" x))
+;(defmethod defs/type-test String [x]
+;  (println "A string:" x))
 
 
 (defmethod defs/formatter :clj [_]
