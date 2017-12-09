@@ -11,7 +11,7 @@
     [clojure.core.rrb-vector :as fv]
     [clj-diff.core :as diff]
     [clojure.pprint :as cpp])
-  (:import (java.util UUID)
+  (:import (java.util UUID Collection)
            (java.io File)
            (clojure.lang PersistentVector)
            (clojure.core.rrb_vector.rrbt Vector)
@@ -19,8 +19,8 @@
 
 
 ;(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
-;(set! *unchecked-math* true)
+;(set! *unchecked-math* :warn-on-boxed)
+(set! *unchecked-math* true)
 
 (defn pprint-str
   "returns a pprint-formatted str"
@@ -275,39 +275,58 @@
 ;(prn (apply str (time (fv-diffpatch-test))))
 
 
+(defn split-to-continuous-range-pairs
+  "Returns a list of vectors, where each vector contains the first and last number of the ontinous range.
+  The list of ranges is in reverse order.
+  Ex.: [1 2  3 5  7 8] -> ([7 8] [5 5] [1 3])"
+  [seq-of-ints]
+  (reduce
+    (fn [[cur & res] i]
+        (if-let [[f l] cur]
+                (if (= i (inc ^int l))
+                    (cons [f i] res)
+                    (cons [i i] (cons [f l] res)))
+                (cons [i i] res)))
+    (list)
+    seq-of-ints))
 
-(defmethod diff/patch ObservableList [^ObservableList olist edit-script]
+
+(defmethod diff/patch ObservableList [^ObservableList olist {adds :+ dels :- :as edit-script}]
   ;(println "diff/patch ObservableList")
-  (let [{adds :+ dels :-} edit-script
-        adds (reverse adds)]
-    ;; apply deletions
-    (doseq [^int i dels] (.set olist i DEL_OBJ))
-    ;; apply additions
-    (doseq [[^int i & items] adds]
-      (.addAll olist (inc i) items))
-    ;; clean up
-    (when-not (empty? dels)
-      (let [find-start (first dels)
-            find-limit (count dels)]
-        (loop [ix (range find-start (count olist))
-               find-cnt 0]
-          (when-not (= find-cnt find-limit)
-            (if (= (.get olist (int (first ix))) DEL_OBJ)
-              (do (.remove olist (int (first ix)))
-                  (recur ix (inc find-cnt)))
-              (recur (rest ix) find-cnt))))))
-    olist))
+
+  ;; shortcut
+  (if (empty? adds)
+    (doseq [[^int f ^int l]
+            (split-to-continuous-range-pairs dels)] (.remove olist f (inc l)))
+
+    (let []
+      ;; apply deletions
+      (doseq [^int i dels] (.set olist i DEL_OBJ))
+      ;; apply additions
+      (doseq [[^int i & ^Collection items] (reverse adds)] (.addAll olist (inc i) items))
+      ;; clean up
+      (when-not (empty? dels)
+        (let [find-start (first dels)
+              find-limit (count dels)]
+          (loop [ix (range find-start (count olist))
+                 find-cnt 0]
+            (when-not (= find-cnt find-limit)
+              (if (identical? (.get olist (int (first ix))) DEL_OBJ)
+                (do (.remove olist (int (first ix)))
+                    (recur ix (inc find-cnt)))
+                (recur (rest ix) find-cnt))))))))
+  olist)
 
 
-(defn- olist-diffpatch-test
-  "Testing diff-patch for ObservableList"
-  []
-  (let [a (javafx.collections.FXCollections/observableArrayList (seq "This is a test. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj"))
-        _ (prn "  ## a:" a)
-        b (fv/vec "Thiz was tested a lot. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj")
-        _ (prn "  ## b:" b)
-        edit-script (diff/diff a b)
-        r (diff/patch a edit-script)
-        _ (prn "  ## r:" r)]
-    r))
+;(defn- olist-diffpatch-test
+;  "Testing diff-patch for ObservableList"
+;  []
+;  (let [a (javafx.collections.FXCollections/observableArrayList (seq "This is a test. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj"))
+;        _ (prn "  ## a:" a)
+;        b (fv/vec "Thiz was tested a lot. aØSLDKJaøsdlkjaSØDLKJasdølakjDSØalksdjaøLSDKJaøsdlkj")
+;        _ (prn "  ## b:" b)
+;        edit-script (diff/diff a b)
+;        r (diff/patch a edit-script)
+;        _ (prn "  ## r:" r)]
+;    r))
 ;(prn (apply str (time (olist-diffpatch-test))))
