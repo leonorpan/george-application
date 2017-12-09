@@ -4,15 +4,11 @@
     [george.util :as u]
     [george.util.text :as ut]))
 
+
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
-;(deftype ReadChar
-;  ^{:doc "A type for wrapping a char together with its index, col, row in the passed-in string."}
-;  [^int index ^int row ^int col ^char char]
-;  Object
-;  (toString [_] (format "(%s)[%s %s] '%c'" index row col char)))
 
 (defrecord ReadChar
   ^{:doc "A type for wrapping a char together with its index, col, row in the passed-in string."}
@@ -32,26 +28,6 @@
   (toString [_] (format "%s [%s %s] %s" span first last chars)))
 
 
-
-
-
-
-
-;(defn read-it [code-str]
-;  ;(println code-str)
-;  (loop [i 0
-;         [^int row ^int col] [0 0]
-;         chars (seq code-str)]
-;    (when-let [ ch (first chars)]
-;      (printf "%s [%s %s]: '%c'\n"  i row col ch)
-;      (recur (inc i)
-;             (if (ut/newline-char? ch) [(inc row) 0] [row (inc col)])
-;             (rest chars)))))
-;; DEV
-;(read-it sample-code)
-
-
-
 (defn read-it
   "Returns a seq of ReadChars."
   [s]
@@ -69,7 +45,6 @@
       (reverse res))))
 
 
-
 (defn- push-or-pair
   "Returns a 2-element vector containing:
   - the (possibly) altered stack
@@ -83,7 +58,7 @@
     [(rest stack) [(first stack) RD]]
     [(cons RD stack) nil]))
 
-
+;; TODO: Ignore everything while in string or line-comment.
 (defn pair-coll-delims
   "Returns a 2-element vector containing:
   - a vector of 2-element vectors of paired ReadChars that are coll-delims

@@ -253,10 +253,9 @@ and the body is called on 'changed'"
                          (BorderWidths. width)))))))
 
 
-
-
 (defn add-stylesheets [^Scene scene & sheetpaths]
     (-> scene .getStylesheets (.addAll (into-array sheetpaths))))
+
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
@@ -264,7 +263,6 @@ and the body is called on 'changed'"
 
 (defn set-Modena []
     (Application/setUserAgentStylesheet Application/STYLESHEET_MODENA))
-
 
 
 (defn option-index

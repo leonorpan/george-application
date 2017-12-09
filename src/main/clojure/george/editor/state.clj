@@ -83,6 +83,7 @@
     ;(pprint blocks)
     blocks))
 
+
 (defn- calculate-block-ranges
   "Returns a map keyed on rows, with spans for each row"
   [blocks line-count]
@@ -96,13 +97,15 @@
 
 
 (defn update-blocks_ [state]
-  (let [blocks (calculate-blocks (buffer_ state))
-        spans (calculate-block-ranges blocks (count (lines_ state)))]
-    (assoc state :blocks blocks
-                 :block-ranges spans
-                 ;; See view/max-offset-x-mem
-                 :max-offset-x-mem_ (atom {}))))
-
+  ;; Blocks should only be calculated, if Clojure
+  (if (not= (:content-type state) :clj)
+    (assoc state :block nil)
+    (let [blocks (calculate-blocks (buffer_ state))
+          spans (calculate-block-ranges blocks (count (lines_ state)))]
+      (assoc state :blocks blocks
+                   :block-ranges spans
+                   ;; See view/max-offset-x-mem
+                   :max-offset-x-mem_ (atom {})))))
 
 
 (defn update-lines_ [{:keys [buffer line-count line-count-digits line-count-formatter] :as state}]
