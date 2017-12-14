@@ -3,20 +3,19 @@
 ;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;  You must not remove this notice, or any other, from this software.
 
-(ns george.util.java
-  (:import (java.util.function Function Consumer)))
+(ns
+  ^{:doc "Load some useful things to make them available globally."}
+  user
+  (:require
+    ;; Need to be required to allow potemkin to "see" them.
+    [clojure.pprint]
+    [clojure.repl]
 
+    [potemkin :refer [import-vars import-macro import-fn]]))
 
-(defn ^Function function
-  "takes a 1-arg function and wraps it in a java.function.Function"
-  [f]
-  (reify Function
-    (apply [_ arg]
-      (f arg))))
+;(println "user.clj ...")
 
-(defn ^Consumer consumer
-  "takes a 1-arg function and wraps it in a java.function.Consumer"
-  [f]
-  (reify Consumer
-    (accept [_ arg]
-      (f arg))))
+(import-vars [clojure.pprint pprint])
+(import-macro clojure.repl/doc)
+(import-macro clojure.repl/dir)
+

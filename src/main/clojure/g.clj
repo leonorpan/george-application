@@ -3,20 +3,12 @@
 ;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;  You must not remove this notice, or any other, from this software.
 
-(ns george.util.java
-  (:import (java.util.function Function Consumer)))
+(ns
+  ^{:doc "A deliberately short namespace. Loaded at startup. Making it easy to make calls (to George) from anywhere."}
+  g
+  (:require
+    [environ.core :refer [env]]))
 
+(defn hi []
+  (println "Hello, yourself."))
 
-(defn ^Function function
-  "takes a 1-arg function and wraps it in a java.function.Function"
-  [f]
-  (reify Function
-    (apply [_ arg]
-      (f arg))))
-
-(defn ^Consumer consumer
-  "takes a 1-arg function and wraps it in a java.function.Consumer"
-  [f]
-  (reify Consumer
-    (accept [_ arg]
-      (f arg))))

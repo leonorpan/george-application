@@ -1,9 +1,7 @@
-(def GEORGE_APPLICATION_VERSION (slurp "src/main/resources/george-version.txt"))
 
+(defproject no.andante.george/george-application  "0.9.0.b43-SNAPSHOT"
 
-(defproject no.andante.george/george-application  GEORGE_APPLICATION_VERSION
-
-  :description "George - Application (JVM)"
+  :description "George - Application"
   :url "https://bitbucket.org/andante-george/george-application"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -39,10 +37,14 @@
                  [org.clojure/core.rrb-vector "0.0.11"]
                  ;; https://github.com/clojure/data.json
                  [org.clojure/data.json "0.2.6"]
+                 ;; https://github.com/weavejester/environ
+                 [environ "1.1.0"]
                  ;; https://github.com/ztellman/potemkin
                  [potemkin "0.4.4"]]
 
   :plugins [
+            ;; https://github.com/weavejester/environ
+            [lein-environ "1.1.0"]
             ;; https://github.com/weavejester/codox
             [lein-codox "0.10.3"]]
 
@@ -97,12 +99,12 @@
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
           :html {:namespace-list :flat}}
 
-  :profiles {
-             :dev {
-                   :resource-paths ["src/dev/resources"]}
+  :env {:george-version :project/version}
 
+  :profiles {:repl {:env {:repl? "true"}}
 
-             :uberjar {
-                       :aot :all
+             :dev {:resource-paths ["src/dev/resources"]}
+
+             :uberjar {:aot :all
                        :main no.andante.george.Main
                        :manifest {}}}) ;"Main-Class" "no.andante.george.Main"
