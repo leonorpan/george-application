@@ -926,10 +926,10 @@ Example of codes-map:
                 (if (= handle-type ev-typ)
                   (do-handle f))
                 (do-handle f))
-              (println "  ## ev-typ:" ev-typ)
-              (println "  ## consume-types:" consume-types)
+              ;(println "  ## ev-typ:" ev-typ)
+              ;(println "  ## consume-types:" consume-types)
               (when (and consume-types ((set consume-types) ev-typ))
-                (println "  ## consuming:" ev-typ)
+                ;(println "  ## consuming:" ev-typ)
                 (.consume event))))))
 
 

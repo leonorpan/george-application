@@ -13,8 +13,9 @@
     [george.application.applet-loader :as applets-loader]
     [george.util.singleton :as singleton]
     [george.application.repl-server :as repl-server]
-    [clojure.java.io :as cio])
-
+    [clojure.java.io :as cio]
+    [environ.core :refer [env]]
+    [g])
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
@@ -36,9 +37,9 @@ Java version: %s
 Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
 "
-             (slurp (cio/resource "george-version.txt"))
+             (env :george-version)
              (clojure-version)
-             (System/getProperty "java.version")))
+             (env :java-version)))
         link
         (doto (Hyperlink. "www.george.andante.no")
           (.setStyle "-fx-border-color: transparent;-fx-padding: 10 0 10 0;-fx-text-fill:#337ab7;")
@@ -116,13 +117,14 @@ Powered by open source software.
 
 (defn- launcher-close-handler [launcher-stage]
   (fx/event-handler-2 [_ e]
-     (let [
+     (let [repl? (boolean (env :repl?))
            button-index
            (fx/now
              (fx/alert
-               "Do you want to quit George?"
+               (str "Do you want to quit George?"
+                    (when repl? "\n\n(You are running from a repl.\n'Quit' will not exit the JVM instance.)"))
                :title "Quit?"
-               :options ["Quit"]
+               :options [(str "Quit")]
                :owner launcher-stage
                :mode nil
                :cancel-option? true))
@@ -130,8 +132,9 @@ Powered by open source software.
 
           (if exit?
             (do (repl-server/stop!)
-                (fx/now (Platform/exit))
-                (System/exit 0))
+                (when-not repl?
+                  (fx/now (Platform/exit))
+                  (System/exit 0)))
             (.consume e))))) ;; do nothing
 
 
