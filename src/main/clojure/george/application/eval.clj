@@ -12,7 +12,7 @@
      [repl :as repl]
      [output :refer [print-output output-showing?]]]
     [george.javafx :as fx]
-    [george.util :as u])
+    [george.util.text :as ut])
   (:import (javafx.scene.layout GridPane Priority)
            (javafx.scene.control Alert$AlertType Alert)))
 
@@ -135,15 +135,15 @@
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (print-output :ns (u/ensure-newline (str " ns> " ns)))
+      (print-output :ns (ut/ensure-newline (str " ns> " ns)))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (print-output :res (u/ensure-newline (str " >>> " s))))
+      (print-output :res (ut/ensure-newline (str " >>> " s))))
 
     (when-let [st (:status res)]
 
-      (print-output :system (u/ensure-newline (cs/join " " st))))
+      (print-output :system (ut/ensure-newline (cs/join " " st))))
 
     (when-let [o (:out res)]
       (print o) (flush))
@@ -158,7 +158,7 @@
 (defn read-eval-print-in-ns
   "returns nil"
   [^String code ^String ns eval-id ^String source-file update-ns-fn]
-  (print-output :in (u/ensure-newline (str " <<< " (indent-input-lines-rest code))))
+  (print-output :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (repl/def-eval
     {:code code
      :ns ns

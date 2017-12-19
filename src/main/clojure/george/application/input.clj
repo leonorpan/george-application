@@ -14,15 +14,17 @@
     [george.application.output :as output]
     [george.util :as u]
     [george.application.eval :as eval]
-    [george.code.paredit :as paredit]
-    [george.code.codearea :as ca])
-  (:import (javafx.scene.input KeyEvent)
-           (javafx.scene.control ComboBox)
-           (org.fxmisc.flowless VirtualizedScrollPane)))
+    ;[george.code.paredit :as paredit]
+    ;[george.code.codearea :as ca]
+    [george.editor.core :as ed])
+  (:import (javafx.scene.input KeyEvent)))
+           ;(javafx.scene.control ComboBox)
+           ;(org.fxmisc.flowless VirtualizedScrollPane)))
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
-  (let [input (ca/text code-area)
+  (let [;input (ca/text code-area)
+        input (ed/text code-area)
         update-ns-fn #(fx/later (.setText ns-textfield %))
         eval-id (gu/uuid)]
     (if (cs/blank? input)
@@ -53,7 +55,8 @@
             ;; handle history and clearing
             (hist/append-history repl-uuid input)
             (reset! current-history-index-atom -1)
-            (when clear? (fx/later (.clear code-area)))
+            ;(when clear? (fx/later (.clear code-area)))
+            (when clear? (fx/later (ed/set-text code-area "")))
 
             (catch Exception e
               (.printStackTrace e))
@@ -80,7 +83,8 @@
                     -fx-text-fill: gray;"))
 
         code-area
-        (ca/new-codearea-with-handlers)
+        ;(ca/new-codearea-with-handlers)
+        (ed/editor-view "" "clj")
 
         do-history-fn
         (fn [direction global?]
@@ -141,28 +145,28 @@ Next 'global' history.   SHIFT-click")
                (do-history-fn hist/NEXT (.isShiftDown e))
                (.consume e))))
 
-        structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
-        paredit-kphandler (paredit/key-pressed-handler)
-        paredit-kthandler (paredit/key-typed-handler)
-        _ (doto code-area
-           (.addEventFilter KeyEvent/KEY_PRESSED
-                            (fx/event-handler-2 [_ event]
-                                 (when (-> structural-combo .getSelectionModel (.isSelected 0))
-                                       (.handle paredit-kphandler event))))
-
-           (.addEventFilter KeyEvent/KEY_TYPED
-             (fx/event-handler-2 [_ event]
-                                 (when (-> structural-combo .getSelectionModel (.isSelected 0))
-                                       (.handle paredit-kthandler event)))))
-        _ (-> structural-combo .getSelectionModel (.select 0))
+        ;structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
+        ;paredit-kphandler (paredit/key-pressed-handler)
+        ;paredit-kthandler (paredit/key-typed-handler)
+        ;_ (doto code-area
+        ;   (.addEventFilter KeyEvent/KEY_PRESSED
+        ;                    (fx/event-handler-2 [_ event]
+        ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
+        ;                               (.handle paredit-kphandler event))))
+        ;
+        ;   (.addEventFilter KeyEvent/KEY_TYPED
+        ;     (fx/event-handler-2 [_ event]
+        ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
+        ;                               (.handle paredit-kthandler event)))))
+        ;_ (-> structural-combo .getSelectionModel (.select 0))
 
         button-box
         (fx/hbox
           prev-button
           next-button
           (fx/region :hgrow :always)
-          structural-combo
-          (fx/region :hgrow :always)
+          ;structural-combo
+          ;(fx/region :hgrow :always)
           clear-checkbox
           (fx/region :hgrow :always)
           interrupt-button
@@ -173,7 +177,8 @@ Next 'global' history.   SHIFT-click")
 
         border-pane
         (fx/borderpane
-          :center (VirtualizedScrollPane. code-area)
+          ;:center (VirtualizedScrollPane. code-area)
+          :center code-area
           :top ns-label
           :bottom button-box
           :insets 10)

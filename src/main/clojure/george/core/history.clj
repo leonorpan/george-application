@@ -10,7 +10,8 @@
             [clojure.edn :as edn]
 
             [george.javafx.java :as j]
-            [george.util :as u])
+            [george.util :as u]
+            [george.editor.core :as ed])
 
   (:import (george.application Versions)
            (java.util Date UUID)
@@ -102,8 +103,9 @@
 
     (reset! current-history-index-atom i)
     (doto code-area
-        (.replaceText content))))
-        ;(.selectRange 0 0)
-        ;(.setStyleSpans 0 (compute-highlighting content))
+      ;(.replaceText content)
+      (ed/set-text content))))
+      ;(.selectRange 0 0)
+      ;(.setStyleSpans 0 (compute-highlighting content))
 
 

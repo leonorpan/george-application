@@ -146,7 +146,7 @@
         (let [source (.getSource e)
               style-map (css/stylable->style-map source)
               size (Integer/parseInt (style-map "-fx-font-size"))
-              new-size (u/clamp 8 (+ size (if (= "+" c) 2 -2)) 72)]
+              new-size (u/clamp-int 8 (+ size (if (= "+" c) 2 -2)) 72)]
           (css/set-style-map source
                              (assoc style-map "-fx-font-size" new-size)))))))
 
