@@ -32,7 +32,7 @@
 
 (defn get-or-create
   "returns value for given key if exists,
-  else calls provided function, setting its return-value to the key, and retruning the value."
+  else calls provided function, setting its return-value to the key, and returning the value."
   [k f]
   (if-let [v (get k)]
     v
