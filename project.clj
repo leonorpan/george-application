@@ -17,7 +17,7 @@
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  ;; https://github.com/mmcgrana/clj-stacktrace
                  [clj-stacktrace "0.2.8"]
-                 [leiningen "2.7.1" :exclusions [org.clojure/clojure clj-stacktrace]]
+                 ;[leiningen "2.8.1" :exclusions [org.clojure/clojure clj-stacktrace]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
                  ;; https://github.com/clojure/tools.namespace
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
