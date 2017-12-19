@@ -1,0 +1,5 @@
+;; TOC for bundled "shared"
+
+:tree0  ;; A partial tree
+:tree2  ;; A completed basic tree
+:tree5  ;; A randomized colored tree

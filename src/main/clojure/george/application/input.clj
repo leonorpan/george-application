@@ -207,7 +207,7 @@ Next 'global' history.   SHIFT-click")
     ;; TODO: colorcode also when history is the same
     ;; TODO: nicer tooltips.  (monospace and better colors)
 
-    scene))
+    [scene code-area]))
 
 
 
@@ -227,7 +227,7 @@ Next 'global' history.   SHIFT-click")
         repl-nr
         (hist/next-repl-nr)
 
-        scene (input-scene ns (str \" "Input " repl-nr \"))
+        [scene code-area] (input-scene ns (str \" "Input " repl-nr \"))
 
         screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
 
@@ -243,7 +243,7 @@ Next 'global' history.   SHIFT-click")
                   :location [(- (first screen-WH) (.getWidth scene) 30 horizontal-offset)
                              (+ 80 vertical-offset)])))]
 
-    stage))
+    [stage code-area]))
 
 
 ;;; DEV ;;;

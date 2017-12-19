@@ -1,0 +1,12 @@
+(defn tree [len]
+  (when (> len 2)
+    (forward len)
+    (left 45) (tree (* len 0.7))
+    (right 90) (tree (* len 0.7))
+    (left 45)
+    (forward (- len))))
+
+(reset)
+(set-speed nil)
+(left 90)
+(tree 100)
