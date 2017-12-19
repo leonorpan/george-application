@@ -23,9 +23,9 @@
     (. clojure.lang.Compiler (macroexpand1 form)))
 
 #_(let [  ex1 (mac1 '(defn f1 [] (println "Hello me.")))
-        ex2 (mac1 '(defn+ f2 [] (println "Hello World!"))) ]
+        ex2 (mac1 '(defn+ f2 [] (println "Hello World!")))]
     (defn f1 [] (println "Hello me."))
     (defn+ f2 [] (println "Hello World!"))
     (prn ex1) (prn (meta #'f1)) (f1)
-    (prn ex2) (prn (meta #'f2)) (f2) )
+    (prn ex2) (prn (meta #'f2)) (f2))
 

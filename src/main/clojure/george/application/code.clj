@@ -4,19 +4,20 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.application.code
-    (:require
-        [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
-        [george.javafx.java :as j]
-        [george.javafx :as fx]
-        [george.javafx.util :as fxu]
-        [george.code.core :as gcode]
-        [george.core.core :as gcc])
+  (:require
+    [clojure.core.async :refer [>!! <! chan timeout sliding-buffer thread go go-loop]]
+    [george.javafx.java :as j]
+    [george.javafx :as fx]
+    [george.javafx.util :as fxu]
+    [george.application.output :refer [print-output]]
+    [george.util :as u]
+    [george.code.codearea :as ca])
 
 
-    (:import [javafx.beans.property StringProperty]
-             [javafx.scene.control OverrunStyle]
-             [javafx.beans.value ChangeListener]
-             (java.io File)))
+  (:import [javafx.beans.property StringProperty]
+           [javafx.scene.control OverrunStyle]
+           [javafx.beans.value ChangeListener]
+           (java.io File)))
 
 
 (defn load-from-file [file ns-str]
@@ -24,7 +25,7 @@
   (binding [*ns* (create-ns (symbol ns-str))]
       ;(println "  ## *ns*:" *ns*)
       (println)
-      (gcc/output :system (format "(load-file \"%s\")\n" file))
+      (print-output :system (format "(load-file \"%s\")\n" file))
       (println)
       (load-file (str file))))
 
@@ -110,9 +111,7 @@
           ;_ (println "code-editor-pane kwargs:" kwargs)
 
           codearea
-          (doto
-              (gcode/->codearea))
-
+          (ca/new-codearea-with-handlers)
 
           file-meta
           (atom {:file (:file kwargs) :changed false})
@@ -123,7 +122,7 @@
               (.setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn
-          #(save-file (gcode/text codearea) file-meta file-label chrome-title)
+          #(save-file (ca/text codearea) file-meta file-label chrome-title)
 
           set-file-fn
           (fn [file] (set-file file file-meta file-label chrome-title))
@@ -138,14 +137,14 @@
           #(when-let [f (select-file)]
               (save-file-fn)
               (set-file-fn f)
-              (gcode/set-text codearea (slurp f)))
+              (ca/set-text codearea (slurp f)))
 
           open-file-button
           (fx/button "Open ..."
                      :minwidth 80
                      :width 80
                      :onaction open-file-fn
-                     :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" gcc/SHORTCUT_KEY))
+                     :tooltip (format "Select and open an existing (Clojure/Turtle) file ...  %s-O" u/SHORTCUT_KEY))
 
           file-pane
           (fx/hbox
@@ -156,7 +155,7 @@
                          :minwidth 80
                          :width 80
                          :onaction save-file-as-fn
-                         :tooltip (format "Save as a new (Clojure/Turtle) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.  %s-SHIFT-S" gcc/SHORTCUT_KEY))
+                         :tooltip (format "Save as a new (Clojure/Turtle) file ...\nChanges will be saved automatically every 5 seconds,\nor when 'Load' is clicked.  %s-SHIFT-S" u/SHORTCUT_KEY))
 
               :insets [0 0 10 0]
               :spacing 10)
@@ -166,12 +165,12 @@
               (println (if-let [f (:file @file-meta)]
                            (do (save-file-fn)
                                (load-from-file f (:namespace kwargs)))
-                           (load-via-tempfile (gcode/text codearea) (:namespace kwargs)))))
+                           (load-via-tempfile (ca/text codearea) (:namespace kwargs)))))
           load-button
           (fx/button
               "Load"
               :minwidth 140
-              :tooltip (format "Load/reload file.   %s-L" gcc/SHORTCUT_KEY)
+              :tooltip (format "Load/reload file.   %s-L" u/SHORTCUT_KEY)
               :onaction load-fn)
 
           pane

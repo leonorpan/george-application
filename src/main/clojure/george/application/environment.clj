@@ -11,7 +11,10 @@
     [clojure.java.io :refer [file] :as cio]
     [george.javafx :as fx]
     [george.application.turtle.turtle :as tr]
-    [george.core.core :as gcc]
+    [george.application
+     [input :as input]
+     [output :as output]
+     [eval :as eval]]
     [george.util.singleton :as singleton]
     [george.application.code :as code]
     [george.javafx.java :as fxj])
@@ -75,7 +78,7 @@
 
 
 (defn- turtle-commands-stage []
-  (singleton/put-or-create
+  (singleton/get-or-create
     ::commands-stage turtle-commands-stage-create))
 
 
@@ -105,12 +108,12 @@
                  (fx/button "Input"
                             :width button-width
                             :onaction
-                            #(gcc/new-input-stage user-ns-str)
+                            #(input/new-input-stage user-ns-str)
                             :tooltip "Open a new input window / REPL")
 
                  (fx/button "Output"
                             :width button-width
-                            :onaction gcc/show-or-create-output-stage
+                            :onaction output/show-or-create-output-stage
                             :tooltip "Open/show output-window")
 
                  (fx/button "Code"
@@ -129,7 +132,6 @@
 
 
 (defn- create-toolbar-stage [ide-type]
-  (println "  #!")
   (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
@@ -143,7 +145,7 @@
 
 
 (defn toolbar-stage [ide-type]
-    (singleton/put-or-create
+    (singleton/get-or-create
       [::toolbar-stage ide-type] #(create-toolbar-stage ide-type)))
 
 
