@@ -9,9 +9,9 @@
     [george.javafx.java :as j]
     [george.javafx :as fx]
     [george.javafx.util :as fxu]
-    [george.code.core :as gcode]
-    [george.application.output :refer [output]]
-    [george.util :as u])
+    [george.application.output :refer [print-output]]
+    [george.util :as u]
+    [george.code.codearea :as ca])
 
 
   (:import [javafx.beans.property StringProperty]
@@ -25,7 +25,7 @@
   (binding [*ns* (create-ns (symbol ns-str))]
       ;(println "  ## *ns*:" *ns*)
       (println)
-      (output :system (format "(load-file \"%s\")\n" file))
+      (print-output :system (format "(load-file \"%s\")\n" file))
       (println)
       (load-file (str file))))
 
@@ -111,9 +111,7 @@
           ;_ (println "code-editor-pane kwargs:" kwargs)
 
           codearea
-          (doto
-              (gcode/->codearea))
-
+          (ca/new-codearea-with-handlers)
 
           file-meta
           (atom {:file (:file kwargs) :changed false})
@@ -124,7 +122,7 @@
               (.setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn
-          #(save-file (gcode/text codearea) file-meta file-label chrome-title)
+          #(save-file (ca/text codearea) file-meta file-label chrome-title)
 
           set-file-fn
           (fn [file] (set-file file file-meta file-label chrome-title))
@@ -139,7 +137,7 @@
           #(when-let [f (select-file)]
               (save-file-fn)
               (set-file-fn f)
-              (gcode/set-text codearea (slurp f)))
+              (ca/set-text codearea (slurp f)))
 
           open-file-button
           (fx/button "Open ..."
@@ -167,7 +165,7 @@
               (println (if-let [f (:file @file-meta)]
                            (do (save-file-fn)
                                (load-from-file f (:namespace kwargs)))
-                           (load-via-tempfile (gcode/text codearea) (:namespace kwargs)))))
+                           (load-via-tempfile (ca/text codearea) (:namespace kwargs)))))
           load-button
           (fx/button
               "Load"

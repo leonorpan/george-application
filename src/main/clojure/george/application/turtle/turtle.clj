@@ -306,7 +306,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-turtle []
-    (doto ^ITurtle (turtle-impl "Tom") .sayHello))
+    (doto (turtle-impl "Tom") .sayHello))
 
 
 ;; TODO: implement CRUD ref. spec
@@ -330,7 +330,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               ;_ (.setRotate root 180)
 
               origo (fx/rectangle :location [-1 -1] :size [3 3] :fill fx/RED)
-              _ (fx/add root origo)
+              ; _ (fx/add root origo)
 
               ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
               ;_ (fx/add root up-and-over)
@@ -535,7 +535,7 @@ Returns turtle instance"
 
   Ex.: (set-speed 10)"
   [number]
-  (.setSpeed ^ITurtle (turtle) number))
+  (.setSpeed (turtle) number))
 
 
 (defn pen-color
@@ -636,7 +636,8 @@ Returns turtle instance"
   []
   (clear)
   (home)
-  (set-pen-color "black"))
+  (set-pen-color "black")
+  (set-speed 10))
 
 
 
@@ -710,10 +711,6 @@ Returns turtle instance"
 
   (reset)
 
-  (defn square []
-      (dotimes [_ 4]
-          (forward 50) (left 90)))
-
   ;(pen-up)
   (set-position [-75 -120])
   (left 90)
@@ -721,7 +718,8 @@ Returns turtle instance"
 
   (set-pen-color Color/CORNFLOWERBLUE)
   (rep 6
-       (square)
+       (dotimes [_ 4]
+         (forward 50) (left 90))
        (pen-up)
        (right 45)
        (forward 20)
