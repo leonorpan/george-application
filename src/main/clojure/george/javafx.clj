@@ -84,7 +84,7 @@
 (defn init []
     "An easy way to 'initalize [JavaFX] Toolkit'
 Needs only be called once in the applications life-cycle.
-Has to be called before the first call to/on FxApplicationThread (javafx/thread)"
+Has to be called before the first call to/on FxApplicationThread (javafx/later)"
     (JFXPanel.))
 
 (init)
@@ -206,6 +206,12 @@ and the body is called on 'changed'"
                          (println 2)))
 
 
+(defn children [^Parent parent]
+  (.getChildren parent))
+
+(defn children-set-all [^Parent parent children]
+  (.setAll (.getChildren parent) children))
+
 
 (defn XY [item]
     [(.getX item) (.getY item)])
@@ -290,16 +296,23 @@ and the body is called on 'changed'"
 
 
 
+(def ^:private some-fonts
+  ["SourceCodePro-Medium.ttf"])
+
+
+(defn preload-fonts
+ ([]
+  (preload-fonts some-fonts))
+ ([fonts]
+  (doseq [f fonts]
+    (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.) println))))
+
 
 
 ;; This is a hack!
 ;; loading fonts from CSS doesn't work now, if there is a space in the file path.
 ;; So we pre-load them here, and they should then be available in css
-(comment let  [fonts [
-                      "SourceCodePro-Regular.ttf"
-                      "SourceCodePro-Medium.ttf"
-                      "SourceCodePro-Bold.ttf" ;; Bold seems to look just like Regular! (At least on my Mac)
-                      "SourceCodePro-Semibold.ttf"]]
+#_(let
     (doseq [f fonts]
         (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
 
@@ -619,7 +632,7 @@ It must return a string (which may be wrapped to fit the width of the list."
     (let [ta
           (doto (TextArea. text)
             (.setPromptText prompt))]
-        ;(when font (.setFont ta font))
+      (when font (.setFont ta font))
       ta))
 
 
@@ -814,13 +827,16 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 
 
-
 (defn filechooserfilter [description & extensions]
     (FileChooser$ExtensionFilter. description (fxj/vargs* extensions)))
 
 
 (def FILESCHOOSER_FILTERS_CLJ [
                                (filechooserfilter "Clojure Files" "*.clj")
+                               (filechooserfilter "All Files"   "*.*")])
+
+(def FILESCHOOSER_FILTERS_PNG [
+                               (filechooserfilter "PNG files" "*.png")
                                (filechooserfilter "All Files"   "*.*")])
 
 
@@ -861,7 +877,7 @@ It must return a string (which may be wrapped to fit the width of the list."
  "Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
 
 The keywords int the set must be uppercase and correspond to the constants of javafx.scene.input.KeyCode.
-Use :SHIFT :SHORTCUT :ALT for plattform-independent handling of these modifiers (CTRL maps to Command on Mac).
+Use :SHIFT :SHORTCUT :ALT for platform-independent handling of these modifiers (CTRL maps to Command on Mac).
 If the value is a function, then it will be run, and then the event will be consumed.
 If the value is an EventHandler, then it will be called with the same args as this handler, and it must itself consume the event if required.
 
@@ -877,6 +893,7 @@ Example of codes-map:
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
               code (str (.getCode event))
+              ;_ (println "  ## code:" code)
               shift (when (.isShiftDown event) "SHIFT")
               shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
               alt (when (.isAltDown event) "ALT") ;;  "M-"

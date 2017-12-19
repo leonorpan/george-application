@@ -12,6 +12,7 @@
     [george.javafx :as fx]
     [george.application.applet-loader :as applets-loader]
     [george.util.singleton :as singleton]
+    [george.application.repl-server :as repl-server]
     [clojure.java.io :as cio])
 
   (:import [javafx.scene.image ImageView Image]
@@ -32,7 +33,7 @@ Clojure version: %s
 Java version: %s
 
 
-Copyright 2017 Terje Dahl.
+Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
 "
              (slurp (cio/resource "george-version.txt"))
@@ -55,10 +56,14 @@ Powered by open source software.
                     :padding 10
                     :background (fx/color-background Color/WHITE))))))
 
+(def ABOUT_STAGE_KW ::about-stage)
 
 (defn- about-stage []
-  (singleton/put-or-create
-    ::about-stage about-stage-create))
+  (if-let [st (singleton/get ABOUT_STAGE_KW)]
+    (do (.hide st)
+        (singleton/remove ABOUT_STAGE_KW))
+    (singleton/get-or-create
+      ABOUT_STAGE_KW about-stage-create)))
 
 
 (defn- applet-button [{:keys [name description main-fn]} button-width]
@@ -74,7 +79,7 @@ Powered by open source software.
 
           applet-info-list
           (applets-loader/load-applets)
-          _ (println "  ## applet-info-seq:" applet-info-list)
+          ;_ (println "  ## applet-info-seq:" applet-info-list)
 
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
@@ -113,17 +118,21 @@ Powered by open source software.
   (fx/event-handler-2 [_ e]
      (let [
            button-index
-           (fx/alert
-             "Do you want to quit George?"
-             :title "Quit?"
-             :options ["Quit"]
-             :owner launcher-stage
-             :mode nil
-             :cancel-option? true)]
+           (fx/now
+             (fx/alert
+               "Do you want to quit George?"
+               :title "Quit?"
+               :options ["Quit"]
+               :owner launcher-stage
+               :mode nil
+               :cancel-option? true))
+           exit? (= 0 button-index)]
 
-          (if (= 0 button-index)
-              (fx/later (Platform/exit))
-              (.consume e))))) ;; do nothing
+          (if exit?
+            (do (repl-server/stop!)
+                (fx/now (Platform/exit))
+                (System/exit 0))
+            (.consume e))))) ;; do nothing
 
 
 (defn show-launcher-stage [stage]
@@ -131,7 +140,12 @@ Powered by open source software.
           visual-bounds (.getVisualBounds (Screen/getPrimary))
           scene (launcher-scene)]
 
-      (.setOnKeyPressed scene (fx/key-pressed-handler {#{:ALT :Q} #(.hide stage)}))
+      (.setOnKeyPressed scene
+                        (fx/key-pressed-handler
+                          {#{:ALT :Q}
+                           #(do
+                              (repl-server/stop!)
+                              (.hide stage))}))
 
       ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
       (doto stage
@@ -162,4 +176,4 @@ Powered by open source software.
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.application.launcher/-main" (-main))
+;(do (println "WARNING: Running george.application.launcher/-main") (-main))
