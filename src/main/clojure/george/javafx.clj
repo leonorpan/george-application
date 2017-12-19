@@ -6,10 +6,10 @@
 (ns george.javafx
     (:require
         [clojure.java.io :as cio]
-        [clojure.string :as s]
+        [clojure.string :as cs]
         [george.javafx.java :as fxj]
-        [george.javafx.util :as fxu])
-
+        [george.javafx.util :as fxu]
+        [george.util.javafx :as ufx])
     (:import
         [javafx.animation
          Timeline KeyFrame KeyValue]
@@ -55,7 +55,7 @@
          BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
 
         [javafx.scene.paint
-         Color]
+         Color Paint]
 
         [javafx.scene.text
          Font Text]
@@ -81,18 +81,20 @@
 (set-implicit-exit false)
 
 
-(defn init []
+(defn init-toolkit
     "An easy way to 'initalize [JavaFX] Toolkit'
 Needs only be called once in the applications life-cycle.
 Has to be called before the first call to/on FxApplicationThread (javafx/later)"
-    (JFXPanel.))
+  []
+  (println (str *ns*"/init-toolkit ..."))
+  (JFXPanel.))
 
-(init)
+(init-toolkit)
 
 
 
-(defn web-color [s]
-    (Color/web s))
+(defn web-color [s & [opacity]]
+  (Color/web s (if opacity opacity 1.0)))
 
 
 ;; A nice combo for black text on white background
@@ -117,12 +119,17 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 (def MouseEvent_ANY MouseEvent/ANY)
 
 
-
-
-
-(defn color-background [color]
+(defn color-background [^Paint color]
     (Background. (fxj/vargs (BackgroundFill. color nil nil))))
 
+
+(defn set-background [^Region r paint-or-background]
+  (if (instance? Background paint-or-background)
+    (.setBackground r  paint-or-background)
+    (if (instance? Paint paint-or-background)
+      (.setBackground r (color-background paint-or-background))
+      (throw (IllegalArgumentException.
+               (format "Don't know how to convert %s to javafx.scene.layout.Background" paint-or-background))))))
 
 (defn later*
     "Utility function for 'thread'."
@@ -165,7 +172,7 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 
 (defmacro event-handler
     "Returns an instance of javafx.event.EventHander,
-where input is ingored,
+where input is ignored,
 and the the body is called on 'handle' "
 
     [& body]
@@ -223,6 +230,12 @@ and the body is called on 'changed'"
         [(.getWidth item) (.getHeight item)]))
 
 
+(defn set-translate-XY [^Node n [x y]]
+  (doto n
+    (.setTranslateX x)
+    (.setTranslateY y)))
+
+
 (defn make-border
     ([color]
      (make-border color 1.))
@@ -234,13 +247,15 @@ and the body is called on 'changed'"
                        color
                        BorderStrokeStyle/SOLID
                        (CornerRadii. rad)
-                       (BorderWidths. width))))))
-
-
+                       (if (vector? width)
+                         (let [[t r b l] width]
+                           (BorderWidths. t r b l))
+                         (BorderWidths. width)))))))
 
 
 (defn add-stylesheets [^Scene scene & sheetpaths]
     (-> scene .getStylesheets (.addAll (into-array sheetpaths))))
+
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
@@ -248,7 +263,6 @@ and the body is called on 'changed'"
 
 (defn set-Modena []
     (Application/setUserAgentStylesheet Application/STYLESHEET_MODENA))
-
 
 
 (defn option-index
@@ -295,34 +309,37 @@ and the body is called on 'changed'"
 
 
 
-
-(def ^:private some-fonts
-  ["SourceCodePro-Medium.ttf"])
-
-
-(defn preload-fonts
- ([]
-  (preload-fonts some-fonts))
- ([fonts]
-  (doseq [f fonts]
-    (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.) println))))
-
+(defn SourceCodePro
+  ([size] (SourceCodePro size))
+  ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
+   (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
+       cio/resource
+       str
+       (cs/replace "%20" " ")
+       (Font/loadFont (double size)))))
 
 
 ;; This is a hack!
 ;; loading fonts from CSS doesn't work now, if there is a space in the file path.
 ;; So we pre-load them here, and they should then be available in css
-#_(let
-    (doseq [f fonts]
-        (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
 
+(def ^:private some-fonts
+  ["SourceCodePro-Medium.ttf"])
 
-(defn SourceCodePro [weight size]  ;; "Regular" / "Medium", etc
-    (-> (format "fonts/SourceCodePro-%s.ttf" weight)
+(defn preload-fonts
+ ([]
+  (preload-fonts some-fonts))
+ ([fonts]
+  (println (str *ns* "/preload-fonts ..."))
+  (doseq [f fonts]
+    (-> (format "fonts/%s" f)
         cio/resource
         str
-        (s/replace "%20" " ")
-        (Font/loadFont (double size))))
+        (cs/replace "%20" " ")
+        (Font/loadFont  12.)))))
+
+(preload-fonts)
+
 
 
 
@@ -873,6 +890,9 @@ It must return a string (which may be wrapped to fit the width of the list."
 ;; (doto "A" .toLowerCase (fn [inst] (if (= 1 2) (.inst  (toUpperCase)) inst)))
 
 
+
+
+
 (defn key-pressed-handler
  "Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
 
@@ -887,26 +907,30 @@ Example of codes-map:
     #{:S :SHIFT :SHORTCUT} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
     #{:SHORTCUT :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (.consume event ))
     }"
-    [codes-map]
+    [codes-map & {:keys [handle-type consume-types]}]
     (event-handler-2
         [inst event]
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
-              code (str (.getCode event))
-              ;_ (println "  ## code:" code)
-              shift (when (.isShiftDown event) "SHIFT")
-              shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
-              alt (when (.isAltDown event) "ALT") ;;  "M-"
-              combo (set (map keyword (filter some? [code shift shortcut alt])))]
+              ev-typ (.getEventType event)
+              combo (ufx/code-modifier-set event)
               ;_ (println "combo:" (str combo))
+              do-handle
+              #(if (instance? EventHandler %)
+                   (.handle % event)
+                   (do (%) (.consume event)))]
 
-            (when-let [v (codes-map combo)]
-                (if (instance? EventHandler v)
-                    (.handle v  event)
-                    (do ;; else
-                        (v)
-                        (.consume event)))))))
-
+            (when-let [f (codes-map combo)]
+              ;(println "  ## f:" f)
+              (if handle-type
+                (if (= handle-type ev-typ)
+                  (do-handle f))
+                (do-handle f))
+              ;(println "  ## ev-typ:" ev-typ)
+              ;(println "  ## consume-types:" consume-types)
+              (when (and consume-types ((set consume-types) ev-typ))
+                ;(println "  ## consuming:" ev-typ)
+                (.consume event))))))
 
 
 (defn char-typed-handler
