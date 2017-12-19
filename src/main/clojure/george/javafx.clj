@@ -111,7 +111,6 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 (def GREY Color/GREY)
 
 
-
 (def Pos_TOP_RIGHT Pos/TOP_RIGHT)
 (def Pos_CENTER Pos/CENTER)
 (def VPos_TOP VPos/TOP)
@@ -119,8 +118,15 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 (def MouseEvent_ANY MouseEvent/ANY)
 
 
-(defn color-background [^Paint color]
-    (Background. (fxj/vargs (BackgroundFill. color nil nil))))
+(defn corner-radii [rad]
+  (when rad
+    (if (vector? rad)
+      (let [[tl tr br bl ] rad] (CornerRadii. tl tr br bl false))
+      (CornerRadii. rad))))
+
+
+(defn color-background [^Paint color & [rad insets]]
+    (Background. (fxj/vargs (BackgroundFill. color (corner-radii rad) insets))))
 
 
 (defn set-background [^Region r paint-or-background]
@@ -131,12 +137,14 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
       (throw (IllegalArgumentException.
                (format "Don't know how to convert %s to javafx.scene.layout.Background" paint-or-background))))))
 
+
 (defn later*
     "Utility function for 'thread'."
     [expr]
     (if (Platform/isFxApplicationThread)
         (expr)
         (Platform/runLater expr)))
+
 
 (defmacro ^:deprecated thread
     "Ensure running body in JavaFX thread: javafx.application.Platform/runLater"
@@ -166,8 +174,6 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
     "Ensure running body in JavaFX thread: javafx.application.Platform/runLater, but returns result. Prefer using 'later'."
     [& body]
     `(now* (fn [] ~@body)))
-
-
 
 
 (defmacro event-handler
@@ -243,14 +249,12 @@ and the body is called on 'changed'"
      (make-border color width 0.))
     ([color width rad]
      (Border. (fxj/vargs
-                  (BorderStroke.
-                       color
-                       BorderStrokeStyle/SOLID
-                       (CornerRadii. rad)
-                       (if (vector? width)
-                         (let [[t r b l] width]
-                           (BorderWidths. t r b l))
-                         (BorderWidths. width)))))))
+                  (BorderStroke. color
+                                 BorderStrokeStyle/SOLID
+                                 (corner-radii rad)
+                                 (if (vector? width)
+                                     (let [[t r b l] width] (BorderWidths. t r b l))
+                                     (BorderWidths. width)))))))
 
 
 (defn add-stylesheets [^Scene scene & sheetpaths]

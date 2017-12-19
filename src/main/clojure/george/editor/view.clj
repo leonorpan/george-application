@@ -37,9 +37,13 @@
 (def DEFAULT_TAB_WIDTH (/ ^int DEFAULT_FONT_SIZE 2.0))
 
 (def DEFAULT_TEXT_COLOR fx/ANTHRECITE)
-(def DEFAULT_TEXT_SELECTION_COLOR (fx/web-color "#b3d8fd"))
-
 (def DEFAULT_HIDDEN_CHAR_COLOR Color/DARKGRAY)
+
+;(def DEFAULT_CARET_COLOR Color/DODGERBLUE)
+(def DEFAULT_CARET_COLOR (Color/rgb 197 54 58))
+;(def DEFAULT_TEXT_SELECTION_COLOR (fx/web-color "#b3d8fd"))
+(def DEFAULT_TEXT_SELECTION_COLOR (.saturate (Color/rgb 237 188 190)))
+
 
 ;; https://www.sessions.edu/color-calculator/
 (def DEFAULT_BLOCK_COLORS
@@ -48,7 +52,22 @@
           (map vector
             (range 180 260 8)
             (range 140 240 10)))))
-(def DEFAULT_BLOCK_BORDERS (mapv #(.saturate ^Color %) DEFAULT_BLOCK_COLORS))
+
+(def DEFAULT_BLOCK_BORDER_COLOR (fx/web-color "#0080ff"))
+
+(def DEFAULT_BLOCK_COLORS
+  [
+   (.desaturate (.desaturate (.desaturate (.desaturate DEFAULT_BLOCK_BORDER_COLOR))))
+   (.desaturate (.desaturate (.desaturate DEFAULT_BLOCK_BORDER_COLOR)))
+   (.desaturate (.desaturate DEFAULT_BLOCK_BORDER_COLOR))])
+   ;(.desaturate (.desaturate (.desaturate DEFAULT_BLOCK_BORDER_COLOR)))])
+
+
+;(def DEFAULT_BLOCK_BORDERS (mapv #(.saturate ^Color %) DEFAULT_BLOCK_COLORS))
+(def DEFAULT_BLOCK_BORDERS (vec (repeat (count DEFAULT_BLOCK_COLORS) (.desaturate DEFAULT_BLOCK_BORDER_COLOR))))
+;(def DEFAULT_BLOCK_BORDERS (mapv #(.saturate ^Color %) DEFAULT_BLOCK_COLORS))
+
+
 (def DBCC (count DEFAULT_BLOCK_COLORS))
 
 
@@ -80,12 +99,12 @@
 
 
 (defn- ^Rectangle anchor-factory [height]
-  (let [rect (fx/rectangle :size [0.5 height] :fill (Color/DODGERBLUE))]
+  (let [rect (fx/rectangle :size [0.5 height] :fill DEFAULT_CARET_COLOR)]
     rect))
 
 
 (defn- cursor-factory [height]
-  (let [rect (fx/rectangle :size [3 height ] :fill (Color/DODGERBLUE))]
+  (let [rect (fx/rectangle :size [3 height ] :fill DEFAULT_CARET_COLOR)]
     rect))
 
 
@@ -135,6 +154,9 @@
            (.setText nr-label s)))))
 
 
+(def paren-chars #{\( \) \[ \] \{ \}})
+
+
 (defn- new-text [char]
   (cond
     (= char \newline)
@@ -149,7 +171,7 @@
     :default
     (doto (Text. (str char))
       (.setFont DEFAULT_FONT)
-      (.setFill DEFAULT_TEXT_COLOR))))
+      (.setFill (if (paren-chars char) Color/BLUE DEFAULT_TEXT_COLOR)))))
 
 
 (defn- layout-texts
@@ -243,18 +265,33 @@
         (doseq [[i [^double x1 ^double x2 first? last?]] (map-indexed vector spans)]
           (let [padding-left 0.5 ;; slightly more generous to the left
                 x (- x1 padding-left)
-                y 0
+                y (if first? 0.5 0)
                 w (+ ^double (* (- x2 x)) padding-left)
-                block (doto (Region.)
-                       (.setMaxSize w h)
-                       (fx/set-translate-XY [x y])
-                       (fx/set-background
-                         (DEFAULT_BLOCK_COLORS (mod i DBCC)))
-                       (.setBorder
-                         (fx/make-border
-                           (DEFAULT_BLOCK_BORDERS (mod i DBCC))
-                           [0 0 0 1.])))]
-            (-> blocks-pane .getChildren (.add block))))))))
+                h (if (or first? last?) (- h 0.5) h)
+                r 6.0
+                b 1.5
+                corner-radii
+                (if (and first? last?)
+                    [r r r r]
+                    (if first?
+                        [r r 0 0]
+                        (if last?
+                            [0 0 r r]
+                            0)))
+                background
+                (fx/color-background (DEFAULT_BLOCK_COLORS (mod i DBCC)) corner-radii)
+                background-region
+                (doto (Region.)
+                      (.setMaxSize w h)
+                      (.setMinSize w h)
+                      (fx/set-translate-XY [x y])
+                      (fx/set-background background)
+                      (.setBorder
+                        (fx/make-border
+                          (DEFAULT_BLOCK_BORDERS (mod i DBCC)) ;; color
+                          [(if first? b 0) b (if last? b 0) b] ;; widths
+                          corner-radii)))]
+            (-> blocks-pane .getChildren (.add background-region))))))))
 
 
 (defn- set-marks
