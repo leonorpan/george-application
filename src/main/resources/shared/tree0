@@ -1,0 +1,13 @@
+(defn träd [längd]
+  (forward längd)
+
+  (when (> längd  0)
+    (left 30)
+    (träd (- längd 10))
+    (right 30))
+
+  (forward (- längd)))
+
+(reset)
+(left 90)
+(träd 100)

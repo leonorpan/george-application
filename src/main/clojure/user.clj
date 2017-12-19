@@ -19,3 +19,20 @@
 (import-macro clojure.repl/doc)
 (import-macro clojure.repl/dir)
 
+
+(defn help
+  "Prints some basic help for this namespace."
+  []
+  (println "# Help for namespace: user
+
+This namespace has the following items pre-loaded:
+  pprint   Prints any single data object in a structured manner (to *out*).
+  doc      Prints the documentation for any var in any namespace. Also the namespace itself.
+  dir      Prints a sorted list of all public vars in a namespace.
+
+To view their documentation, do:  (user/doc <function-or-macro>)
+Ex.: (user/doc pprint)
+"))
+
+
+(println "Namespace 'user' has pre-loaded some useful vars.  For more info, do: (user/help)")
