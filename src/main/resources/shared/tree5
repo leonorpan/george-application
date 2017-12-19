@@ -1,0 +1,27 @@
+(defn red [len]
+  (* (+ 0.5 (* 0.1 (rand-int 5))) len))
+
+(defn col [len]
+  (if (< len 10) "green" "brown"))
+
+(defn ang []
+  (+ 10 (rand-int 45)))
+
+(defn tree [len]
+  (when (>  len 2)
+    (set-pen-color (col len))
+    (forward len)
+    (let [a1 (ang) a2 (ang)]
+      (left a1)
+      (tree (red len))
+      (right (+ a1 a2))
+      (tree (red len))
+      (left a2))
+    (set-pen-color (col len))
+    (forward (- len))))
+
+(reset)
+(set-speed nil)
+(left 90)
+(pen-up) (forward -150) (pen-down)
+(tree 100)
