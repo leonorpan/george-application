@@ -1,5 +1,5 @@
 
-(defproject no.andante.george/george-application  "0.9.0.b44-SNAPSHOT"
+(defproject no.andante.george/george-application  "0.9.0.b45-SNAPSHOT"
 
   :description "George - Application"
   :url "https://bitbucket.org/andante-george/george-application"
@@ -98,8 +98,6 @@
           ;"https://github.com/weavejester/codox/blob/{version}/codox.example/{filepath}#L{basename}-{line}"
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
           :html {:namespace-list :flat}}
-
-  :env {:george-version :project/version}
 
   :profiles {:repl {:env {:repl? "true"}}
 

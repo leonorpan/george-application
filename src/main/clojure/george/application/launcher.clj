@@ -37,7 +37,7 @@ Java version: %s
 Copyright 2015-2017 Terje Dahl.
 Powered by open source software.
 "
-             (env :george-version)
+             (slurp (cio/resource "george-version.txt"))
              (clojure-version)
              (env :java-version)))
         link
