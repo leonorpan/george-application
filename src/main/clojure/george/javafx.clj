@@ -112,9 +112,11 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
 
 
 (def Pos_TOP_RIGHT Pos/TOP_RIGHT)
+(def Pos_TOP_CENTER Pos/TOP_CENTER)
 (def Pos_CENTER Pos/CENTER)
 (def VPos_TOP VPos/TOP)
 (def VPos_CENTER VPos/CENTER)
+
 (def MouseEvent_ANY MouseEvent/ANY)
 
 
@@ -398,8 +400,8 @@ and the body is called on 'changed'"
     60)
 
 
-;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 
 (defn synced-keyframe
     "same as 'keyframe', but runs immediately in current thread"
@@ -412,31 +414,32 @@ and the body is called on 'changed'"
                          (filter some? keyvalues))
 
               start-nano     ^long (System/nanoTime)
-              duration-nano  (* duration NANO_PR_MILLI)
+              duration-nano  (* ^int duration ^int NANO_PR_MILLI)
               end-nano       (+ start-nano duration-nano)
-              sleep-nano     ^long (/ NANO_PR_SEC DEFAULT_TICKS_PR_SEC)] ;; 60 fps
+              ^int sleep-nano     (/ ^int NANO_PR_SEC ^int DEFAULT_TICKS_PR_SEC)] ;; 60 fps
 
-          (when (> duration 0)
+          (when (> ^int duration 0)
             (loop [current-nano start-nano
                    next-nano (+ current-nano sleep-nano)]
               (when (<= current-nano end-nano)
                 (later
-                  (doseq [[^WritableValue prop start end] keyvalues]
-                    ;;  cDv (* (/ cDt Dt) Dv)
-                    ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
+                  (doseq [[^WritableValue prop ^int start ^int end] keyvalues]
                     (.setValue prop
-                       (+ start (*
-                                  (/ (- current-nano start-nano) duration-nano)
-                                  (- end start))))))
+                       (+ start
+                          (* ^double (/ (- current-nano start-nano) duration-nano)
+                             (- end start))))))
 
-                (let [sleep-milli (int (/ (- next-nano current-nano) NANO_PR_MILLI))]
+                (let [sleep-milli (int (/ (- next-nano current-nano) ^int NANO_PR_MILLI))]
                   (if (> sleep-milli 0)
                     (Thread/sleep sleep-milli)))
 
                 (recur next-nano (+ current-nano sleep-nano))))
             ;; correct final value and "hold" until to ensure consistent state at end
             (now (doseq [[^WritableValue p _ e] keyvalues]
-                       (.setValue p  e)))))))
+                       (.setValue p e)))))))
+
+;(set! *warn-on-reflection* false)
+;(set! *unchecked-math* false)
 
 
 (defn observablearraylist-t [t & lst]
@@ -773,8 +776,10 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn screens []
     (Screen/getScreens))
 
+
 (defn primary-screen []
     (Screen/getPrimary))
+
 
 
 (defn stagestyle [style-kw]
@@ -791,18 +796,22 @@ It must return a string (which may be wrapped to fit the width of the list."
     (.setOnCloseRequest stage (ensure-handler fn-or-handler))
     stage)
 
+
 (defn setonhiding [stage fn-or-handler]
     (.setOnHiding stage (ensure-handler fn-or-handler))
     stage)
+
 
 (defn setonhidden [stage fn-or-handler]
     (.setOnHidden stage (ensure-handler fn-or-handler))
     stage)
 
+
 (defn scrollpane [& [node]]
   (if node
     (ScrollPane. node)
     (ScrollPane.)))
+
 
 (defn stage [& args]
     (let [

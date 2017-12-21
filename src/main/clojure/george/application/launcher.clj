@@ -12,6 +12,7 @@
     [george.javafx :as fx]
     [george.application.applet-loader :as applets-loader]
     [george.util.singleton :as singleton]
+    [george.application.ui.stage :as ui-stage]
     [george.application.repl-server :as repl-server]
     [clojure.java.io :as cio]
     [environ.core :refer [env]]
@@ -19,10 +20,15 @@
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
-           [javafx.stage Screen]
+           [javafx.stage Screen Stage]
            [javafx.application Platform]
-           (javafx.scene.control Hyperlink)))
+           (javafx.scene.control Hyperlink Label)
+           (javafx.beans.property SimpleDoubleProperty)
+           (javafx.scene.layout HBox Pane)))
 
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* true)
 
 
 (defn- about-stage-create []
@@ -61,7 +67,7 @@ Powered by open source software.
 
 (defn- about-stage []
   (if-let [st (singleton/get ABOUT_STAGE_KW)]
-    (do (.hide st)
+    (do (.hide ^Stage st)
         (singleton/remove ABOUT_STAGE_KW))
     (singleton/get-or-create
       ABOUT_STAGE_KW about-stage-create)))
@@ -74,7 +80,7 @@ Powered by open source software.
              :tooltip description))
 
 
-(defn- launcher-scene []
+(defn launcher-root-node []
     (let [
           b-width 150
 
@@ -85,13 +91,13 @@ Powered by open source software.
           applet-buttons
           (map #(applet-button % b-width) applet-info-list)
 
-          logo
-          (ImageView. (Image. "graphics/George_logo.png"))
+          logo-image (Image. "graphics/George_logo.png")
+          logo (ImageView. logo-image)
 
           ;; Set align BOTTOM_RIGHT
           about-button
           (doto
-            (fx/label "About")
+            ^Label (fx/label "About")
             (.setOnMouseClicked (fx/event-handler (about-stage))))
 
           about-box
@@ -99,24 +105,29 @@ Powered by open source software.
             about-button
             :alignment Pos/BASELINE_LEFT)
 
-          scene
-          (fx/scene
-             (apply fx/hbox
-                    (flatten [logo applet-buttons about-box
-                              :spacing 15
-                              :padding 10
-                              :alignment Pos/CENTER_LEFT
-                              :background (fx/color-background Color/WHITE)])))]
-             ;:size [180 (+ 80 ;; logo
-             ;              (* 48  ;; each button
-             ;                (+ (count applet-buttons)
-             ;                   0)))])] ;; extra buttons
+          root
+          (doto ^HBox
+                (apply fx/hbox
+                 (flatten [logo applet-buttons about-box
+                           :spacing 15
+                           :padding 10
+                           :alignment Pos/CENTER_LEFT
+                           :background (fx/color-background Color/WHITE)]))
+            (.setMaxWidth (+ 10
+                             (.getWidth logo-image)
+                             15
+                             b-width ;; button
+                             15
+                             50 ;; About
+                             10))
+            (.setMaxHeight 85))]
 
-        scene))
+        root))
 
 
 (defn- launcher-close-handler [launcher-stage]
   (fx/event-handler-2 [_ e]
+     (.toFront ^Stage launcher-stage)
      (let [repl? (boolean (env :repl?))
            button-index
            (fx/now
@@ -138,33 +149,86 @@ Powered by open source software.
             (.consume e))))) ;; do nothing
 
 
-(defn show-launcher-stage [stage]
-    (let [
-          visual-bounds (.getVisualBounds (Screen/getPrimary))
-          scene (launcher-scene)]
+(defn- double-property [init-value value-change-fn]
+  (doto (SimpleDoubleProperty. init-value)
+    (.addListener
+      (fx/changelistener
+        [_ _ _ new-val]
+        (value-change-fn new-val)))))
 
-      (.setOnKeyPressed scene
-                        (fx/key-pressed-handler
-                          {#{:ALT :Q}
-                           #(do
-                              (repl-server/stop!)
-                              (.hide stage))}))
 
-      ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+(defn- morphe-launcher-stage [^Stage stage ^Pane launcher-root]
+  ;; Fade out old content.
+  (fx/later (doto stage
+              (.toFront)
+              (.setTitle  "...")))
+
+  (ui-stage/swap-with-fades stage (fx/borderpane) true 500)
+  (let [
+        visual-bounds (.getVisualBounds (Screen/getPrimary))
+        target-x (-> visual-bounds .getMinX (+ 0))
+        target-y (-> visual-bounds .getMinY (+ 0))
+        target-w (.getMaxWidth launcher-root)
+        target-h (.getMaxHeight launcher-root)
+
+        x-prop (double-property (.getX stage) #(.setX stage %))
+        y-prop (double-property (.getY stage) #(.setY stage %))
+        w-prop (double-property (.getWidth stage) #(.setWidth stage %))
+        h-prop (double-property (.getHeight stage) #(.setHeight stage %))]
+    ;; Transition stage.
+    (fx/synced-keyframe
+      200
+      [x-prop target-x]
+      [y-prop target-y]
+      [w-prop target-w]
+      [h-prop target-h])
+    ;; Fade in Launcher root
+    (ui-stage/swap-with-fades stage launcher-root true 1000)
+
+    (.setOnKeyPressed (.getScene stage)
+                      (fx/key-pressed-handler
+                        {#{:ALT :Q}
+                         #(do
+                            (repl-server/stop!)
+                            (.hide stage))}))
+
+    (fx/later
+         ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+        (doto stage
+          (.setTitle "Launcher")
+          (.setResizable false)
+          (fx/setoncloserequest (launcher-close-handler stage))))))
+
+
+;; also called from Main
+(defn starting-stage [& [^Stage stage]]
+  (if stage
+    (fx/now
       (doto stage
-        (.setScene scene)
-        (.setX (-> visual-bounds .getMinX (+ 0)))
-        (.setY (-> visual-bounds .getMinY (+ 0)))
-        (.setTitle "George")
-        (.setResizable false)
-        (fx/setoncloserequest (launcher-close-handler stage))
+        (.setTitle "Loading ...")
+        (.setScene (fx/scene (ui-stage/scene-root-with-child)
+                             :size [240 80]))
+        (.centerOnScreen)
         (.show)
-        (.toFront))))
+        (.toFront)))
+
+    (fx/now
+      (fx/stage :title "Loading ..."
+                :scene (fx/scene (ui-stage/scene-root-with-child)
+                                 :size [240 80])
+                :tofront true))))
 
 
 ;; called from Main
-(defn start [stage]
-  (show-launcher-stage stage))
+(defn start
+  "Three versions of this method allow for different startupstrategies. The result is always that a created or given stage will be transformed (animated) into the launcher stage."
+  ([]
+   (start (starting-stage)))
+  ([stage]
+   (start stage (launcher-root-node)))
+
+  ([stage root-node]
+   (morphe-launcher-stage stage root-node)))
 
 
 (defn -main
@@ -174,9 +238,11 @@ Powered by open source software.
            (if (empty? args)
              ""
              (str " args: " (apply str (interpose " " args)))))
-  (fx/now (show-launcher-stage (fx/stage :show false))))
+  (start))
 
 
 ;;; DEV ;;;
 
-;(do (println "WARNING: Running george.application.launcher/-main") (-main))
+(when (env :repl?)  (-main))
+;(when (env :repl?)  (start))
+;(when (env :repl?)  (start (starting-stage)))
