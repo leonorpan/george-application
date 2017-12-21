@@ -10,19 +10,21 @@
     [george.core.history :as hist]
     [george.application.repl :as repl]
     [george.javafx.java :as fxj]
-    [george.code.core :as gcode]
     [george.util :as gu]
     [george.application.output :as output]
     [george.util :as u]
-    [george.application.eval :as eval])
+    [george.application.eval :as eval]
+    ;[george.code.paredit :as paredit]
+    ;[george.code.codearea :as ca]
+    [george.editor.core :as ed])
   (:import (javafx.scene.input KeyEvent)))
-
-
-
+           ;(javafx.scene.control ComboBox)
+           ;(org.fxmisc.flowless VirtualizedScrollPane)))
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
-  (let [input (gcode/text code-area)
+  (let [;input (ca/text code-area)
+        input (ed/text code-area)
         update-ns-fn #(fx/later (.setText ns-textfield %))
         eval-id (gu/uuid)]
     (if (cs/blank? input)
@@ -38,7 +40,7 @@
             (fx/event-handler
               ;(println "Interrupting:" eval-id)
               (repl/eval-interrupt eval-id)
-              (output/output :system "Interrupted!\n"))))
+              (output/print-output :system "Interrupted!\n"))))
 
         (fxj/daemon-thread
           (try
@@ -53,7 +55,8 @@
             ;; handle history and clearing
             (hist/append-history repl-uuid input)
             (reset! current-history-index-atom -1)
-            (when clear? (fx/later (.clear code-area)))
+            ;(when clear? (fx/later (.clear code-area)))
+            (when clear? (fx/later (ed/set-text code-area "")))
 
             (catch Exception e
               (.printStackTrace e))
@@ -75,12 +78,13 @@
         ns-label
         (doto
           (fx/label (or ns "user"))
-          ( .setStyle "
-                    -fx-font: 12 'Source Code Pro Regular';
+          (.setStyle "
+                    -fx-font: 12 'Source Code Pro Medium';
                     -fx-text-fill: gray;"))
 
         code-area
-        (doto (gcode/->codearea))
+        ;(ca/new-codearea-with-handlers)
+        (ed/editor-view "" "clj")
 
         do-history-fn
         (fn [direction global?]
@@ -113,32 +117,56 @@
                 (.isSelected clear-checkbox)
                 do-clear
                 (if inverse-clear (not clear-checked) clear-checked)]
-            (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file)))
+            (fxj/thread
+              (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file))))
 
         prev-button
         (doto
           (fx/button
-            (str  \u25B2)  ;; up: \u25B2,  left: \u25C0
-            :onaction #(do-history-fn hist/PREV false)
-            :tooltip (format
-                       "Previous 'local' history.          %s-LEFT
-Previous 'global' history.   SHIFT-%s-LEFT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
-
+            (str  \u25C0)  ;; up: \u25B2,  left: \u25C0
+            :tooltip
+            "Previous 'local' history.     click
+Previous 'global' history.   SHIFT-click")
+          (.setOnMouseClicked
+            (fx/event-handler-2 [_ e]
+              (do-history-fn hist/PREV (.isShiftDown e))
+              (.consume e))))
 
         next-button
         (doto
           (fx/button
-            (str \u25BC)  ;; down: \u25BC,  right: \u25B6
-            :onaction #(do-history-fn hist/NEXT false)
-            :tooltip (format
-                       "Next 'local' history.          %s-RIGHT
-Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
+            (str \u25B6)  ;; down: \u25BC,  right: \u25B6
+            :tooltip
+            "Next 'local' history.    click
+Next 'global' history.   SHIFT-click")
+
+          (.setOnMouseClicked
+            (fx/event-handler-2 [_ e]
+               (do-history-fn hist/NEXT (.isShiftDown e))
+               (.consume e))))
+
+        ;structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
+        ;paredit-kphandler (paredit/key-pressed-handler)
+        ;paredit-kthandler (paredit/key-typed-handler)
+        ;_ (doto code-area
+        ;   (.addEventFilter KeyEvent/KEY_PRESSED
+        ;                    (fx/event-handler-2 [_ event]
+        ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
+        ;                               (.handle paredit-kphandler event))))
+        ;
+        ;   (.addEventFilter KeyEvent/KEY_TYPED
+        ;     (fx/event-handler-2 [_ event]
+        ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
+        ;                               (.handle paredit-kthandler event)))))
+        ;_ (-> structural-combo .getSelectionModel (.select 0))
 
         button-box
         (fx/hbox
           prev-button
           next-button
           (fx/region :hgrow :always)
+          ;structural-combo
+          ;(fx/region :hgrow :always)
           clear-checkbox
           (fx/region :hgrow :always)
           interrupt-button
@@ -149,24 +177,14 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
 
         border-pane
         (fx/borderpane
+          ;:center (VirtualizedScrollPane. code-area)
           :center code-area
           :top ns-label
           :bottom button-box
           :insets 10)
 
-        ;scene
-        ;(doto
-        ;  (fx/scene border-pane :size [500 200])
-        ;  (fx/add-stylesheets "styles/codearea.css"))
-
         key-pressed-handler
         (fx/key-pressed-handler {
-                                 #{:SHORTCUT :UP} #(do-history-fn hist/PREV false)
-                                 #{:SHIFT :SHORTCUT :UP} #(do-history-fn hist/PREV true)
-
-                                 #{:SHORTCUT :DOWN} #(do-history-fn hist/NEXT false)
-                                 #{:SHIFT :SHORTCUT :DOWN} #(do-history-fn hist/NEXT true)
-
                                  #{:SHORTCUT :ENTER}
                                  #(when-not (.isDisabled run-button)
                                    (do-run-fn false))
@@ -186,14 +204,12 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
     ;; TODO: colorcode also when history is the same
     ;; TODO: nicer tooltips.  (monospace and better colors)
 
-    border-pane))
-
-
+    [border-pane code-area]))
 
 
 (defn- input-scene [root]
   (doto
-    (fx/scene root :size [500 200])
+    (fx/scene root :size [600 300])
     (fx/add-stylesheets "styles/codearea.css")))
 
 
@@ -208,13 +224,14 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
   ;; TODO: consolidate/fix integrations/dependencies
   ;; TODO: add interupt-posibility (button) to/for run-thread
 
-  (println "   ## new version!")
   (fxj/thread (repl/session-ensured! true))
   (let [
         repl-nr
         (hist/next-repl-nr)
 
-        scene (input-scene (input-root ns (str \" "Input " repl-nr \")))
+        [root code-area] (input-root ns (str \" "Input " repl-nr \"))
+
+        scene (input-scene root)
 
         screen-WH (-> (fx/primary-screen) .getVisualBounds fx/WH)
 
@@ -230,6 +247,10 @@ Next 'global' history.   SHIFT-%s-RIGHT" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
                   :location [(- (first screen-WH) (.getWidth scene) 30 horizontal-offset)
                              (+ 80 vertical-offset)])))]
 
-    stage))
+    [stage code-area]))
 
+
+;;; DEV ;;;
+
+;(do (println "WARNING: Running george.application.input/new-input-stage") (new-input-stage))
 

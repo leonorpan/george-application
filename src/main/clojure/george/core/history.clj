@@ -6,17 +6,17 @@
 (ns
   ^{:author "Terje Dahl"}
   george.core.history
-    (:require [clojure.java.io :as cio]
-              [clojure.edn :as edn]
+  (:require [clojure.java.io :as cio]
+            [clojure.edn :as edn]
 
-              [george.javafx.java :as j])
+            [george.javafx.java :as j]
+            [george.util :as u]
+            [george.editor.core :as ed])
 
   (:import (george.application Versions)
            (java.util Date UUID)
            (java.sql Timestamp)))
 
-
-(def SHORTCUT_KEY (if Versions/IS_MAC "CMD" "CTRL"))
 
 (def HISTORY_FILE (cio/file Versions/APPDATA_DIR "repl" "history.edn"))
 (.mkdirs (.getParentFile HISTORY_FILE))
@@ -96,17 +96,16 @@
           (if (< i 0)
             ""
             (if (= (count items) (count items-global))
-              "; No more (global) history.\n"
-              (format
-                "; No more 'local' history.
+              "; No more 'global' history.\n"
+              "; No more 'local' history.
 ; To access 'global' history use:
-;    SHIFT-%s-up/down.
-" SHORTCUT_KEY))))]
+;    SHIFT-click.\n")))]
 
     (reset! current-history-index-atom i)
     (doto code-area
-        (.replaceText content))))
-        ;(.selectRange 0 0)
-        ;(.setStyleSpans 0 (compute-highlighting content))
+      ;(.replaceText content)
+      (ed/set-text content))))
+      ;(.selectRange 0 0)
+      ;(.setStyleSpans 0 (compute-highlighting content))
 
 

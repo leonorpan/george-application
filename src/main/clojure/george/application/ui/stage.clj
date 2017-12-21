@@ -6,8 +6,12 @@
 
 (ns george.application.ui.stage
   "Namespace contains utilities for creating and working with stages"
-  (:require [george.javafx :as fx]))
+  (:require [george.javafx :as fx]
+            [george.javafx.java :as fxj]))
 
+
+(defn scene-root-with-child []
+  (fx/stackpane (fx/text "Starting Launcher ...")))
 
 
 (defn swap-stage-ensure
@@ -16,10 +20,10 @@
   "A swap-parent is stackpane which can be used by swap-with-fade in a scene."
   (if (-> stage .getUserData :swap-parent)
     stage
-    (let [parent (fx/stackpane)]
+    (let [parent (scene-root-with-child)]
       (if-let [scene (.getScene stage)]
         (do
-          (.add (.getChildren parent) (.getRoot scene))
+          (-> parent .getChildren (.setAll (fxj/vargs (.getRoot scene))))
           (.setRoot scene parent))
         (.setScene stage (fx/scene parent)))
       (.setUserData stage {:swap-parent parent})

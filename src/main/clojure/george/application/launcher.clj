@@ -14,16 +14,21 @@
     [george.util.singleton :as singleton]
     [george.application.ui.stage :as ui-stage]
     [george.application.repl-server :as repl-server]
-    [clojure.java.io :as cio])
-
+    [clojure.java.io :as cio]
+    [environ.core :refer [env]]
+    [g])
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
            [javafx.geometry Pos]
-           [javafx.stage Screen]
+           [javafx.stage Screen Stage]
            [javafx.application Platform]
-           (javafx.scene.control Hyperlink)
-           (javafx.beans.property SimpleDoubleProperty)))
+           (javafx.scene.control Hyperlink Label)
+           (javafx.beans.property SimpleDoubleProperty)
+           (javafx.scene.layout HBox Pane)))
 
+;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* true)
 
 (def about-tmpl "
 George version: %s
@@ -44,7 +49,7 @@ Powered by open source software.
           (format about-tmpl
              (slurp (cio/resource "george-version.txt"))
              (clojure-version)
-             (System/getProperty "java.version")))
+             (env :java-version)))
         link
         (doto (Hyperlink. "www.george.andante.no")
           (.setStyle "-fx-border-color: transparent;-fx-padding: 10 0 10 0;-fx-text-fill:#337ab7;")
@@ -125,13 +130,15 @@ Powered by open source software.
 
 (defn- launcher-close-handler [launcher-stage]
   (fx/event-handler-2 [_ e]
-     (let [
+     (.toFront ^Stage launcher-stage)
+     (let [repl? (boolean (env :repl?))
            button-index
            (fx/now
              (fx/alert
-               "Do you want to quit George?"
+               (str "Do you want to quit George?"
+                    (when repl? "\n\n(You are running from a repl.\n'Quit' will not exit the JVM instance.)"))
                :title "Quit?"
-               :options ["Quit"]
+               :options [(str "Quit")]
                :owner launcher-stage
                :mode nil
                :cancel-option? true))
@@ -139,8 +146,11 @@ Powered by open source software.
 
           (if exit?
             (do (repl-server/stop!)
-                (fx/now (Platform/exit))
-                (System/exit 0))
+                (println "Bye for now!" (when repl? " ... NOT"))
+                (Thread/sleep 300)
+                (when-not repl?
+                  (fx/now (Platform/exit))
+                  (System/exit 0)))
             (.consume e))))) ;; do nothing
 
 
@@ -152,13 +162,13 @@ Powered by open source software.
         (value-change-fn new-val)))))
 
 
-(defn- morphe-launcher-stage [stage launcher-root]
+(defn- morphe-launcher-stage [^Stage stage ^Pane launcher-root]
   ;; Fade out old content.
   (fx/later (doto stage
               (.toFront)
               (.setTitle  "...")))
 
-  (ui-stage/swap-with-fades stage (fx/borderpane) true 300)
+  (ui-stage/swap-with-fades stage (fx/borderpane) true 500)
   (let [
         visual-bounds (.getVisualBounds (Screen/getPrimary))
         target-x (-> visual-bounds .getMinX (+ 0))
@@ -178,7 +188,7 @@ Powered by open source software.
       [w-prop target-w]
       [h-prop target-h])
     ;; Fade in Launcher root
-    (ui-stage/swap-with-fades stage launcher-root true 500)
+    (ui-stage/swap-with-fades stage launcher-root true 1000)
 
     (.setOnKeyPressed (.getScene stage)
                       (fx/key-pressed-handler
@@ -196,12 +206,22 @@ Powered by open source software.
 
 
 ;; also called from Main
-(defn starting-stage []
-  (fx/now
-    (fx/stage :title "Loading ..."
-              :scene (fx/scene (fx/stackpane (fx/text "Starting Launcher ..."))
-                               :size [240 80])
-              :tofront true)))
+(defn starting-stage [& [^Stage stage]]
+  (if stage
+    (fx/now
+      (doto stage
+        (.setTitle "Loading ...")
+        (.setScene (fx/scene (ui-stage/scene-root-with-child)
+                             :size [240 80]))
+        (.centerOnScreen)
+        (.show)
+        (.toFront)))
+
+    (fx/now
+      (fx/stage :title "Loading ..."
+                :scene (fx/scene (ui-stage/scene-root-with-child)
+                                 :size [240 80])
+                :tofront true))))
 
 
 ;; called from Main
@@ -228,7 +248,9 @@ Powered by open source software.
 
 ;;; DEV ;;;
 
-;(do (println "WARNING: Running george.application.launcher/-main") (-main))
+;(when (env :repl?)  (-main))
+;(when (env :repl?)  (start))
+;(when (env :repl?)  (start (starting-stage)))
 
 ;; TODO: sort out laucher-code/app-loader
 ;; TODO: sort out sizes for app-tiles et al

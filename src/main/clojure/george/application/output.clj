@@ -5,19 +5,14 @@
 
 (ns george.application.output
   (:require [george.javafx :as fx]
-            [george.util.singleton :as singleton])
+            [george.code.codearea :as ca]
+            [george.util.singleton :as singleton]
+            [george.code.highlight :as highlight])
   (:import (java.io StringWriter PrintStream OutputStreamWriter)
            (org.apache.commons.io.output WriterOutputStream)
-           (java.util Collections)
-           (org.fxmisc.richtext StyledTextArea)
-           (java.util.function BiConsumer)
-           (javafx.scene.text Text)
-           (javafx.geometry Pos)))
+           (javafx.geometry Pos)
+           (org.fxmisc.flowless VirtualizedScrollPane)))
 
-
-
-
-(defonce ^:private output-singleton (atom nil))
 
 (defonce standard-out System/out)
 (defonce standard-err System/err)
@@ -25,9 +20,10 @@
 (def LINE_COUNT_LIMIT 500)
 (def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
 (def OTA_KW ::output-textarea)
+(def OS_KW ::output-stage)
 
 
-(declare output)
+(declare print-output)
 
 
 (defn- output-string-writer [typ] ;; type is one of :out :err
@@ -36,9 +32,9 @@
       ;; first print the content of StringWriter to output-stage
       (let [s (str this)]
         (if (= typ :err)
-          (.print standard-err  s)
+          (.print standard-err s)
           (.print standard-out s))
-        (output typ s))
+        (print-output typ s))
       ;; then flush the buffer of the StringWriter
       (let [sb (.getBuffer this)]
         (.delete  sb 0 (.length sb))))))
@@ -57,31 +53,26 @@
 
 
 (defn unwrap-outs []
-  (println "unwrap-outs")
   (System/setOut standard-out)
   (System/setErr standard-err)
   (alter-var-root #'*out* (constantly (OutputStreamWriter. System/out)))
-  (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err))))
+  (alter-var-root #'*err* (constantly (OutputStreamWriter. System/err)))
+  (println "unwrap-outs"))
 
 
-(defn output-showing? []
+(defn output-showing?
+  "Used by eval to determine whether or not to show error in dialog."
+  []
   (boolean (singleton/get OTA_KW)))
 
 
-(defrecord OutputStyleSpec [color])
-
-(def ^:private DEFAULT_SPEC (->OutputStyleSpec "GRAY"))
-
-(defn ^:private output-style [typ]
-  (get {:out (->OutputStyleSpec "#404042")
-        :err (->OutputStyleSpec "#CC0000")
-        :in (->OutputStyleSpec "BLUE")
-        :ns (->OutputStyleSpec "BROWN")
-        :system (->OutputStyleSpec "#bbbbbb")
-        :res (->OutputStyleSpec "GREEN")}
-       typ
-       (->OutputStyleSpec "ORANGE")))
-
+(defn- output-style [typ]
+  ({:out "out"
+    :err "err"
+    :in "in"
+    :ns "ns"
+    :system "system"
+    :res "res"} typ "unknown"))
 
 
 (defn- maybe-crop-output [outputarea]
@@ -94,46 +85,24 @@
         (.replaceText outputarea 0  len "")))))
 
 
-
-(defn output [typ obj]  ;; type is one of :in :ns :res :out :err :system
+(defn print-output [typ obj]  ;; type is one of :in :ns :res :out :err :system
   (if-let[oa (singleton/get OTA_KW)]
     (fx/later
       (maybe-crop-output oa)
-      (let [start (.getLength oa)]
-        (.insertText oa start (str obj))
-        (.setStyle oa start (.getLength oa) (output-style typ)))))
+      ;(try
+      (let [s (str obj)]
+        (when-not (empty? s)
+          (let [start (.getLength oa)
+                end (+ start (count s))]
+            (doto oa
+              (.insertText start s) ;; append
+              (.showParagraphAtBottom  (-> oa .getParagraphs count)) ;; scroll
+              (highlight/set-style-on-range [start end] (output-style typ)))))))) ;; style
+        ;(catch Exception e (unwrap-outs) (.printStackTrace e)))))
+
   ;; else:  make sure these always also appear in stout
   (when (#{:in :res :system} typ)
     (.print standard-out (str obj))))
-
-
-(defn- style [spec]
-  (let [{c :color} spec]
-    (str
-      "-fx-fill: " (if c c "#404042") "; "
-      "-fx-font-weight: normal; "
-      "-fx-underline: false; "
-      "-fx-background-fill: null; ")))
-
-
-(defn- apply-specs [^Text text specs]
-  (cond
-    (instance? OutputStyleSpec specs)
-    (.setStyle text (style specs))
-
-    (= Collections/EMPTY_LIST specs)
-    (.setStyle text (style DEFAULT_SPEC))
-
-    :default
-    (doseq [spec specs]
-      (.setStyle text (style spec)))))
-
-
-(defn- style-biconsumer []
-  (reify BiConsumer
-    (accept [_ text style]
-      (apply-specs text style))))
-
 
 
 (defn- setup-output [ta]
@@ -142,30 +111,24 @@
 
 
 (defn teardown-output
-  "Should be called when disposing of output-root - for maximal performacne/efficiency."
+  "Should be called when disposing of output-root - for maximal performance/efficiency."
   []
   (unwrap-outs)
   (singleton/remove OTA_KW))
 
 
-
 (defn output-root []
   (let [
-        outputarea
-        (doto (StyledTextArea. DEFAULT_SPEC (style-biconsumer))
-          (.setFont (fx/SourceCodePro "Regular" 14))
-          (.setStyle "-fx-padding: 0; -fx-background-color: WHITESMOKE;")
-          (.setUseInitialStyleForInsertion true)
-          (-> .getUndoManager .forgetHistory)
-          (-> .getUndoManager .mark)
-          (.selectRange 0 0)
+        codearea
+        (doto (ca/new-codearea false)
+          (.setStyle "-fx-font-size:14;")
           (.setEditable false))
 
         clear-button
         (fx/button
           "Clear"
           :width 150
-          :onaction #(.replaceText outputarea "")
+          :onaction #(ca/set-text codearea "")
           :tooltip (format "Clear output"))
 
         button-box
@@ -179,16 +142,12 @@
         root
          (fx/borderpane
             :top button-box
-            :center outputarea
+            :center (VirtualizedScrollPane. codearea)
             :insets 5)]
 
-    (setup-output outputarea)
+    (setup-output codearea)
 
     root))
-
-
-
-(def OS_KW ::output-stage)
 
 
 (defn create-stage

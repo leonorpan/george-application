@@ -1,23 +1,20 @@
-(def GEORGE_APPLICATION_VERSION (slurp "src/main/resources/george-version.txt"))
 
+(defproject no.andante.george/george-application  "0.9.0.b47-SNAPSHOT"
 
-(defproject no.andante.george/george-application  GEORGE_APPLICATION_VERSION
-
-  :description "George - Application (JVM)"
+  :description "George - Application"
   :url "https://bitbucket.org/andante-george/george-application"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
 
-  :dependencies [
-                 [org.clojure/clojure "1.8.0"]
-                 [org.clojure/core.async "0.2.374"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 ;; https://github.com/clojure/core.async
+                 [org.clojure/core.async "0.3.465"]
+                 ;; https://github.com/clojure/tools.reader
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  ;; https://github.com/mmcgrana/clj-stacktrace
                  [clj-stacktrace "0.2.8"]
-                 [leiningen "2.7.1" :exclusions [org.clojure/clojure clj-stacktrace]]
-                 [org.fxmisc.wellbehaved/wellbehavedfx "0.1.1"]
-                 [org.fxmisc.richtext/richtextfx "0.6.10" :exclusions [org.fxmisc.wellbehaved/wellbehavedfx]]
+                 ;[leiningen "2.8.1" :exclusions [org.clojure/clojure clj-stacktrace]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
                  ;; https://github.com/clojure/tools.namespace
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
@@ -28,14 +25,30 @@
                  ;; https://github.com/clojure/tools.nrepl
                  [org.clojure/tools.nrepl "0.2.13"]
                  ;; https://github.com/clojure-emacs/cider-nrepl
-                 [cider/cider-nrepl "0.14.0"]]
+                 [cider/cider-nrepl "0.14.0"]
+                 ;; https://github.com/FXMisc/RichTextFX
+                 [org.fxmisc.richtext/richtextfx "0.7-M5"]
+                 ;; https://github.com/TomasMikula/Flowless
+                 [org.fxmisc.flowless/flowless  "0.6"]
+                 ;; https://github.com/brentonashworth/clj-diff
+                 [clj-diff "1.0.0-SNAPSHOT"]
+                 ;; https://github.com/clojure/core.rrb-vector
+                 [org.clojure/core.rrb-vector "0.0.11"]
+                 ;; https://github.com/clojure/data.json
+                 [org.clojure/data.json "0.2.6"]
+                 ;; https://github.com/weavejester/environ
+                 [environ "1.1.0"]
+                 ;; https://github.com/ztellman/potemkin
+                 [potemkin "0.4.4"]]
+
   :plugins [
+            ;; https://github.com/weavejester/environ
+            [lein-environ "1.1.0"]
             ;; https://github.com/weavejester/codox
             [lein-codox "0.10.3"]]
 
   :repositories [
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io
-
 
   :deploy-repositories [
                         ["snapshots" :clojars]
@@ -92,10 +105,8 @@
           "https://bitbucket.org/andante-george/george-application/src/default/{filepath}?at=default#{basename}-{line}"
           :html {:namespace-list :flat}}
 
-
-  :profiles {
-             :uberjar {
-                       :aot :all
+  :profiles {:repl {:env {:repl? "true"}}
+             :uberjar {:aot :all
                        :manifest {"Main-Class" "no.andante.george.Main"
                                   "JavaFX-Preloader-Class" "no.andante.george.MainPreloader"
                                   "JavaFX-Application-Class" "no.andante.george.Main"}}})

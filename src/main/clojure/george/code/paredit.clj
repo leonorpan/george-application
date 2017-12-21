@@ -44,24 +44,42 @@
          parsetree-m
          state-m)))
 
+(defn- correct-pairing
+  "A hack to correct pairing due to strange bug related to after-comment-line.
+  A single paren should never be inserted unpaired at the end of the code.
+  Only correct if at the very end of the text (as this is the only case the bug  seems to appear)."
+  [codearea offset s]
+  ;(println "/correct-paring" "offset:" offset "ca len:" (.getLength codearea))
+  (if (not= offset (.getLength codearea))
+    s
+    (case s
+      "(" "()"
+      ")" "()"
+      "[" "[]"
+      "]" "[]"
+      "{" "{}"
+      "}" "{}"
+      s))) ;; default
 
 
-(defn insert-result [^StyledTextArea codearea pe]
+(defn insert-result [^StyledTextArea codearea pe cmd]
   (let [caret-left? (= (.getCaretPosition codearea)
                        (-> codearea .getSelection .getStart))
-        {:keys [length offset]} pe]
+        {:keys [length offset]} pe
+        delete? (boolean (#{:paredit-backward-delete :paredit-forward-delete} cmd))]
 
     (when *debug* (println "caret-left?:" caret-left?))
+    (when *debug* (println "delete?:" delete?))
 
     ;; make changes
     (doseq [{:keys [length offset text] :as mod} (:modifs pe)]
       (when *debug* (println "mod:" mod))
       (if (zero? length)
-        (.insertText codearea offset text)
+        (.insertText codearea offset  (correct-pairing codearea offset text))
         (.replaceText codearea offset (+ offset length) text)))
 
     ;; adjust caret and selection
-    (if (zero? length)
+    (if (or (zero? length) delete?)
       (.selectRange codearea offset offset)
       (if caret-left?
         (.selectRange codearea (+ offset length) offset)
@@ -72,9 +90,11 @@
   (try
     (let [result (exec-command cmd codearea)]
         (when *debug* (println [cmd result]))
-        (insert-result codearea result))
+        (insert-result codearea result cmd))
     (catch NullPointerException npe  ;; splice throws exception when no mor parens!
-      (when *debug* (.printStackTrace npe)))))
+      (when *debug* (.printStackTrace npe)))
+    (catch StringIndexOutOfBoundsException ooe  ;;
+      (when *debug* (.printStackTrace ooe)))))
 
 
 (defn- consuming-commands [m]
@@ -145,8 +165,8 @@
 
              ; #{:SHORTCUT :SHIFT :K} :paredit-kill not implemented in paredit.clj
 
+(defn key-pressed-handler []
+  (fx/key-pressed-handler codes-map))
 
-(defn set-handlers [a]
-    (doto a
-      (.setOnKeyPressed (fx/key-pressed-handler codes-map))
-      (.setOnKeyTyped (fx/char-typed-handler chars-map))))
+(defn key-typed-handler []
+  (fx/char-typed-handler chars-map))

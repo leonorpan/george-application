@@ -10,8 +10,8 @@
     [george.javafx :as fx]
     [george.javafx.java :as fxj]
     [george.javafx.util :as fxu]
-    [george.javafx.3d :as fx3d]
-    [george.application.turtle.turtle3D :as tr])
+    [george.javafx.3d :as fx3d])
+    ;[george.application.turtle.turtle3D :as tr])
 
 
   (:import (javafx.scene DepthTest PerspectiveCamera CacheHint)
@@ -87,7 +87,7 @@
 
       (.setCamera scene c)
 
-      (tr/set-keyhandler scene state)
+      ;(tr/set-keyhandler scene state)
 
       #_(doto world
          (-> .getTransforms (.setAll

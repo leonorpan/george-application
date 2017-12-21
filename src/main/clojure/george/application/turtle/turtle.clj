@@ -151,7 +151,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn- set-heading* [inst ^double ang]
   ;(println "  ## set-heading* " ang)
   (let [diff (- ^double (heading* inst) ang)
-        speed (.getCalculatedSpeed ^ITurtle inst)]
+        speed (.getCalculatedSpeed  inst)]
         ;duration (* (/ (Math/abs ^double diff) (* 3 360.)) 1000)
     (if speed
       (fx/synced-keyframe
@@ -311,7 +311,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-turtle []
-    (doto ^ITurtle (turtle-impl "Tom") .sayHello))
+    (doto (turtle-impl "Tom") .sayHello))
 
 
 ;; TODO: implement CRUD ref. spec
@@ -425,13 +425,13 @@ Returns turtle instance"
 
   Ex.: (left 90)"
   [degrees]
-  (.left ^ITurtle (turtle) degrees))
+  (.left  (turtle) degrees))
 
 (defn right
   "Turtle command.
   Does the same as as 'left', but in opposite direction."
   [degrees]
-  (.right ^ITurtle (turtle) degrees))
+  (.right  (turtle) degrees))
 
 
 (defn forward
@@ -451,7 +451,7 @@ Returns turtle instance"
 
   Ex.: (heading)"
   []
-  (.getHeading ^ITurtle (turtle)))
+  (.getHeading  (turtle)))
 
 
 (defn set-heading
@@ -460,7 +460,7 @@ Returns turtle instance"
 
   Ex.: (set-heading 90)"
   [degrees]
-  (.setHeading ^ITurtle (turtle) degrees))
+  (.setHeading  (turtle) degrees))
 
 
 
@@ -478,7 +478,7 @@ Returns turtle instance"
   (let [x (first (position))] ...)
   "
   []
-  (.getPosition ^ITurtle (turtle)))
+  (.getPosition  (turtle)))
 
 
 (defn set-position
@@ -490,7 +490,7 @@ Returns turtle instance"
   (set-position [30 40])
   (set-position [30 nil]) ;; y is changed, only x"
   [[x y]]
-  (.setPosition ^ITurtle (turtle) [x y]))
+  (.setPosition  (turtle) [x y]))
 
 
 (defn pen-up
@@ -499,7 +499,7 @@ Returns turtle instance"
 
   Ex.: (pen-up)"
   []
-  (.setPenDown ^ITurtle (turtle) false))
+  (.setPenDown  (turtle) false))
 
 
 (defn pen-down
@@ -508,7 +508,7 @@ Returns turtle instance"
 
   Ex.: (pen-down)"
   []
-  (.setPenDown ^ITurtle (turtle) true))
+  (.setPenDown  (turtle) true))
 
 
 (defn get-pen-down
@@ -517,7 +517,7 @@ Returns turtle instance"
 
   Ex.: (is-pen-down)"
   []
-  (.getPenDown ^ITurtle (turtle)))
+  (.getPenDown  (turtle)))
 
 
 (defn get-speed
@@ -526,7 +526,7 @@ Returns turtle instance"
 
   Ex.: (get-speed)"
   []
-  (.getSpeed ^ITurtle (turtle)))
+  (.getSpeed  (turtle)))
 
 
 (defn set-speed
@@ -535,7 +535,7 @@ Returns turtle instance"
 
   Ex.: (set-speed 10)"
   [number]
-  (.setSpeed ^ITurtle (turtle) number))
+  (.setSpeed (turtle) number))
 
 
 (defn pen-color
@@ -550,7 +550,7 @@ Returns turtle instance"
   http://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
 "
   []
-  (.getPenColor ^ITurtle (turtle)))
+  (.getPenColor (turtle)))
 
 
 (defn set-pen-color
@@ -558,7 +558,7 @@ Returns turtle instance"
   Sets the pen to the specified web color (String) or JavaFX Color.
   See: 'pen-color'"
   [color]
-  (.setPenColor ^ITurtle (turtle) color))
+  (.setPenColor (turtle) color))
 
 
 (defn show
@@ -635,8 +635,9 @@ Returns turtle instance"
   Ex.: (reset)"
   []
   (clear)
-  (home)
-  (set-pen-color "black"))
+  (set-speed 10)
+  (set-pen-color "black")
+  (home))
 
 
 
@@ -710,10 +711,6 @@ Returns turtle instance"
 
   (reset)
 
-  (defn square []
-      (dotimes [_ 4]
-          (forward 50) (left 90)))
-
   ;(pen-up)
   (set-position [-75 -120])
   (left 90)
@@ -721,7 +718,8 @@ Returns turtle instance"
 
   (set-pen-color Color/CORNFLOWERBLUE)
   (rep 6
-       (square)
+       (dotimes [_ 4]
+         (forward 50) (left 90))
        (pen-up)
        (right 45)
        (forward 20)

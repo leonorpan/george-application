@@ -5,11 +5,12 @@
 
 (ns george.application.window
   (:require
+    [environ.core :refer [env]]
     [george.javafx :as fx]
     [george.javafx.java :as fxj])
   (:import
-           (javafx.scene.layout TilePane)
-           (javafx.geometry Orientation)))
+    (javafx.scene.layout TilePane)
+    (javafx.geometry Orientation)))
 
 
 
@@ -41,7 +42,7 @@
                 (fx/region :vgrow :always)
                 (fx/label "About"))
 
-              (.setAlignment fx/Pos_TOP_CENTER))
+          (.setAlignment fx/Pos_TOP_CENTER))
         root-pane
         (fx/borderpane :left left)
 
@@ -86,4 +87,4 @@
 
 ;;; DEV ;;;
 
-;(do (println "WARNING: Running george.application.window/create-stage") (create-stage))
+;(when (env :repl?) (println "WARNING: Running george.application.window/create-stage") (create-stage))

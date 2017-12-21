@@ -17,7 +17,7 @@
   (let [nr (hist/next-repl-nr)]
     (doto (Tab.
                (format "Input %s " nr)
-               (input/input-root "user.turtle" (format "\"Input %s\"" nr))))))
+               (first (input/input-root "user.turtle" (format "\"Input %s\"" nr)))))))
 
 
 (defn- input-root []

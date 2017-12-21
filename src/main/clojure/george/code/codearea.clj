@@ -6,64 +6,17 @@
 (ns
   george.code.codearea
   (:require
-    [george.javafx :as fx])
-  (:import [org.fxmisc.richtext StyledTextArea LineNumberFactory]
-           [java.util.function BiConsumer IntFunction Function]
-           [java.util Collections]
-           [javafx.scene.text Text]
+    [george.javafx :as fx]
+    [george.code.highlight :as highlight]
+    [george.util.css :as css]
+    [george.util :as u])
+  (:import [org.fxmisc.richtext LineNumberFactory CodeArea StyleClassedTextArea]
+           [java.util.function IntFunction Function]
            [javafx.scene.paint Color]
            [org.reactfx.value Val]
            [javafx.geometry Pos]
            [javafx.beans.property SimpleObjectProperty]
-           (javafx.util Duration)))
-
-
-(defrecord
-  ^{:doc "The data type used for styling code area"}
-  StyleSpec [color weight underline background])
-
-
-(def
-  ^{:doc "Default StyleSpec for codearea.  Used for spans without explicit style, including:
-     white-space, comments, et al."}
-  DEFAULT_SPEC (->StyleSpec "GRAY" "bold" "false" "null"))
-
-
-
-(defn- ^String style
-  "returns JavaFX-css based on StyleSpec"
-  [^StyleSpec spec]
-  (let [{c :color w :weight u :underline b :background} spec]
-    (str
-      "-fx-fill: " (if c c "#404042") "; "
-      "-fx-font-weight: " (if w w "normal") "; "
-      "-fx-underline: " (if u u "false") "; "
-      "-fx-background-fill: " (if b b "null") "; ")))
-      ;"-fx-effect: " (if h "dropshadow(one-pass-box, slategray, 5, 1, 0, 0)" "null") "; "
-
-
-
-(defn- apply-specs
-  "called by style-byconsumer"
-  [^Text text specs]
-  (if (instance? StyleSpec specs)
-    (. text setStyle (style specs))
-    (if (= Collections/EMPTY_LIST specs)
-      (. text setStyle (style DEFAULT_SPEC))
-      (doseq [spec specs]
-        (. text setStyle (style spec))))))
-  ;(.setCursor (if h Cursor/DEFAULT nil))
-
-
-
-
-(defn- style-biconsumer
-  "passed to codearea on instanciation"
-  []
-  (reify BiConsumer
-    (accept [_ text style]
-      (apply-specs text style))))
-
+           (javafx.scene.input KeyEvent)))
 
 
 
@@ -76,8 +29,7 @@
                   (doto
                       ;; upward triangle
                       (fx/polygon   5. 0.   10. 10.   0. 10.)
-                      (-> .getStyleClass (. add "line-error-mark")))
-
+                      (-> .getStyleClass (.add "line-error-mark")))
 
                   show-mark
                   (Val/map errorlineset
@@ -86,12 +38,10 @@
                                    ;; linenumber is 0-based, while errorlinest is 1-based
                                    (boolean (get errorlineset (inc linenumber))))))]
 
-
-
                 (-> mark .visibleProperty
                     (. bind
                        (Val/flatMap
-                           (. mark sceneProperty)
+                           (.sceneProperty mark)
                            (reify Function
                                (apply [_ scene]
                                    (if scene show-mark (Val/constant false)))))))
@@ -110,7 +60,7 @@
                             (fx/rectangle
                                 :size [18 24]
                                 :fill Color/HOTPINK)
-                            (-> .getStyleClass (. add "line-error-background")))
+                            (-> .getStyleClass (.add "line-error-background")))
 
                   show-background
                         (Val/map errorlineset
@@ -120,9 +70,9 @@
 
 
                 (-> background .visibleProperty
-                    (. bind
+                    (.bind
                        (Val/flatMap
-                           (. background sceneProperty)
+                           (.sceneProperty background)
                            (reify Function
                                (apply [_ scene]
                                    (if scene show-background (Val/constant false)))))))
@@ -138,7 +88,7 @@
                   (doto
                       ;; right-pointing shallow triangle
                       (fx/polygon  0. 0.   2. 3.   0. 6.)
-                      (-> .getStyleClass (. add "linetriangle")))
+                      (-> .getStyleClass (.add "linetriangle")))
 
                   visible
                   (Val/map
@@ -149,9 +99,9 @@
 
 
                 (-> triangle .visibleProperty
-                    (. bind
+                    (.bind
                        (Val/flatMap
-                           (. triangle sceneProperty)
+                           (.sceneProperty triangle)
                            (reify Function
                                (apply [_ scene]
                                    (if scene visible (Val/constant false)))))))
@@ -163,52 +113,113 @@
   (let [
         ;; http://stackoverflow.com/questions/28659716/show-breakpoint-at-line-number-in-richtextfx-codeare
         linenumberfactory
-                     (LineNumberFactory/get codearea)
+        (LineNumberFactory/get codearea)
         errorbackgroundfactory
-                     (->errorbackgroundfactory (. codearea errorlines))
+        (->errorbackgroundfactory (.errorlines codearea))
         errormarkfactory
-                     (->errormarkfactory (. codearea errorlines))
-        arrowfactory
-                     (->arrowfactory (. codearea currentParagraphProperty))
+        (->errormarkfactory (.errorlines codearea))
+        ;arrowfactory
+        ;(->arrowfactory (.currentParagraphProperty codearea))
         graphicfactory
                      (reify IntFunction
                          (apply [_ line]
                              (fx/hbox
-                                 (. linenumberfactory apply line)
-                                 (. errorbackgroundfactory apply line)
-                                 (. errormarkfactory apply line)
-                                 (. arrowfactory apply line)
+                                 (.apply linenumberfactory line)
+                                 (.apply errorbackgroundfactory line)
+                                 (.apply  errormarkfactory line)
+                                 ;(. arrowfactory apply line)
                                  :alignment Pos/CENTER_LEFT)))]
 
     (doto codearea
-      (. setParagraphGraphicFactory  graphicfactory))))
+      (.setParagraphGraphicFactory graphicfactory))))
 
+
+
+
+
+(defn- font-size-handler []
+  (fx/event-handler-2
+    [this e]
+    (let [c (.getCharacter e)
+          shortcut? (.isShortcutDown e)]
+      (when (and (#{"+" "-"} c) shortcut?)
+        (let [source (.getSource e)
+              style-map (css/stylable->style-map source)
+              size (Integer/parseInt (style-map "-fx-font-size"))
+              new-size (u/clamp-int 8 (+ size (if (= "+" c) 2 -2)) 72)]
+          (css/set-style-map source
+                             (assoc style-map "-fx-font-size" new-size)))))))
 
 
 (definterface IErrorLines
-    (errorlines ^SimpleObjectProperty []))
+  (errorlines ^SimpleObjectProperty []))
 
 
-(defn ^StyledTextArea ->codearea []
-    (let [lines (SimpleObjectProperty. #{})]
-        (doto
-            (proxy [StyledTextArea IErrorLines] [DEFAULT_SPEC (style-biconsumer)]
-                (errorlines [] lines))
-            (. setFont (fx/SourceCodePro "Medium" 16))
-            (. setStyle "
-            -fx-padding: 0;
-            -fx-background-color: WHITESMOKE;
-            -fx-caret-blink-rate: 0.250;  /* Does this have any effect? */
-            -fx-highlight-fill: #b3d8fd;")
-            (. setUseInitialStyleForInsertion true)
-            (-> .getUndoManager .forgetHistory)
-            (-> .getUndoManager .mark)
-            (. selectRange 0 0))))
+(fx/preload-fonts)
 
 
-(defn text [^StyledTextArea codearea]
-    (. codearea getText 0 (. codearea getLength)))
+;; Similar to CodeArea, but with some different settings - including my own CSS
+(defn new-codearea
+ ([] (new-codearea true))
+ ([linenumbers?]
+  (let [lines
+        (SimpleObjectProperty. #{})
+
+        ca
+        (proxy [StyleClassedTextArea IErrorLines] [false]
+          (errorlines [] lines))
+
+        lnf
+        (when linenumbers? (LineNumberFactory/get ca))]
+    (doto ca
+      (-> .getStylesheets (.add "styles/codearea.css"))
+      (-> .getStyleClass (.add "codearea"))
+      (.setStyle "-fx-font-size: 16;")
+      (.setUseInitialStyleForInsertion true));
+    (if linenumbers?
+      (.setParagraphGraphicFactory ca lnf)
+      ca))))
+
+(defn ^CodeArea new-codearea-with-handlers []
+  (doto
+    (new-codearea false)
+    (set-linenumbers)
+    (highlight/set-handlers)
+    (.addEventHandler KeyEvent/KEY_TYPED (font-size-handler))))
 
 
-(defn set-text [^StyledTextArea codearea text]
-    (. codearea replaceText text))
+
+
+(defn ^String text [^StyleClassedTextArea codearea]
+    (.getText codearea  0 (.getLength codearea)))
+
+
+(defn set-text [^StyleClassedTextArea codearea ^String text]
+    (.replaceText codearea text))
+
+
+
+
+(defn -main [& _]
+  (fx/later
+    (let [
+          ca
+          (doto
+            (new-codearea-with-handlers)
+            (set-text "(foo (bar 1))"))
+
+          scene
+          (doto
+            (fx/scene (fx/borderpane :center ca :insets 1))
+            (fx/add-stylesheets  "styles/codearea.css"))]
+
+      (fx/stage
+        :title "george.code.core/-main (test)"
+        :scene scene
+        :size [600 400]))))
+
+
+
+;;; DEV ;;;
+
+;(println "WARNING: Running george.code.core/-main" (-main))
