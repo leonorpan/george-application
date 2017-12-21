@@ -10,9 +10,9 @@
     [clj-stacktrace.core :refer [parse-exception]]
     [george.application
      [repl :as repl]
-     [output :refer [output output-showing?]]]
+     [output :refer [print-output output-showing?]]]
     [george.javafx :as fx]
-    [george.util :as u])
+    [george.util.text :as ut])
   (:import (javafx.scene.layout GridPane Priority)
            (javafx.scene.control Alert$AlertType Alert)))
 
@@ -69,8 +69,8 @@
           (.add label 0 0)
           (.add textarea 0 1))]
 
-    (doto (Alert. Alert$AlertType/ERROR)
-      (.setTitle "An error has occoured")
+    (doto (Alert. Alert$AlertType/INFORMATION)
+      (.setTitle "An error has occured")
       (.setHeaderText header)
       (.setContentText message)
       (-> .getDialogPane (.setExpandableContent ex-content))
@@ -135,15 +135,15 @@
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (output :ns (u/ensure-newline (str " ns> " ns)))
+      (print-output :ns (ut/ensure-newline (str " ns> " ns)))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (output :res (u/ensure-newline (str " >>> " s))))
+      (print-output :res (ut/ensure-newline (str " >>> " s))))
 
     (when-let [st (:status res)]
 
-      (output :system (u/ensure-newline (cs/join " " st))))
+      (print-output :system (ut/ensure-newline (cs/join " " st))))
 
     (when-let [o (:out res)]
       (print o) (flush))
@@ -158,7 +158,7 @@
 (defn read-eval-print-in-ns
   "returns nil"
   [^String code ^String ns eval-id ^String source-file update-ns-fn]
-  (output :in (u/ensure-newline (str " <<< " (indent-input-lines-rest code))))
+  (print-output :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (repl/def-eval
     {:code code
      :ns ns

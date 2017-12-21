@@ -1,8 +1,25 @@
+
+
+
+.codearea {
+    -fx-font-family: 'Source Code Pro Medium'; /* ref font-face*/
+    -fx-background-color: whitesmoke;
+    -fx-highlight-fill: #b3d8fd;
+    -fx-padding: 0;
+}
+
+.codearea .text {
+    -fx-fill: gray;  /* Default color is applied to line-comments */
+}
+
+
+
 /* control the labels of the line number factory function */
 .lineno {
-    -fx-font-size: 16 "Source Code Pro Medium";
+    -fx-font-family: "Source Code Pro Medium";
+    -fx-font-size: 12;
     -fx-text-fill: #aaa;
-    -fx-background-color: transparent;
+    -fx-background-color: whitesmoke; /* transparent whitesmoke*/
     -fx-padding: 0 30 0 15;
 }
 
@@ -33,3 +50,77 @@
     -fx-translate-x: -27;
     -fx-translate-y: 0;
 }
+
+
+/* code highlighting */
+
+.gray {
+    -fx-text-fill: gray;
+}
+.bold {
+    -fx-font-weight: bold;  /* bold | normal */
+}
+.italic {
+    -fx-font-style: italic;  /* italic | normal */
+}
+.underline {
+    -fx-underline: true;
+}
+.strikethrough {
+    -fx-strikethrough: true;
+}
+.hover {
+    -rtfx-background-color: yellow;
+}
+
+.text.symbol, .text.default, .text.out {
+    -fx-fill: #404042;
+}
+
+.text.err {
+    -fx-fill: #cc0000;
+}
+
+.text.in {
+    -fx-fill: blue;
+}
+.text.ns {
+    -fx-fill: brown;
+}
+
+.text.system {
+    -fx-fill: #bbb;
+}
+.text.res {
+    -fx-fill: green;
+}
+
+.text.boolean, .text.nil {
+    -fx-fill: #4F7BDE;
+}
+.text.tokenerror, .text.unpaired {
+   -fx-fill: #ED1C24;
+   -rtfx-background-color: orange;
+}
+.text.number {
+    -fx-fill: #524EAC;
+}
+.text.keyword, .text.arg {
+  -fx-fill: #9E1F64;
+}
+.text.string, .text.character {
+-fx-fill: #008e00;
+}
+.text.delimchar {
+    -fx-fill: blue;
+}
+.text.comment {
+    -fx-fill: #708080;
+}
+.text.macrochar, .text.macrodispatchchar {
+    -fx-fill: #cc7832;
+}
+.text.unkown {
+    -fx-fill: orange;
+}
+

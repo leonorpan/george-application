@@ -5,16 +5,35 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Fixed
+- Line comments ';' are now rendered gray consistently.  
+- A single paren at end of text after line comment is now matched correctly.
+
+
+## [0.8.2] - 2017-10-11
+
+### Changed
+- Removed keyboard shortcuts from "history" buttons, as they were often accidentally triggered while navigating in code-editor.
+
+### Fixed
+- Using undo/redo is now more stable and safe. It should no longer cause rendering artifacts or multiple (or no) cursors.
+
+
+## [0.8.1] - 2017-05-17
+
 ### Changed
 - Adjusted coloring of code.
 
 ### Fixed
 - Turtle screen does not persistently take focus during code execution.
 - Paredit now works better - parens stay matched(!), and "slurp", "barf", "raise" work.  Also, better handling of marking and cursor location.
+- Starting a Run/Eval via keyboard shortcut for is now also disabled during an ongoing run.
 
 ### Added
 - Ability to copy or save Turtle screen snapshot from contextual menu.
 - Resizing code (text) via CTRL/CMD-+/- - from 6 to 72 px.
+- 'set-speed' in Turtle API - 10 is default 15 is as fast as it will animate, 'nil' skips all animation.
+- A drop-down menu (in Input) disables/enables Paredit.
 
 
 ## [0.8.0] - 2017-05-03
@@ -23,7 +42,7 @@ All notable changes to this project will be documented in this file. This change
 - George now uses nREPL for all evaluation - instead of custom REPL.
 
 ### Added
-- True REPL/Eval interupt from Input-window.
+- True REPL/Eval interrupt from Input-window.
 - Error-dialog informing user of error if Output not open.
 - Stacktrace in Output and Error-dialog - uses clj-stacktrace.
 - Attempts to parse location of error - displayed in Output and Error-dialog.

@@ -6,69 +6,68 @@
 (ns george.javafx
     (:require
         [clojure.java.io :as cio]
-        [clojure.string :as s]
+        [clojure.string :as cs]
         [george.javafx.java :as fxj]
-        [george.javafx.util :as fxu])
+        [george.javafx.util :as fxu]
+        [george.util.javafx :as ufx])
+    (:import
+        [javafx.animation
+         Timeline KeyFrame KeyValue]
 
-  (:import
-    [javafx.animation
-     Timeline KeyFrame KeyValue]
+        [javafx.application
+         Application Platform]
 
-    [javafx.application
-     Application Platform]
+        [javafx.beans.value
+         ChangeListener WritableValue]
 
-    [javafx.beans.value
-     ChangeListener WritableValue]
+        [javafx.collections
+         FXCollections]
 
-    [javafx.collections
-     FXCollections]
+        [javafx.embed.swing JFXPanel]
 
-    [javafx.embed.swing JFXPanel]
+        [javafx.event
+         EventHandler]
 
-    [javafx.event
-     EventHandler]
+        [javafx.geometry
+         Insets Pos VPos]
 
-    [javafx.geometry
-     Insets Pos VPos]
+        [javafx.scene
+         Group Node Parent Scene]
 
-    [javafx.scene
-     Group Node Parent Scene]
+        [javafx.scene.control
+         Alert Alert$AlertType
+         Button ButtonType ButtonBar$ButtonData
+         Label
+         ListView RadioButton
+         TextField TextArea
+         Tooltip
+         ScrollPane CheckBox]
 
-    [javafx.scene.control
-     Alert Alert$AlertType
-     Button ButtonType ButtonBar$ButtonData
-     Label
-     ListView RadioButton
-     TextField TextArea
-     Tooltip
-     ScrollPane CheckBox]
+        [javafx.scene.image
+         Image ImageView]
 
-    [javafx.scene.image
-     Image ImageView]
+        [javafx.scene.input
+         MouseEvent]
 
-    [javafx.scene.input
-     MouseEvent]
+        [javafx.scene.layout
+         BorderPane HBox Priority Region StackPane VBox
+         Border
+         BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
 
-    [javafx.scene.layout
-     BorderPane HBox Priority Region StackPane VBox
-     Border
-     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
+        [javafx.scene.paint
+         Color Paint]
 
-    [javafx.scene.paint
-     Color]
+        [javafx.scene.text
+         Font Text]
 
-    [javafx.scene.text
-     Font Text]
+        [javafx.scene.shape
+         Line Rectangle Polygon]
 
-    [javafx.scene.shape
-     Line Rectangle Polygon]
+        [javafx.stage
+         FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
 
-    [javafx.stage
-     FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
-
-    [javafx.util
-     Duration]
-    (javafx.beans.property SimpleDoubleProperty)))
+        [javafx.util
+         Duration]))
 
 
 
@@ -82,18 +81,20 @@
 (set-implicit-exit false)
 
 
-(defn init []
+(defn init-toolkit
     "An easy way to 'initalize [JavaFX] Toolkit'
 Needs only be called once in the applications life-cycle.
-Has to be called before the first call to/on FxApplicationThread (javafx/thread)"
-    (JFXPanel.))
+Has to be called before the first call to/on FxApplicationThread (javafx/later)"
+  []
+  (println (str *ns*"/init-toolkit ..."))
+  (JFXPanel.))
 
-(init)
+(init-toolkit)
 
 
 
-(defn web-color [s]
-    (Color/web s))
+(defn web-color [s & [opacity]]
+  (Color/web s (if opacity opacity 1.0)))
 
 
 ;; A nice combo for black text on white background
@@ -117,14 +118,28 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
 (def Pos_CENTER Pos/CENTER)
 (def VPos_TOP VPos/TOP)
 (def VPos_CENTER VPos/CENTER)
+
 (def MouseEvent_ANY MouseEvent/ANY)
 
 
+(defn corner-radii [rad]
+  (when rad
+    (if (vector? rad)
+      (let [[tl tr br bl ] rad] (CornerRadii. tl tr br bl false))
+      (CornerRadii. rad))))
 
 
+(defn color-background [^Paint color & [rad insets]]
+    (Background. (fxj/vargs (BackgroundFill. color (corner-radii rad) insets))))
 
-(defn color-background [color]
-    (Background. (fxj/vargs (BackgroundFill. color nil nil))))
+
+(defn set-background [^Region r paint-or-background]
+  (if (instance? Background paint-or-background)
+    (.setBackground r  paint-or-background)
+    (if (instance? Paint paint-or-background)
+      (.setBackground r (color-background paint-or-background))
+      (throw (IllegalArgumentException.
+               (format "Don't know how to convert %s to javafx.scene.layout.Background" paint-or-background))))))
 
 
 (defn later*
@@ -133,6 +148,7 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
     (if (Platform/isFxApplicationThread)
         (expr)
         (Platform/runLater expr)))
+
 
 (defmacro ^:deprecated thread
     "Ensure running body in JavaFX thread: javafx.application.Platform/runLater"
@@ -164,11 +180,9 @@ Has to be called before the first call to/on FxApplicationThread (javafx/thread)
     `(now* (fn [] ~@body)))
 
 
-
-
 (defmacro event-handler
     "Returns an instance of javafx.event.EventHander,
-where input is ingored,
+where input is ignored,
 and the the body is called on 'handle' "
 
     [& body]
@@ -219,16 +233,17 @@ and the body is called on 'changed'"
 (defn XY [item]
     [(.getX item) (.getY item)])
 
-
-(defn set-translate-XY [item [x y]]
-  (.setTranslateX item x) (.setTranslateY item y))
-
-
 (defn WH [item]
     (if (instance? Node item)
         (let [b (.getBoundsInParent item)]
             [(.getWidth b) (.getHeight b)])
         [(.getWidth item) (.getHeight item)]))
+
+
+(defn set-translate-XY [^Node n [x y]]
+  (doto n
+    (.setTranslateX x)
+    (.setTranslateY y)))
 
 
 (defn make-border
@@ -238,17 +253,17 @@ and the body is called on 'changed'"
      (make-border color width 0.))
     ([color width rad]
      (Border. (fxj/vargs
-                  (BorderStroke.
-                       color
-                       BorderStrokeStyle/SOLID
-                       (CornerRadii. rad)
-                       (BorderWidths. width))))))
-
-
+                  (BorderStroke. color
+                                 BorderStrokeStyle/SOLID
+                                 (corner-radii rad)
+                                 (if (vector? width)
+                                     (let [[t r b l] width] (BorderWidths. t r b l))
+                                     (BorderWidths. width)))))))
 
 
 (defn add-stylesheets [^Scene scene & sheetpaths]
     (-> scene .getStylesheets (.addAll (into-array sheetpaths))))
+
 
 (defn add-stylesheet [^Scene scene ^String sheetpath]
     (-> scene .getStylesheets (.add sheetpath)))
@@ -256,7 +271,6 @@ and the body is called on 'changed'"
 
 (defn set-Modena []
     (Application/setUserAgentStylesheet Application/STYLESHEET_MODENA))
-
 
 
 (defn option-index
@@ -303,27 +317,37 @@ and the body is called on 'changed'"
 
 
 
-
+(defn SourceCodePro
+  ([size] (SourceCodePro "Medium" size))
+  ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
+   (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
+       cio/resource
+       str
+       (cs/replace "%20" " ")
+       (Font/loadFont (double size)))))
 
 
 ;; This is a hack!
 ;; loading fonts from CSS doesn't work now, if there is a space in the file path.
 ;; So we pre-load them here, and they should then be available in css
-(comment let  [fonts [
-                      "SourceCodePro-Regular.ttf"
-                      "SourceCodePro-Medium.ttf"
-                      "SourceCodePro-Bold.ttf" ;; Bold seems to look just like Regular! (At least on my Mac)
-                      "SourceCodePro-Semibold.ttf"]]
-    (doseq [f fonts]
-        (-> (format "fonts/%s" f) cio/resource str (s/replace "%20" " ") (Font/loadFont  12.))))
 
+(def ^:private some-fonts
+  ["SourceCodePro-Medium.ttf"])
 
-(defn SourceCodePro [weight size]  ;; "Regular" / "Medium", etc
-    (-> (format "fonts/SourceCodePro-%s.ttf" weight)
+(defn preload-fonts
+ ([]
+  (preload-fonts some-fonts))
+ ([fonts]
+  (println (str *ns* "/preload-fonts ..."))
+  (doseq [f fonts]
+    (-> (format "fonts/%s" f)
         cio/resource
         str
-        (s/replace "%20" " ")
-        (Font/loadFont (double size))))
+        (cs/replace "%20" " ")
+        (Font/loadFont  12.)))))
+
+(preload-fonts)
+
 
 
 
@@ -378,8 +402,8 @@ and the body is called on 'changed'"
     60)
 
 
-;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 
 (defn synced-keyframe
     "same as 'keyframe', but runs immediately in current thread"
@@ -392,31 +416,32 @@ and the body is called on 'changed'"
                          (filter some? keyvalues))
 
               start-nano     ^long (System/nanoTime)
-              duration-nano  (* duration NANO_PR_MILLI)
+              duration-nano  (* ^int duration ^int NANO_PR_MILLI)
               end-nano       (+ start-nano duration-nano)
-              sleep-nano     ^long (/ NANO_PR_SEC DEFAULT_TICKS_PR_SEC)] ;; 60 fps
+              ^int sleep-nano     (/ ^int NANO_PR_SEC ^int DEFAULT_TICKS_PR_SEC)] ;; 60 fps
 
-          (when (> duration 0)
+          (when (> ^int duration 0)
             (loop [current-nano start-nano
                    next-nano (+ current-nano sleep-nano)]
               (when (<= current-nano end-nano)
                 (later
-                  (doseq [[^WritableValue prop start end] keyvalues]
-                    ;;  cDv (* (/ cDt Dt) Dv)
-                    ;; cDv  (* (/ (- current-time start-time) delta-time) (- e s))
+                  (doseq [[^WritableValue prop ^int start ^int end] keyvalues]
                     (.setValue prop
-                       (+ start (*
-                                  (/ (- current-nano start-nano) duration-nano)
-                                  (- end start))))))
+                       (+ start
+                          (* ^double (/ (- current-nano start-nano) duration-nano)
+                             (- end start))))))
 
-                (let [sleep-milli (int (/ (- next-nano current-nano) NANO_PR_MILLI))]
+                (let [sleep-milli (int (/ (- next-nano current-nano) ^int NANO_PR_MILLI))]
                   (if (> sleep-milli 0)
                     (Thread/sleep sleep-milli)))
 
                 (recur next-nano (+ current-nano sleep-nano))))
             ;; correct final value and "hold" until to ensure consistent state at end
             (now (doseq [[^WritableValue p _ e] keyvalues]
-                       (.setValue p  e)))))))
+                       (.setValue p e)))))))
+
+;(set! *warn-on-reflection* false)
+;(set! *unchecked-math* false)
 
 
 (defn observablearraylist-t [t & lst]
@@ -751,6 +776,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn screens []
     (Screen/getScreens))
 
+
 (defn primary-screen []
     (Screen/getPrimary))
 
@@ -769,18 +795,22 @@ It must return a string (which may be wrapped to fit the width of the list."
     (.setOnCloseRequest stage (ensure-handler fn-or-handler))
     stage)
 
+
 (defn setonhiding [stage fn-or-handler]
     (.setOnHiding stage (ensure-handler fn-or-handler))
     stage)
+
 
 (defn setonhidden [stage fn-or-handler]
     (.setOnHidden stage (ensure-handler fn-or-handler))
     stage)
 
+
 (defn scrollpane [& [node]]
   (if node
     (ScrollPane. node)
     (ScrollPane.)))
+
 
 (defn stage [& args]
     (let [
@@ -876,7 +906,7 @@ It must return a string (which may be wrapped to fit the width of the list."
  "Takes a map where the key is a set of keywords and the value is a no-arg function to be run or an instance of EventHandler.
 
 The keywords int the set must be uppercase and correspond to the constants of javafx.scene.input.KeyCode.
-Use :SHIFT :SHORTCUT :ALT for plattform-independent handling of these modifiers (CTRL maps to Command on Mac).
+Use :SHIFT :SHORTCUT :ALT for platform-independent handling of these modifiers (CTRL maps to Command on Mac).
 If the value is a function, then it will be run, and then the event will be consumed.
 If the value is an EventHandler, then it will be called with the same args as this handler, and it must itself consume the event if required.
 
@@ -886,26 +916,30 @@ Example of codes-map:
     #{:S :SHIFT :SHORTCUT} (fx/event-handler (println \"SHIFT-CTRL/CMD-S\"))  ;; event not consumed
     #{:SHORTCUT :ENTER}    (fx/event-handler-2 [_ event] (println \"CTRL/CMD-ENTER\") (.consume event ))
     }"
-    [codes-map]
+    [codes-map & {:keys [handle-type consume-types]}]
     (event-handler-2
         [inst event]
         ;(println "  ## inst:" inst "  source:" (.getSource event ))
         (let [
-              code (str (.getCode event))
-              ;_ (println "  ## code:" code)
-              shift (when (.isShiftDown event) "SHIFT")
-              shortcut (when (.isShortcutDown event) "SHORTCUT")  ;; SHORTCUT CTRL/CMD  "C-"
-              alt (when (.isAltDown event) "ALT") ;;  "M-"
-              combo (set (map keyword (filter some? [code shift shortcut alt])))]
+              ev-typ (.getEventType event)
+              combo (ufx/code-modifier-set event)
               ;_ (println "combo:" (str combo))
+              do-handle
+              #(if (instance? EventHandler %)
+                   (.handle % event)
+                   (do (%) (.consume event)))]
 
-            (when-let [v (codes-map combo)]
-                (if (instance? EventHandler v)
-                    (.handle v  event)
-                    (do ;; else
-                        (v)
-                        (.consume event)))))))
-
+            (when-let [f (codes-map combo)]
+              ;(println "  ## f:" f)
+              (if handle-type
+                (if (= handle-type ev-typ)
+                  (do-handle f))
+                (do-handle f))
+              ;(println "  ## ev-typ:" ev-typ)
+              ;(println "  ## consume-types:" consume-types)
+              (when (and consume-types ((set consume-types) ev-typ))
+                ;(println "  ## consuming:" ev-typ)
+                (.consume event))))))
 
 
 (defn char-typed-handler

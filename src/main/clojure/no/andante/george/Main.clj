@@ -12,7 +12,8 @@
     :implements [no.andante.george.IStageSharing])
 
   (:require [george.application.launcher :as launcher]
-            [george.javafx.java :as fxj])
+            [george.javafx.java :as fxj]
+            [george.javafx :as fx])
   (:import (javafx.application Preloader$ProgressNotification)))
 
 
@@ -43,7 +44,8 @@
   ;(println "  ## @state_:" @state_)
 
   (when-not (:handover-done? @state_)
-    (-handover this (launcher/starting-stage))))
+    (swap! state_ assoc :root (launcher/launcher-root-node))
+    (-handover this (launcher/starting-stage stage))))
 
 
 (defn -stop [this])
