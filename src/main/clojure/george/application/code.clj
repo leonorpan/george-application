@@ -9,7 +9,7 @@
     [george.javafx.java :as j]
     [george.javafx :as fx]
     [george.javafx.util :as fxu]
-    [george.application.output :refer [print-output]]
+    [george.application.output :refer [sprint sprintln]]
     [george.util :as u]
     [george.code.codearea :as ca])
 
@@ -25,7 +25,7 @@
   (binding [*ns* (create-ns (symbol ns-str))]
       ;(println "  ## *ns*:" *ns*)
       (println)
-      (print-output :system (format "(load-file \"%s\")\n" file))
+      (sprintln :system (format "(load-file \"%s\")" file))
       (println)
       (load-file (str file))))
 

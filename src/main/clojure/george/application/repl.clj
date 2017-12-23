@@ -18,10 +18,12 @@
 
 ;;; session handling
 
-(defonce ^:private default-session_ (atom nil))
+(declare
+  session-ensured!
+  eval-do)
 
-(declare session-ensured!)
-(declare eval-do)
+
+(defonce ^:private default-session_ (atom nil))
 
 
 (defn session-get! []
@@ -43,17 +45,14 @@
     (reset! default-session_ new-ses)))
 
 
-
 (defn session-ensured!
-  "Ensures that a (default) session is set, and that there is a server running if optional parameter is truthy."
+  "Ensures that a (default) session is set, and that there is a server running if optional parameter is truth-y."
   [& [serving-ensure?]]
   ;(println "::session-ensured!" serving-ensure?)
   (when serving-ensure? (repl-server/serving-ensure! 0))
   (if-let [ses (session-get!)]
     ses
     (session-create!)))
-
-
 
 
 ;;;; evaluation
@@ -93,12 +92,8 @@
     ;;;; utility functions
 
 
-
-
 (defn eval-interrupt
   ([eval-id]
    (eval-interrupt (session-get!) eval-id))
   ([session eval-id]
    (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
-        
-

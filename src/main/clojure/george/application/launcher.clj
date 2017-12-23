@@ -19,12 +19,12 @@
     [g])
   (:import [javafx.scene.image ImageView Image]
            [javafx.scene.paint Color]
-           [javafx.geometry Pos]
-           [javafx.stage Screen Stage]
+           [javafx.geometry Rectangle2D]
+           [javafx.stage Stage]
            [javafx.application Platform]
-           (javafx.scene.control Hyperlink Label)
+           (javafx.scene.control Hyperlink)
            (javafx.beans.property SimpleDoubleProperty)
-           (javafx.scene.layout HBox Pane)))
+           (javafx.scene.layout Pane VBox)))
 
 ;(set! *warn-on-reflection* true)
 ;(set! *unchecked-math* :warn-on-boxed)
@@ -69,20 +69,34 @@ Powered by open source software.
 
 
 (defn- about-stage []
-  (if-let [st (singleton/get ABOUT_STAGE_KW)]
+  (if-let [st ^Stage (singleton/get ABOUT_STAGE_KW)]
     (.hide st)
     (singleton/get-or-create ABOUT_STAGE_KW about-stage-create)))
 
 
+(def tile-width 64)
+
+(def launcher-width (+ ^int tile-width 20))
+
+(def visual-bounds (.getVisualBounds (fx/primary-screen)))
+
+(def xyxy
+  (let [vb ^Rectangle2D visual-bounds]
+    [(.getMinX vb)
+     (.getMinY vb)
+     (+ (.getMinX vb) ^int launcher-width)
+     (.getMaxY vb)]))
+
+(def launcher-height (- ^int (xyxy 3) ^int (xyxy 1)))
+
+
 (defn launcher-root-node []
   (let [
-        tile-w 64
-        w (+ tile-w 20)
 
         george-icon
         (doto (ImageView. (Image. "graphics/George_icon_128_round.png"))
-          (.setFitWidth tile-w)
-          (.setFitHeight tile-w))
+          (.setFitWidth tile-width)
+          (.setFitHeight tile-width))
 
         about-label
         (doto
@@ -96,41 +110,40 @@ Powered by open source software.
         app-tiles-and-paddings
         (flatten
           (map #(vector
-                  (app-loader/launcher-app-tile % tile-w)
-                  (app-loader/padding 30))
+                  (app-loader/padding 30)
+                  (app-loader/launcher-app-tile % tile-width))
                app-infos))
 
-        root
+        root ^VBox
         (apply fx/vbox
                (concat
                  [
                   (app-loader/padding 10)
                   george-icon
                   (app-loader/padding 10)
-                  (app-loader/hr w)
-                  (app-loader/padding 30)]
+                  (app-loader/hr launcher-width)]
 
                  app-tiles-and-paddings
 
                  [
-                  (app-loader/hr w)
+                  (fx/region :vgrow :always)
+
+                  (app-loader/hr launcher-width)
                   (app-loader/padding 5)
                   about-label
                   (app-loader/padding 5)
                   :padding 5
-                  :alignment Pos/TOP_CENTER]))]
+                  :alignment fx/Pos_TOP_CENTER]))]
 
     (doto root
-         (.setMaxWidth w)
-         (.setMaxHeight (+ 10 tile-w 10 1 30
-                          (* (+ tile-w 100) (count app-infos))
-                          1 5 12 5)))))
+         (.setMaxWidth launcher-width)
+         (.setMaxHeight launcher-height))))
 
 
 
-(defn- launcher-close-handler [launcher-stage]
+(defn- launcher-close-handler [^Stage launcher-stage]
   (fx/event-handler-2 [_ e]
-     (.toFront ^Stage launcher-stage)
+     (.toFront launcher-stage)
      (let [repl? (boolean (env :repl?))
            button-index
            (fx/now
@@ -164,17 +177,17 @@ Powered by open source software.
 
 (defn- morphe-launcher-stage [^Stage stage ^Pane launcher-root]
   ;; Fade out old content.
-  (fx/later (doto stage
-              (.toFront)
-              (.setTitle  "...")))
+  (fx/later
+    (doto stage
+          (.toFront)
+          (.setTitle  "...")))
 
   (ui-stage/swap-with-fades stage (fx/borderpane) true 500)
   (let [
-        visual-bounds (.getVisualBounds (Screen/getPrimary))
-        target-x (-> visual-bounds .getMinX (+ 0))
-        target-y (-> visual-bounds .getMinY (+ 0))
-        target-w (.getMaxWidth launcher-root)
-        target-h (.getMaxHeight launcher-root)
+        target-x (xyxy 0)
+        target-y (xyxy 1)
+        target-w launcher-width
+        target-h launcher-height
 
         x-prop (double-property (.getX stage) #(.setX stage %))
         y-prop (double-property (.getY stage) #(.setY stage %))
@@ -226,7 +239,7 @@ Powered by open source software.
 
 ;; called from Main
 (defn start
-  "Three versions of this method allow for different startupstrategies. The result is always that a created or given stage will be transformed (animated) into the launcher stage."
+  "Three versions of this method allow for different startup-strategies. The result is always that a created or given stage will be transformed (animated) into the launcher stage."
   ([]
    (start (starting-stage)))
   ([stage]

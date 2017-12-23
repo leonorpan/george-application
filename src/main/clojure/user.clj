@@ -35,4 +35,4 @@ Ex.: (user/doc pprint)
 "))
 
 
-(println "Namespace 'user' has pre-loaded some useful vars.  For more info, do: (user/help)")
+;(println "Namespace 'user' has pre-loaded some useful vars.  For more info, do: (user/help)")

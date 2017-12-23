@@ -14,7 +14,8 @@
         [clojure.repl :refer [doc]]
         [clojure.pprint :refer [pp pprint]]
 
-        [clojure.java.io :as cio]))
+        [clojure.java.io :as cio])
+    (:import (clojure.lang LineNumberingPushbackReader)))
 
 
 
@@ -54,9 +55,7 @@
 
 (defn indexing-pushback-stringreader [s]
     (let [indx (atom 0) s-len (. s length)]
-        (proxy [
-                ;java.io.PushbackReader
-                clojure.lang.LineNumberingPushbackReader
+        (proxy [LineNumberingPushbackReader
                 IIndex] [(java.io.StringReader. s)]
             (read []
                 (if (< @indx s-len)

@@ -16,16 +16,13 @@
     [clj-stacktrace.core :refer [parse-exception]]
     [clj-stacktrace.repl :refer [pst pst-str]]
     [clojure.repl :refer [doc dir]]
-    [george.util :refer [pprint-str]]))
-
-
-
+    [george.util :refer [pprint-str]]
+    [george.application.output :refer [sprint sprintln]]))
 
 
 (declare port-get)
 
 (defonce ^:private server_ (atom nil))
-
 
 
 (defn stop! []
@@ -47,11 +44,10 @@
                      (start-server :port port-
                                    :handler cider-nrepl-handler))]
 
-       (println "nREPL server started on port" (:port srvr))
+       (sprintln :system "nREPL server started on port" (:port srvr))
     srvr))
 ;; TODO: Authentication, to allow others to remotely connect to your instance?
 ;; For now, server binds to localhost/loopback by default, so no access from other machines.
-
 
 
 (defn serving-ensure!

@@ -40,7 +40,7 @@
             (fx/event-handler
               ;(println "Interrupting:" eval-id)
               (repl/eval-interrupt eval-id)
-              (output/print-output :system "Interrupted!\n"))))
+              (output/sprintln :system "Interrupted!"))))
 
         (fxj/daemon-thread
           (try

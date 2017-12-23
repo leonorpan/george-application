@@ -18,7 +18,8 @@
      [eval :as eval]]
     [george.util.singleton :as singleton]
     [george.application.code :as code]
-    [george.javafx.java :as fxj])
+    [george.javafx.java :as fxj]
+    [george.application.launcher :as launcher])
   (:import (javafx.scene Node)))
 
 
@@ -104,7 +105,7 @@
                       (fx/button "Screen"
                                  :width button-width
                                  :onaction #(tr/screen)
-                                 :tooltip "Open/show the Turtle screen"))
+                                 :tooltip "Open the Turtle screen"))
 
                  (fx/button "Input"
                             :width button-width
@@ -112,10 +113,10 @@
                             #(input/new-input-stage user-ns-str)
                             :tooltip "Open a new input window")
 
-                 (fx/button "Output"
+                 (fx/button "Input-Output"
                             :width button-width
-                            :onaction oi/show-or-create-stage
-                            :tooltip "Open/show output-window (with input)")
+                            :onaction #(oi/show-or-create-stage)
+                            :tooltip "Open the input output window  - a.k.a. REPL")
 
                  (fx/button "Code"
                             :width button-width
@@ -125,18 +126,22 @@
                  (fx/button "Commands"
                             :width button-width
                             :onaction  #(turtle-commands-stage)
-                            :tooltip "View list of available turtle commands")
+                            :tooltip "View a list of available turtle commands")
 
                  :spacing 10
                  :padding 10)))]
      pane))
 
 
+(def xy [(+ (launcher/xyxy 2) 5) (launcher/xyxy 1)])
+
+
+println
 (defn- create-toolbar-stage [ide-type]
   (let [is-turtle (= ide-type :turtle)]
     (fx/now
       (fx/stage
-        :location [90 0]
+        :location xy
         :title (if is-turtle "Turtle Geometry" "IDE")
         :scene (fx/scene (toolbar-pane is-turtle))
         :sizetoscene true

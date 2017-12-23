@@ -608,7 +608,7 @@ It must return a string (which may be wrapped to fit the width of the list."
           (.setArcHeight arc))))
 
 
-(defn label
+(defn ^Label label
     ([] (Label.))
     ([text] (Label. text)))
 
@@ -713,7 +713,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn hbox [& args]
     (apply box (cons false args)))
 
-(defn vbox [& args]
+(defn ^VBox vbox [& args]
     (apply box (cons true args)))
 
 (defn borderpane
@@ -777,7 +777,7 @@ It must return a string (which may be wrapped to fit the width of the list."
     (Screen/getScreens))
 
 
-(defn primary-screen []
+(defn ^Screen primary-screen []
     (Screen/getPrimary))
 
 

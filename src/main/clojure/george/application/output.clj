@@ -14,16 +14,18 @@
            (org.fxmisc.flowless VirtualizedScrollPane)))
 
 
+(declare sprint)
+
+
 (defonce standard-out System/out)
 (defonce standard-err System/err)
 
+;; To avoid cropping continuously, we wait til we are 20% over the limit, then crop to the limit.
 (def LINE_COUNT_LIMIT 500)
 (def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
+
+;; Keywords used for singletons.
 (def OTA_KW ::output-textarea)
-(def OS_KW ::output-stage)
-
-
-(declare print-output)
 
 
 (defn- output-string-writer [typ] ;; type is one of :out :err
@@ -34,7 +36,7 @@
         (if (= typ :err)
           (.print standard-err s)
           (.print standard-out s))
-        (print-output typ s))
+        (sprint typ s))
       ;; then flush the buffer of the StringWriter
       (let [sb (.getBuffer this)]
         (.delete  sb 0 (.length sb))))))
@@ -76,33 +78,56 @@
 
 
 (defn- maybe-crop-output [outputarea]
+  ;; Count number of lines
   (let [cnt (count (.getParagraphs outputarea))]
     (when (> cnt LINE_COUNT_CROP_AT)
-      ;(.print standard-out (format "CROP NOW! %s  %s\n" cnt  (range (- cnt LINE_COUNT_LIMIT))))
+      ;; Get the number of chars in each paragraph with 'map', and sum them up with 'reduce'
       (let [len (reduce +
-                        (map #(inc (count (.getParagraph outputarea %)))
+                        (map #(inc (.getParagraphLenth outputarea %))  ;; Yes, a typo in the method name.
                              (range (- cnt LINE_COUNT_LIMIT))))]
         (.replaceText outputarea 0  len "")))))
 
 
-(defn print-output [typ obj]  ;; type is one of :in :ns :res :out :err :system
-  (if-let[oa (singleton/get OTA_KW)]
+(defn- print-output* [typ obj]  ;; type is one of :in :ns :res :out :err :system
+  (if-let [oa (singleton/get OTA_KW)]
     (fx/later
       (maybe-crop-output oa)
-      ;(try
-      (let [s (str obj)]
-        (when-not (empty? s)
-          (let [start (.getLength oa)
-                end (+ start (count s))]
-            (doto oa
-              (.insertText start s) ;; append
-              (.showParagraphAtBottom  (-> oa .getParagraphs count)) ;; scroll
-              (highlight/set-style-on-range [start end] (output-style typ)))))))) ;; style
-        ;(catch Exception e (unwrap-outs) (.printStackTrace e)))))
+      (try
+        (let [s (str obj)]
+          (when-not (empty? s)
+            (let [start (.getLength oa)]
+              (.insertText oa start s) ;; append
+              (let [end (+ start (count s))]
+                (doto oa
+                  (.showParagraphAtBottom (-> oa .getParagraphs count)) ;; scroll
+                  (highlight/set-style-on-range
+                    [start (.getLength oa)]
+                    (output-style typ))))))) ;; style
+        (catch Exception e (unwrap-outs) (.printStackTrace e)))))
 
   ;; else:  make sure these always also appear in stout
   (when (#{:in :res :system} typ)
     (.print standard-out (str obj))))
+
+
+(defn sprint
+  "typ is one of :in :ns :res :out :err :system"
+ ([typ]
+  nil)
+ ([typ obj & more]
+  (when-not (keyword? typ)
+    (throw (IllegalArgumentException. "First argument to sprint/sprintln must be keyword")))
+  (print-output* typ obj)
+  (when-let [obj2 (first more)]
+    (print-output* typ " ")
+    (recur typ obj2 (rest more)))))
+
+(defn sprintln
+ ([typ]
+  (println))
+ ([typ obj & more]
+  (apply sprint (cons typ (cons obj more)))
+  (println)))
 
 
 (defn- setup-output [ta]
@@ -149,31 +174,3 @@
 
     root))
 
-
-(defn create-stage
- ([]
-  (create-stage (output-root)))
-
- ([root]
-  (let [bounds (.getVisualBounds (fx/primary-screen))
-        size [1000 330]]
-    (fx/now
-      (fx/stage
-        :title "Output"
-        :location [(.getMinX bounds)
-                   (- (.getMaxY bounds)  (second size))]
-        :size size
-        :sizetoscene false
-        :scene (fx/scene root)
-        :onhidden #(do (teardown-output)
-                       (singleton/remove OS_KW)))))))
-
-
-(defn show-or-create-stage []
-  (println "output/show-or-create-stage")
-  (doto
-    (singleton/get-or-create OS_KW create-stage)
-    (.toFront)))
-
-
-;; TODO:  make into split-screen!
