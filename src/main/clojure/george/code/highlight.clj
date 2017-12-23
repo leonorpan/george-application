@@ -181,14 +181,16 @@ paired-tokens: seq of vectors of paired tokens: [[Token0 Token4][Token1 Token3]]
  ([codearea range ^String style]
   (set-style-on-range codearea range style true))
  ([codearea [start end :as range] ^String style add?]
-  ;(println "/set-style-on-range range:" range "style:" style "add?:" add?)
-  (let [old-styles (.getStyleSpans codearea start end)
-        new-styles
-        (map-styles old-styles
-                    #(if (empty? %)
-                         (if add? #{style} empty-set)
-                         ((if add? conj disj) % style)))]
-    (fx/later (.setStyleSpans codearea start new-styles)))))
+  (when (not= start end)
+    ;(println "/set-style-on-range range:" range "style:" style "add?:" add?)
+    (let [old-styles (.getStyleSpans codearea start end)
+          new-styles
+          (map-styles old-styles
+                      #(if (empty? %)
+                           (if add? #{style} empty-set)
+                           ((if add? conj disj) % style)))]
+      ;(println "  ## new-styles:" new-styles)
+      (fx/later (.setStyleSpans codearea start new-styles))))))
 
 
 (defn- color-and-index [codearea code token-indexes_]

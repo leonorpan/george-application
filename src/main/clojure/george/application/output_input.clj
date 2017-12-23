@@ -5,12 +5,12 @@
     [george.util.singleton :as singleton]
     [george.javafx :as fx]
     [george.javafx.java :as fxj]
-    [george.core.history :as hist])
+    [george.core.history :as hist]
+    [george.application.launcher :as launcher])
   (:import (javafx.scene.control SplitPane Tab TabPane)
            (javafx.geometry Orientation)
-           (javafx.scene Parent Node)
-           (javafx.scene.layout Pane AnchorPane)
-           (javafx.scene.paint Color)))
+           (javafx.scene Node)
+           (javafx.scene.layout AnchorPane)))
 
 
 (defn- input-tab []
@@ -66,31 +66,35 @@
     split-pane))
 
 
-
 (def OIS_KW ::output-input-stage)
+
+(def xy [(+ (launcher/xyxy 2) 5) 95])
+
+(def wh [800 (- (launcher/xyxy 3) (xy 1))])
 
 
 (defn- create-stage []
   (fx/now
     (let [oi-root (output-input-root)
-          bounds (.getVisualBounds (fx/primary-screen))
-          size [1000 400]
 
           stage
           (fx/stage
-            :title "Output & Input"
-            :location [(.getMinX bounds)
-                       (- (.getMaxY bounds)  (second size))]
-            :size size
+            :title " Input-Output - a.k.a. REPL (Read Eval Print Loop)"
+            :location xy
+            :size wh
             :sizetoscene false
             :scene (doto (fx/scene oi-root)
                      (fx/add-stylesheets "styles/codearea.css"))
 
             :onhidden #(do (output/teardown-output)
-                           (singleton/remove OIS_KW)))]
+                           (singleton/remove OIS_KW)))
 
-      (.setDividerPosition oi-root 0 1.) ;; must be called after stage is created
-
+          ;; Calculate the exact position for divider
+          in-h 200
+          h (wh 1)
+          out-h (- h in-h)
+          div-pos (/ out-h h)]
+      (.setDividerPosition oi-root 0 div-pos) ;; must be called after stage is created
       stage)))
 
 

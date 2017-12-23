@@ -40,10 +40,10 @@
             (slurp (cio/resource pth)))
           (catch IllegalArgumentException e
             (binding [*out* *err*]
-              (output/print-output :err (format "Resource not found for 'shared-key':  %s\n" shared-key))))))
+              (output/sprint :err (format "Resource not found for 'shared-key':  %s\n" shared-key))))))
       (catch Exception e
         (binding [*out* *err*]
-          (output/print-output :err (format "Exception: 'shared-key' not string or keyword:  %s\n" (if (nil? shared-key) "nil" shared-key))))))))
+          (output/sprint :err (format "Exception: 'shared-key' not string or keyword:  %s\n" (if (nil? shared-key) "nil" shared-key))))))))
 
 ;(println (slurp-shared :tree2))
 ;(println (slurp-shared :tree3))
@@ -52,6 +52,7 @@
 ;(println (slurp-shared 42 true))
 ;(println (slurp-shared nil true))
 ;(println (slurp-shared nil))
+
 
 (def ^:private shared-error-message-f
   ";; Nothing loaded!
@@ -88,4 +89,4 @@ Ex.: (user/doc g/shared)
 "))
 
 
-(println "Namespace 'g' gives you access to \"global\" commands to George.  For more info, do:  (g/help)")
+;(println "Namespace 'g' gives you access to \"global\" commands to George.  For more info, do:  (g/help)")
