@@ -3,12 +3,12 @@
 ;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;  You must not remove this notice, or any other, from this software.
 
-(ns dev.andante.db.test
+(ns labs.game1
     (:require
         [clojure.repl :refer [doc]]
         [george.javafx.java :as j]
-        [george.javafx :as fx])
-
+        [george.javafx :as fx]
+        [environ.core :refer [env]])
     (:import [javafx.scene Node Scene]
              [javafx.scene.shape Rectangle]
              [javafx.scene.layout StackPane Pane]
@@ -85,8 +85,4 @@
             (. show))))
 
 
-
-
-
-
-;(println "WARNING: Running dev.andante.db.test/-main" (-main))
+;(when (env :repl?) (println "WARNING: Running dev.labs.db.test/-main" (-main)))
