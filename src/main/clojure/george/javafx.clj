@@ -188,6 +188,7 @@ and the the body is called on 'handle' "
     [& body]
     `(reify EventHandler (~'handle [~'_ ~'_] ~@body)))
 
+
 (defmacro event-handler-2
     "Returns an instance of javafx.event.EventHander,
 where args-vec is a vector of 2 elements  - naming the bindings for 'this' and 'event',
@@ -196,6 +197,10 @@ and the body is called on 'handle'"
     (assert (vector? args-vec) "First argument must be a vector representing 2 args")
     (assert (= 2 (count args-vec)) "args-vector must contain 2 elements - for binding 'this' and 'event'")
     `(reify EventHandler (~'handle ~args-vec ~@body)))
+
+
+(defn ensure-handler [f]
+  (if (instance? EventHandler f) f (event-handler (f))))
 
 
 
@@ -618,11 +623,16 @@ It must return a string (which may be wrapped to fit the width of the list."
   control)
 
 
+(defn set-onaction [buttonbase fn-or-handler]
+  (.setOnAction buttonbase (ensure-handler fn-or-handler))
+  buttonbase)
+
+
 (defn button [label & {:keys [onaction width minwidth tooltip]}]
     (let [b (Button. label)]
         (if width (.setPrefWidth  b (double width)))
         (if minwidth (.setMinWidth b  (double minwidth)))
-        (if onaction (.setOnAction b  (event-handler (onaction))))
+        (if onaction (set-onaction b onaction))
         (if tooltip (set-tooltip b tooltip))
         b))
 
@@ -632,8 +642,6 @@ It must return a string (which may be wrapped to fit the width of the list."
     (when onaction (.setOnAction cb (event-handler (onaction))))
     (when tooltip (.setTooltip cb (Tooltip. tooltip)))
     cb))
-
-
 
 
 (defn textfield
@@ -752,13 +760,6 @@ It must return a string (which may be wrapped to fit the width of the list."
                                   (:antialiasing kwargs))
                           (Scene. root))
                     (.setFill (:fill kwargs)))))
-
-
-
-
-
-(defn ensure-handler [f]
-    (if (instance? EventHandler f) f (event-handler (f))))
 
 
 (defn centering-point-on-primary

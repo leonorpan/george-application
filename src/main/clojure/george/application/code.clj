@@ -11,8 +11,8 @@
     [george.javafx.util :as fxu]
     [george.application.output :refer [sprint sprintln]]
     [george.util :as u]
-    [george.code.codearea :as ca])
-
+    [george.code.codearea :as ca]
+    [environ.core :refer [env]])
 
   (:import [javafx.beans.property StringProperty]
            [javafx.scene.control OverrunStyle]
@@ -237,5 +237,5 @@
 
 (def c (atom nil))
 
-;(println "WARNING: Running george.code/new-code-stage" (reset! c (new-code-stage)))
+;(when (env :repl?) (println "WARNING: Running george.code/new-code-stage" (reset! c (new-code-stage))))
 
