@@ -21,7 +21,8 @@
 
 (declare
   session-ensure!
-  eval-do)
+  eval-do
+  ping)
 
 
 (defonce ^:private default-session_ (atom nil))
