@@ -89,7 +89,10 @@
 }
 
 .text.system {
-    -fx-fill: #bbb;
+    -fx-fill: #aaa;
+}
+.text.system-em {
+    -fx-fill: #999;
 }
 .text.res {
     -fx-fill: green;

@@ -31,18 +31,6 @@
   (or @default-session_ not-found))
 
 
-(defn ping []
-  (try
-
-    (-> (eval-do :op :eval :code ":ping" :session (session "NO_DEFAULT_SESSION")
-                 :timeout 1000)
-        nrepl/response-values
-        first
-        (= :ping))
-    (catch SocketException e
-      false)))
-
-
 (defn session? []
   (boolean (and (session) (ping))))
 
@@ -79,7 +67,7 @@
 
 (defn eval-do
   ;; TODO: documentation needed
-  [& {:keys [timeout port serve-ensure?] :as ops}]
+  [& {:keys [timeout port serve-ensure? session] :as ops}]
   (when serve-ensure? (repl-server/serve-ensure! 0))
   (with-open [conn (nrepl/connect :port (or port (repl-server/port)))]
     (let [m (into {:op :eval} (filter (comp some? val) ops))]
@@ -104,11 +92,28 @@
          ~@body))))
 
 
-(defn eval-interrupt
+(defn interrupted?
+  "Returns true if not the session was interrupted.'"
+  [status]
+  (not ((set status) "session-idle")))
+
+
+(defn interrupt-eval
   ([eval-id]
-   (eval-interrupt (session) eval-id))
+   (interrupt-eval (session) eval-id))
   ([session eval-id]
-   (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
+   (eval-do :op :interrupt :session session :interrupt-id eval-id :timeout 1000)))
+
+
+(defn interrupt
+  "Returns true if the session was not already idle."
+ ([]
+  (interrupt (session)))
+ ([^String session]
+  (-> (eval-do :op :interrupt :session session :timeout 1000)
+      first
+      :status
+      interrupted?)))
 
 
 (defn sessions
@@ -119,3 +124,16 @@
     first
     :sessions))
 
+
+(defn ping
+  ([]
+   (ping (session "NO_DEFAULT_SESSION")))
+  ([session-id]
+   (try
+     (let [res
+           (eval-do :op :eval :code ":ping" :session session-id :timeout 1000)]
+       (-> res
+           nrepl/response-values
+           first
+           (= :ping)))
+     (catch SocketException _ false))))
