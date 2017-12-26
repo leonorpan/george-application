@@ -1,17 +1,24 @@
-;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; Copyright (c) 2017 Terje Dahl. All rights reserved.
 ; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
-;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
-;  You must not remove this notice, or any other, from this software.
+; By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+; You must not remove this notice, or any other, from this software.
 
 (ns george.application.output
-  (:require [george.javafx :as fx]
-            [george.code.codearea :as ca]
-            [george.util.singleton :as singleton]
-            [george.code.highlight :as highlight])
-  (:import (java.io StringWriter PrintStream OutputStreamWriter)
-           (org.apache.commons.io.output WriterOutputStream)
-           (javafx.geometry Pos)
-           (org.fxmisc.flowless VirtualizedScrollPane)))
+  (:require
+    [george.javafx :as fx]
+    [george.javafx.java :as fxj]
+    [george.code.codearea :as ca]
+    [george.util.singleton :as singleton]
+    [george.code.highlight :as highlight]
+    [george.application
+     [repl :as client]
+     [repl-server :as server]])
+  (:import
+    [java.io StringWriter PrintStream OutputStreamWriter]
+    [org.apache.commons.io.output WriterOutputStream]
+    [javafx.geometry Pos Side]
+    [javafx.scene.control MenuButton MenuItem]
+    [org.fxmisc.flowless VirtualizedScrollPane]))
 
 
 (declare sprint)
@@ -142,21 +149,40 @@
   (singleton/remove OTA_KW))
 
 
+(defn style-bar [bar]
+  (doto bar
+    (.setStyle "-fx-background-color: #eee; -fx-padding: 3;")))
+
+
+(defn recreate-session []
+  (when (client/session?)
+    (client/session-close!))
+  (let [id (client/session-create!)]
+    (sprintln :system "nREPL session recreated with id" id)))
+
+
+(defn restart-server []
+   (server/stop!)
+   (server/serve! 0)
+   (sprintln :system "nREPL server started on port" (server/port))
+   (recreate-session))
+
+
 (defn output-root []
-  (let [
-        codearea
+  (let [codearea
         (doto (ca/new-codearea false)
           (.setStyle "-fx-font-size:14;")
-          (.setEditable false))
+          (.setEditable false)
+          (.setFocusTraversable true))
 
         clear-button
         (fx/button
           "Clear"
-          :width 150
+          ;:width 150
           :onaction #(ca/set-text codearea "")
           :tooltip (format "Clear output"))
 
-        button-box
+        top-bar
         (fx/hbox
           (fx/region :hgrow :always)
           clear-button
@@ -164,13 +190,26 @@
           :alignment Pos/TOP_RIGHT
           :insets [0 0 5 0])
 
+        bottom-bar
+        (fx/hbox
+          (fx/region :hgrow :always)
+          (doto (MenuButton. "nREPL"
+                             nil
+                             (fxj/vargs
+                               (doto (MenuItem. "Restart nREPL server")
+                                     (fx/set-onaction #(restart-server)))
+                               (doto (MenuItem. "New nREPL session")
+                                     (fx/set-onaction #(recreate-session)))))
+                (fx/set-tooltip "All old session data will be lost if either menu selection is made!")
+                (.setPopupSide Side/TOP))
+          :spacing 5)
         root
-         (fx/borderpane
-            :top button-box
-            :center (VirtualizedScrollPane. codearea)
-            :insets 5)]
+        (fx/borderpane
+           :top (style-bar top-bar)
+           :center (VirtualizedScrollPane. codearea)
+           :bottom (style-bar bottom-bar)
+           :insets 5)]
 
     (setup-output codearea)
 
     root))
-

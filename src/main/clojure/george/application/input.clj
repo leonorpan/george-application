@@ -1,7 +1,7 @@
-;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; Copyright (c) 2017 Terje Dahl. All rights reserved.
 ; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
-;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
-;  You must not remove this notice, or any other, from this software.
+; By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+; You must not remove this notice, or any other, from this software.
 
 (ns george.application.input
   (:require
@@ -18,8 +18,6 @@
     ;[george.code.codearea :as ca]
     [george.editor.core :as ed])
   (:import (javafx.scene.input KeyEvent)))
-           ;(javafx.scene.control ComboBox)
-           ;(org.fxmisc.flowless VirtualizedScrollPane)))
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
@@ -36,11 +34,9 @@
 
         (doto interrupt-button
           (.setDisable  false)
-          (.setOnAction
-            (fx/event-handler
-              ;(println "Interrupting:" eval-id)
-              (repl/eval-interrupt eval-id)
-              (output/sprintln :system "Interrupted!"))))
+          (fx/set-onaction
+            #(do (repl/eval-interrupt eval-id)
+                 (output/sprintln :system "Interrupted!"))))
 
         (fxj/daemon-thread
           (try
@@ -50,7 +46,6 @@
               eval-id
               source-file
               update-ns-fn)
-
 
             ;; handle history and clearing
             (hist/append-history repl-uuid input)
@@ -65,8 +60,9 @@
               (fx/later
                 (.setDisable interrupt-button true)
                 (.setDisable eval-button false)
-                (-> code-area .getScene .getWindow .requestFocus)))))))))
-
+                (try
+                  (-> code-area .getScene .getWindow .requestFocus)
+                  (catch NullPointerException e nil))))))))))
 
 
 (defn input-root [ns source-file]
@@ -119,6 +115,9 @@
                 (if inverse-clear (not clear-checked) clear-checked)]
             (fxj/thread
               (do-run code-area repl-uuid current-history-index-atom ns-label do-clear run-button interrupt-button source-file))))
+
+        on-close-fn
+        (fn [] (.fire interrupt-button))
 
         prev-button
         (doto
@@ -177,7 +176,6 @@ Next 'global' history.   SHIFT-click")
 
         border-pane
         (fx/borderpane
-          ;:center (VirtualizedScrollPane. code-area)
           :center code-area
           :top ns-label
           :bottom button-box
@@ -204,7 +202,7 @@ Next 'global' history.   SHIFT-click")
     ;; TODO: colorcode also when history is the same
     ;; TODO: nicer tooltips.  (monospace and better colors)
 
-    [border-pane code-area]))
+    [border-pane code-area on-close-fn]))
 
 
 (defn- input-scene [root]
@@ -224,7 +222,7 @@ Next 'global' history.   SHIFT-click")
   ;; TODO: consolidate/fix integrations/dependencies
   ;; TODO: add interupt-posibility (button) to/for run-thread
 
-  (fxj/thread (repl/session-ensured! true))
+  (fxj/thread (repl/session-ensure! true))
   (let [
         repl-nr
         (hist/next-repl-nr)

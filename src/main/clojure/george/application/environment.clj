@@ -4,38 +4,19 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns
-  ^{:author "Terje Dahl"}
   george.application.environment
   (:require
     [clojure.string :as cs]
-    [clojure.java.io :refer [file] :as cio]
     [george.javafx :as fx]
     [george.application.turtle.turtle :as tr]
     [george.application
      [input :as input]
-     [output :as output]
-     [output-input :as oi]
-     [eval :as eval]]
+     [output-input :as oi]]
     [george.util.singleton :as singleton]
     [george.application.code :as code]
     [george.javafx.java :as fxj]
     [george.application.launcher :as launcher])
   (:import (javafx.scene Node)))
-
-
-
-(defn- prep-user-turtle-ns []
-  (let [current-ns (:ns (meta #'prep-user-turtle-ns))]
-    (binding [*ns* nil]
-      ;; prep a user namespace
-      (ns user.turtle
-        (:require [clojure.repl :refer :all])
-        (:require [clojure.pprint :refer [pprint]])
-        (:require [george.application.turtle.turtle :refer :all])
-        (:import [javafx.scene.paint Color]))
-      ;; switch back to this namespace
-      (ns current-ns))))
-
 
 
 (defn- doc-str [var]
@@ -85,9 +66,6 @@
 
 
 (defn- toolbar-pane [is-turtle]
-
-   (when is-turtle
-     (prep-user-turtle-ns))
 
    (let [button-width
          150
