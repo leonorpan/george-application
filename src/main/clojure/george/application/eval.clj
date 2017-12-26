@@ -12,7 +12,7 @@
      [core :refer [parse-exception]]]
     [george.application
      [repl :as repl]
-     [output :refer [sprint sprintln output-showing?]]]
+     [output :refer [oprint oprintln output-showing?]]]
     [george.javafx :as fx]
     [george.util.text :as ut])
   (:import
@@ -141,15 +141,15 @@
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (sprint :ns (ut/ensure-newline (str " ns> " ns)))
+      (oprint :ns (ut/ensure-newline (str " ns> " ns)))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (sprint :res (ut/ensure-newline (str " >>> " s))))
+      (oprint :res (ut/ensure-newline (str " >>> " s))))
 
     (when-let [st (:status res)]
-
-      (sprint :system (ut/ensure-newline (cs/join " " st))))
+      (when-not (= st ["done"])
+        (oprint :system (ut/ensure-newline (cs/join " " st)))))
 
     (when-let [o (:out res)]
       (print o) (flush))
@@ -199,7 +199,7 @@
             (let [new-ns (process-response response current-ns update-ns-fn)]
               (recur (rest responses) new-ns))
             (do
-              (repl/eval-interrupt (:session response) eval-id)
+              (repl/interrupt-eval (:session response) eval-id)
               (process-error nil file-name lin col)
               false))) ;; it did not go OK.  :-(
         true)))) ;; Everything went OK  :-)
@@ -210,14 +210,12 @@
   [^String code ^String ns eval-id ^String file-name update-ns-fn]
   (when (= ns "user.turtle")
     (when (ensure-ns-user-turtle)
-      (sprintln :system "ns user.turtle prepared")))
-  (sprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
+      (oprintln :system "ns user.turtle prepared")))
+  (oprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (let [rdr (george.code.tokenizer/indexing-pushback-stringreader code)]
-    (try
-      (loop [[lin col rd :as LCR] (line-column-read file-name rdr)]
-        ;(prn "  ## LCR:" LCR)
-        (when rd
-          (let [ok? (eval-one rd ns eval-id lin col file-name update-ns-fn)]
-            (when ok?
-              (recur (line-column-read file-name rdr))))))
-      (catch Exception e (println "AH-CHA!")))))
+    (loop [[lin col rd :as LCR] (line-column-read file-name rdr)]
+      ;(prn "  ## LCR:" LCR)
+      (when rd
+        (let [ok? (eval-one rd ns eval-id lin col file-name update-ns-fn)]
+          (when ok?
+            (recur (line-column-read file-name rdr))))))))

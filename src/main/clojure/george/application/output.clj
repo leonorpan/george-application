@@ -17,11 +17,13 @@
     [java.io StringWriter PrintStream OutputStreamWriter]
     [org.apache.commons.io.output WriterOutputStream]
     [javafx.geometry Pos Side]
-    [javafx.scene.control MenuButton MenuItem]
-    [org.fxmisc.flowless VirtualizedScrollPane]))
+    [javafx.scene.control MenuButton MenuItem SeparatorMenuItem]
+    [org.fxmisc.flowless VirtualizedScrollPane]
+    (org.fxmisc.richtext StyleClassedTextArea)
+    (clojure.lang Keyword)))
 
 
-(declare sprint)
+(declare oprint)
 
 
 (defonce standard-out System/out)
@@ -43,7 +45,7 @@
         (if (= typ :err)
           (.print standard-err s)
           (.print standard-out s))
-        (sprint typ s))
+        (oprint typ s))
       ;; then flush the buffer of the StringWriter
       (let [sb (.getBuffer this)]
         (.delete  sb 0 (.length sb))))))
@@ -81,6 +83,7 @@
     :in "in"
     :ns "ns"
     :system "system"
+    :system-em "system-em"
     :res "res"} typ "unknown"))
 
 
@@ -96,44 +99,44 @@
 
 
 (defn- print-output* [typ obj]  ;; type is one of :in :ns :res :out :err :system
-  (if-let [oa (singleton/get OTA_KW)]
+  (if-let [^StyleClassedTextArea oa (singleton/get OTA_KW)]
     (fx/later
       (maybe-crop-output oa)
-      (try
-        (let [s (str obj)]
-          (when-not (empty? s)
-            (let [start (.getLength oa)]
-              (.insertText oa start s) ;; append
-              (let [end (+ start (count s))]
-                (doto oa
-                  (.showParagraphAtBottom (-> oa .getParagraphs count)) ;; scroll
-                  (highlight/set-style-on-range
-                    [start (.getLength oa)]
-                    (output-style typ))))))) ;; style
-        (catch Exception e (unwrap-outs) (.printStackTrace e)))))
+      ;(try)
+      (let [s (str obj)]
+        (when-not (empty? s)
+          (let [start (.getLength oa)]
+            (doto oa
+              (.insertText start s) ;; append
+              (.showParagraphAtBottom (-> oa .getParagraphs count)) ;; scroll
+              (highlight/set-style-on-range
+                [start (.getLength oa)]
+                (output-style typ)))))))) ;; style
+      ;(catch Exception e (unwrap-outs) (.printStackTrace e))))
 
   ;; else:  make sure these always also appear in stout
-  (when (#{:in :res :system} typ)
+  (when (#{:in :res :system :system-em} typ)
     (.print standard-out (str obj))))
 
 
-(defn sprint
-  "typ is one of :in :ns :res :out :err :system"
- ([typ]
-  nil)
- ([typ obj & more]
+(defn oprint
+  "typ is one of :in :ns :res :out :err :system :system-em"
+ ([] nil)
+ ([^Keyword _] nil)
+ ([^Keyword typ obj & more]
   (when-not (keyword? typ)
-    (throw (IllegalArgumentException. "First argument to sprint/sprintln must be keyword")))
+    (throw (IllegalArgumentException. "First argument to vprint/oprintln must be keyword")))
   (print-output* typ obj)
   (when-let [obj2 (first more)]
     (print-output* typ " ")
     (recur typ obj2 (rest more)))))
 
-(defn sprintln
- ([typ]
-  (println))
- ([typ obj & more]
-  (apply sprint (cons typ (cons obj more)))
+
+(defn oprintln
+ ([] (println))
+ ([^Keyword _] (println))
+ ([^Keyword typ obj & more]
+  (apply oprint (cons typ (cons obj more)))
   (println)))
 
 
@@ -154,18 +157,47 @@
     (.setStyle "-fx-background-color: #eee; -fx-padding: 3;")))
 
 
+(defn ping-sessions []
+  (oprintln :system "Ping sessions ...")
+  (if-not (server/serving?)
+    (oprintln :system-em "  No server started!")
+    (let [current-ses (client/session)
+          sessions (client/sessions)]
+      (doseq [ses sessions]
+        (let [ok? (client/ping ses)]
+          (oprint :system "  " ses "")
+          (if ok? (oprint :system-em "OK")
+                  (oprint :err "Fail!"))
+          (oprintln  :system "" (when (= ses current-ses) " [default]")))))))
+
+
+(defn interrupt-sessions []
+  (let [sessions (client/sessions)]
+    (oprintln :system "Interrupt sessions ...")
+    (doseq [ses sessions]
+      (let [interupted? (client/interrupt ses)]
+        (oprint :system "  " ses "")
+        (if interupted?
+          (oprintln :system-em "Interrupted!")
+          (oprintln :system "Idle"))))))
+
+
 (defn recreate-session []
+  (interrupt-sessions)
   (when (client/session?)
+    ;(client/interrupt)
+    ;(Thread/sleep 300)
     (client/session-close!))
   (let [id (client/session-create!)]
-    (sprintln :system "nREPL session recreated with id" id)))
+    (oprintln :system "New default session" id)))
 
 
 (defn restart-server []
-   (server/stop!)
-   (server/serve! 0)
-   (sprintln :system "nREPL server started on port" (server/port))
-   (recreate-session))
+  (interrupt-sessions)
+  (server/stop!)
+  (server/serve! 0)
+  (oprintln :system "New server on port" (server/port))
+  (recreate-session))
 
 
 (defn output-root []
@@ -196,11 +228,16 @@
           (doto (MenuButton. "nREPL"
                              nil
                              (fxj/vargs
-                               (doto (MenuItem. "Restart nREPL server")
-                                     (fx/set-onaction #(restart-server)))
-                               (doto (MenuItem. "New nREPL session")
-                                     (fx/set-onaction #(recreate-session)))))
-                (fx/set-tooltip "All old session data will be lost if either menu selection is made!")
+                               (doto (MenuItem. "Ping all sessions")
+                                 (fx/set-onaction #(ping-sessions)))
+                               (doto (MenuItem. "Interrupt all sessions!")
+                                 (fx/set-onaction #(interrupt-sessions)))
+                               (SeparatorMenuItem.)
+                               (doto (MenuItem. "Create new default session")
+                                     (fx/set-onaction #(recreate-session)))
+                               (SeparatorMenuItem.)
+                               (doto (MenuItem. "Start new server")
+                                     (fx/set-onaction #(restart-server)))))
                 (.setPopupSide Side/TOP))
           :spacing 5)
         root

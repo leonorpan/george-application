@@ -11,13 +11,15 @@
     [george.application.repl :as repl]
     [george.javafx.java :as fxj]
     [george.util :as gu]
-    [george.application.output :as output]
+    [george.application.output :as output :refer [oprintln]]
     [george.util :as u]
     [george.application.eval :as eval]
     ;[george.code.paredit :as paredit]
     ;[george.code.codearea :as ca]
     [george.editor.core :as ed])
-  (:import (javafx.scene.input KeyEvent)))
+  (:import
+    [javafx.scene.input KeyEvent]
+    [java.net SocketException]))
 
 
 (defn- do-run [code-area repl-uuid current-history-index-atom ns-textfield clear? eval-button interrupt-button source-file]
@@ -35,17 +37,12 @@
         (doto interrupt-button
           (.setDisable  false)
           (fx/set-onaction
-            #(do (repl/eval-interrupt eval-id)
-                 (output/sprintln :system "Interrupted!"))))
+            #(do (repl/interrupt-eval eval-id)
+                 (output/oprintln :system-em "Interrupted!"))))
 
         (fxj/daemon-thread
           (try
-            (eval/read-eval-print-in-ns
-              input
-              (.getText ns-textfield)
-              eval-id
-              source-file
-              update-ns-fn)
+            (eval/read-eval-print-in-ns input (.getText ns-textfield) eval-id source-file update-ns-fn)
 
             ;; handle history and clearing
             (hist/append-history repl-uuid input)
@@ -53,8 +50,13 @@
             ;(when clear? (fx/later (.clear code-area)))
             (when clear? (fx/later (ed/set-text code-area "")))
 
+            (catch SocketException e
+              (oprintln :err (format "%s: %s" (.getClass e) (.getMessage e)))
+              (oprintln :err "  ... possibly due to session or server restart."))
             (catch Exception e
+              (println "ØØØØØØØØH")
               (.printStackTrace e))
+
             (finally
               ;; No matter what, I need to be able to eval again
               (fx/later
@@ -62,6 +64,7 @@
                 (.setDisable eval-button false)
                 (try
                   (-> code-area .getScene .getWindow .requestFocus)
+                  ;; The code-area may be gone as the interrupt being a result of closing it.
                   (catch NullPointerException e nil))))))))))
 
 
