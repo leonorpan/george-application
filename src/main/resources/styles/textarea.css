@@ -1,0 +1,8 @@
+.root {
+    /*this allows setting the background of any TextArea to e.g. transparent */
+    my-text-area-background: white;
+}
+
+.text-area, .text-area .viewport, .text-area .content {
+    -fx-background-color: my-text-area-background;
+}

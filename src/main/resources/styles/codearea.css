@@ -1,0 +1,177 @@
+
+
+
+.codearea {
+    -fx-font-family: 'Source Code Pro Medium'; /* ref font-face*/
+    -fx-background-color: whitesmoke;
+    -fx-highlight-fill: #b3d8fd;
+    -fx-padding: 0;
+}
+
+.codearea .text {
+    -fx-fill: gray;  /* Default color is applied to line-comments */
+}
+
+
+
+/* control the labels of the line number factory function */
+.lineno {
+    -fx-font-family: "Source Code Pro Medium";
+    -fx-font-size: 12;
+    -fx-text-fill: #aaa;
+    -fx-background-color: whitesmoke; /* transparent whitesmoke*/
+    -fx-padding: 0 30 0 15;
+}
+
+.styled-text-area .caret {
+    -fx-stroke: BLUE;
+    -fx-stroke-width: 3;
+}
+
+
+.linetriangle {
+    -fx-fill: null;
+    -fx-stroke: #aaa;
+    -fx-stroke-width: 3;
+    -fx-translate-y: 5;
+    -fx-translate-x: -15;
+}
+
+.line-error-mark {
+    -fx-fill: red;
+    -fx-stroke: darkred;
+    -fx-stroke-width: 1;
+    -fx-translate-x: -42;
+    -fx-translate-y: 7;
+}
+
+.line-error-background {
+    -fx-fill: rgba(255, 0, 0, 0.2);
+    -fx-translate-x: -27;
+    -fx-translate-y: 0;
+}
+
+
+/* code highlighting */
+
+.gray {
+    -fx-text-fill: gray;
+}
+.bold {
+    -fx-font-weight: bold;  /* bold | normal */
+}
+.italic {
+    -fx-font-style: italic;  /* italic | normal */
+}
+.underline {
+    -fx-underline: true;
+}
+.strikethrough {
+    -fx-strikethrough: true;
+}
+.hover {
+    -rtfx-background-color: yellow;
+}
+
+.text.symbol, .text.default, .text.out {
+    -fx-fill: #404042;
+}
+
+.text.err {
+    -fx-fill: #cc0000;
+}
+
+.text.in {
+    -fx-fill: blue;
+}
+.text.ns {
+    -fx-fill: brown;
+}
+
+.text.system {
+    -fx-fill: #aaa;
+}
+.text.system-em {
+    -fx-fill: #999;
+}
+.text.res {
+    -fx-fill: green;
+}
+
+.text.boolean, .text.nil {
+    -fx-fill: #4F7BDE;
+}
+.text.tokenerror, .text.unpaired {
+   -fx-fill: #ED1C24;
+   -rtfx-background-color: orange;
+}
+.text.number {
+    -fx-fill: #524EAC;
+}
+.text.keyword, .text.arg {
+  -fx-fill: #9E1F64;
+}
+.text.string, .text.character {
+-fx-fill: #008e00;
+}
+.text.delimchar {
+    -fx-fill: blue;
+}
+.text.comment {
+    -fx-fill: #708080;
+}
+.text.macrochar, .text.macrodispatchchar {
+    -fx-fill: #cc7832;
+}
+.text.unkown {
+    -fx-fill: orange;
+}
+
+
+/************
+https://stackoverflow.com/questions/37808715/how-to-make-look-and-feel-of-richtextfx-similar-to-textarea
+**/
+/*
+
+.virtualized-scroll-pane {
+    -fx-background-color: linear-gradient(to bottom, derive(-fx-text-box-border, -10%), -fx-text-box-border),
+        linear-gradient(from 0px 0px to 0px 5px, derive(-fx-control-inner-background, -9%), -fx-control-inner-background);
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 3, 2;
+}
+
+.virtualized-scroll-pane:focused {
+    -fx-background-color:
+        -fx-focus-color,
+        -fx-control-inner-background,
+        -fx-faint-focus-color,
+        linear-gradient(from 0px 0px to 0px 5px, derive(-fx-control-inner-background, -9%), -fx-control-inner-background);
+    -fx-background-insets: -0.2, 1, -1.4, 3;
+    -fx-background-radius: 3, 2, 4, 0;
+}
+*/
+/*
+I don't understand why this rule fix problem with border around CodeArea.
+May be somebody can explain it.
+*/
+/*
+.virtualized-scroll-pane .styled-text-area {
+    -fx-background-insets: 0px;
+}
+
+.virtualized-scroll-pane .scroll-bar:horizontal {
+    -fx-background-radius: 0 0 2 2;
+
+    -fx-padding: 0 0.08333325em 0.08333325em 0.08333325em;
+    -fx-border-insets: 0 0.08333325em 0.08333325em 0.08333325em;
+    -fx-background-insets: 0 0.08333325em 0.08333325em 0.08333325em;
+}
+
+.virtualized-scroll-pane .scroll-bar:vertical {
+    -fx-background-radius: 0 2 2 0;
+
+    -fx-padding: 0.08333325em 0.08333325em 0.08333325em 0;
+    -fx-border-insets: 0.08333325em 0.08333325em 0.08333325em 0;
+    -fx-background-insets: 0.08333325em 0.08333325em 0.08333325em 0;
+}
+*/
