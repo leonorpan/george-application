@@ -40,10 +40,10 @@
             (slurp (cio/resource pth)))
           (catch IllegalArgumentException e
             (binding [*out* *err*]
-              (output/sprint :err (format "Resource not found for 'shared-key':  %s\n" shared-key))))))
+              (output/oprint :err (format "Resource not found for 'shared-key':  %s\n" shared-key))))))
       (catch Exception e
         (binding [*out* *err*]
-          (output/sprint :err (format "Exception: 'shared-key' not string or keyword:  %s\n" (if (nil? shared-key) "nil" shared-key))))))))
+          (output/oprint :err (format "Exception: 'shared-key' not string or keyword:  %s\n" (if (nil? shared-key) "nil" shared-key))))))))
 
 ;(println (slurp-shared :tree2))
 ;(println (slurp-shared :tree3))

@@ -1,38 +1,44 @@
+; Copyright (c) 2017 Terje Dahl. All rights reserved.
+; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
+; By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+; You must not remove this notice, or any other, from this software.
+
 (ns george.application.repl
   "This module contains functions for starting and stopping an embedded (nREPL)  server.
-  Also utilities for evaluation, handling stacktraces, and more.
-  (more documentation needed)
-"
-  (:use clojure.test)
+  Also utilities for evaluation .
+  (More documentation needed)"
   (:require
-    [clojure.string :as cs]
-    [clojure.pprint :refer [pprint]]
-    [clojure.repl]
+    [clojure
+     [pprint :refer [pprint]]
+     [repl :refer [doc dir]]]
     [clojure.tools.nrepl :as nrepl]
-    [clj-stacktrace.core :refer [parse-exception]]
-    [clj-stacktrace.repl :refer [pst pst-str]]
-    [clojure.repl :refer [doc dir]]
-    [george.application.repl-server :as repl-server]
-    [george.util :as gu]))
+    [george.application.repl-server :as repl-server])
+  (:import
+    [java.net SocketException]))
 
 
 ;;; session handling
 
 (declare
-  session-ensured!
-  eval-do)
+  session-ensure!
+  eval-do
+  ping)
 
 
 (defonce ^:private default-session_ (atom nil))
 
 
-(defn session-get! []
-  @default-session_)
+(defn session [& [not-found]]
+  (or @default-session_ not-found))
+
+
+(defn session? []
+  (boolean (and (session) (ping))))
 
 
 (defn session-close! []
   (when-let [ses @default-session_]
-    (try (eval-do :op :close :session ses) (catch Exception e (.printStackTrace e)))
+    (try (eval-do :op :close :session ses :timeout 1000) (catch Exception e (.printStackTrace e)))
     (reset! default-session_ nil)))
 
 
@@ -40,17 +46,19 @@
   "Create a new session."
   []
   (session-close!)
-  (let [new-ses (-> (george.application.repl/eval-do :op :clone) first :new-session)]
-    ;(println "  ## new-ses:" new-ses)
+  (let [new-ses
+        (-> (george.application.repl/eval-do :op :clone)
+            first
+            :new-session)]
+
     (reset! default-session_ new-ses)))
 
 
-(defn session-ensured!
+(defn session-ensure!
   "Ensures that a (default) session is set, and that there is a server running if optional parameter is truth-y."
-  [& [serving-ensure?]]
-  ;(println "::session-ensured!" serving-ensure?)
-  (when serving-ensure? (repl-server/serving-ensure! 0))
-  (if-let [ses (session-get!)]
+  [& [serve-ensure?]]
+  (when serve-ensure? (repl-server/serve-ensure! 0))
+  (if-let [ses (session)]
     ses
     (session-create!)))
 
@@ -59,41 +67,74 @@
 
 
 (defn eval-do
-  ;; TODO: documetation needed
-  [& {:keys [timeout port serving-ensure?] :as ops}]
-  ;(println "::eval-do ops:" ops)
-  (with-open [conn
-              (nrepl/connect :port  (or port (repl-server/port-get serving-ensure?)))]
+  ;; TODO: documentation needed
+  [& {:keys [timeout port serve-ensure? session] :as ops}]
+  (when serve-ensure? (repl-server/serve-ensure! 0))
+  (with-open [conn (nrepl/connect :port (or port (repl-server/port)))]
     (let [m (into {:op :eval} (filter (comp some? val) ops))]
-      ;(println "  ## m:" m)
-      ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
+      ;; MAX_VALUE default to prevent timeout if code does `Thread/sleep`
       (-> (nrepl/client conn (or timeout Integer/MAX_VALUE))
           (nrepl/message m)
           doall))))
 
 
 (defmacro def-eval
-  ;; TODO: documetation needed
+  ;; TODO: documentation needed
   [ops & body]
-  `(let [{:keys [timeout# port# serving-ensure?#] :as ops#} ~ops]
-     ;(prn "  ## ops#:" ops#)
-     (with-open [conn#
-                  (nrepl/connect :port  (or port# (repl-server/port-get serving-ensure?#)))]
+  `(let [{:keys [timeout# port# serve-ensure?#] :as ops#} ~ops]
+     (when serve-ensure?# (repl-server/serve-ensure! 0))
+     (with-open [conn# (nrepl/connect :port (or port# (repl-server/port)))]
        (let [m#
              (into {:op :eval} (filter (comp some? val) ops#))
              ~'response-seq
-             ;; MAX_VALUE default to prevent timout if code does `Thread/sleep`
+             ;; MAX_VALUE default to prevent timeout if code does `Thread/sleep`
              (-> (nrepl/client conn# (or timeout# Integer/MAX_VALUE))
                  (nrepl/message m#))]
-
          ~@body))))
 
 
-    ;;;; utility functions
+(defn interrupted?
+  "Returns true if not the session was interrupted.'"
+  [status]
+  (not ((set status) "session-idle")))
 
 
-(defn eval-interrupt
+(defn interrupt-eval
   ([eval-id]
-   (eval-interrupt (session-get!) eval-id))
+   (interrupt-eval (session) eval-id))
   ([session eval-id]
-   (eval-do :op "interrupt" :session session :interrupt-id eval-id)))
+   (eval-do :op :interrupt :session session :interrupt-id eval-id :timeout 1000)))
+
+
+(defn interrupt
+  "Returns true if the session was not already idle."
+ ([]
+  (interrupt (session)))
+ ([^String session]
+  (-> (eval-do :op :interrupt :session session :timeout 1000)
+      first
+      :status
+      interrupted?)))
+
+
+(defn sessions
+  "Returns vector of all session ids as strings"
+  []
+  (->
+    (eval-do :op :ls-sessions)
+    first
+    :sessions))
+
+
+(defn ping
+  ([]
+   (ping (session "NO_DEFAULT_SESSION")))
+  ([session-id]
+   (try
+     (let [res
+           (eval-do :op :eval :code ":ping" :session session-id :timeout 1000)]
+       (-> res
+           nrepl/response-values
+           first
+           (= :ping)))
+     (catch SocketException _ false))))

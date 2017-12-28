@@ -22,9 +22,9 @@
            [javafx.geometry Rectangle2D]
            [javafx.stage Stage]
            [javafx.application Platform]
-           (javafx.scene.control Hyperlink)
-           (javafx.beans.property SimpleDoubleProperty)
-           (javafx.scene.layout Pane VBox)))
+           [javafx.scene.control Hyperlink]
+           [javafx.beans.property SimpleDoubleProperty]
+           [javafx.scene.layout Pane VBox]))
 
 ;(set! *warn-on-reflection* true)
 ;(set! *unchecked-math* :warn-on-boxed)

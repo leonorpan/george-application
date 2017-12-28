@@ -1,27 +1,51 @@
-;  Copyright (c) 2017 Terje Dahl. All rights reserved.
+; Copyright (c) 2017 Terje Dahl. All rights reserved.
 ; The use and distribution terms for this software are covered by the Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php) which can be found in the file epl-v10.html at the root of this distribution.
-;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
-;  You must not remove this notice, or any other, from this software.
+; By using this software in any fashion, you are agreeing to be bound by the terms of this license.
+; You must not remove this notice, or any other, from this software.
 
 (ns george.application.eval
   (:require
     [clojure.string :as cs]
     [clojure.pprint :refer [pprint]]
-    [clj-stacktrace.repl :refer [pst pst-str]]
-    [clj-stacktrace.core :refer [parse-exception]]
+    [clj-stacktrace
+     [repl :refer [pst pst-str]]
+     [core :refer [parse-exception]]]
     [george.application
      [repl :as repl]
-     [output :refer [sprint sprintln output-showing?]]]
+     [output :refer [oprint oprintln output-showing?]]]
     [george.javafx :as fx]
     [george.util.text :as ut])
-  (:import (javafx.scene.layout GridPane Priority)
-           (javafx.scene.control Alert$AlertType Alert TextArea)
-           (clojure.lang LineNumberingPushbackReader)))
+  (:import
+    [javafx.scene.layout GridPane Priority]
+    [javafx.scene.control Alert$AlertType Alert TextArea]
+    [clojure.lang LineNumberingPushbackReader]))
 
 
 ;(set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
+
+
+(defn prep-ns-user-turtle []
+  (let [current-ns (:ns (meta #'prep-ns-user-turtle))]
+    (binding [*ns* nil]
+      ;; prep a user namespace
+      ;; TODO: this part works.  But the use of 'ns' seems incorrect. Fix.
+      (ns user.turtle
+        (:require [clojure.repl :refer :all])
+        (:require [clojure.pprint :refer [pprint]])
+        (:require [george.application.turtle.turtle :refer :all])
+        (:import [javafx.scene.paint Color]))
+      ;; switch back to this namespace
+      (ns current-ns))))
+
+
+(defn ensure-ns-user-turtle
+  "Returns true if it had to prep user.turtle namespace"
+  []
+  (when-not (find-ns 'user.turtle)
+    (prep-ns-user-turtle)
+    true))
 
 
 (defn- exception-dialog [header message details]
@@ -66,7 +90,7 @@
             (->
               (repl/eval-do
                 :code "(clj-stacktrace.core/parse-exception *e)"
-                :session (repl/session-get!))
+                :session (repl/session))
               first
               :value
               read-string))
@@ -117,15 +141,15 @@
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (sprint :ns (ut/ensure-newline (str " ns> " ns)))
+      (oprint :ns (ut/ensure-newline (str " ns> " ns)))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (sprint :res (ut/ensure-newline (str " >>> " s))))
+      (oprint :res (ut/ensure-newline (str " >>> " s))))
 
     (when-let [st (:status res)]
-
-      (sprint :system (ut/ensure-newline (cs/join " " st))))
+      (when-not (= st ["done"])
+        (oprint :system (ut/ensure-newline (cs/join " " st)))))
 
     (when-let [o (:out res)]
       (print o) (flush))
@@ -158,34 +182,40 @@
         (process-error e F lin col)))))
 
 
+(defn- eval-one [rd ns eval-id lin col file-name update-ns-fn]
+  (repl/def-eval
+    {:code (str rd)
+     :ns ns
+     :session (repl/session-ensure! true)
+     :id eval-id
+     :line lin
+     :column col
+     :file file-name}
+    (loop [responses response-seq
+           current-ns ns]
+      (if-let [response (first responses)]
+        (let [error? (= "eval-error" (-> response :status first))]
+          (if-not error?
+            (let [new-ns (process-response response current-ns update-ns-fn)]
+              (recur (rest responses) new-ns))
+            (do
+              (repl/interrupt-eval (:session response) eval-id)
+              (process-error nil file-name lin col)
+              false))) ;; it did not go OK.  :-(
+        true)))) ;; Everything went OK  :-)
+
+
 (defn read-eval-print-in-ns
   "returns nil"
   [^String code ^String ns eval-id ^String file-name update-ns-fn]
-  (sprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
+  (when (= ns "user.turtle")
+    (when (ensure-ns-user-turtle)
+      (oprintln :system "ns user.turtle prepared")))
+  (oprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (let [rdr (george.code.tokenizer/indexing-pushback-stringreader code)]
     (loop [[lin col rd :as LCR] (line-column-read file-name rdr)]
       ;(prn "  ## LCR:" LCR)
       (when rd
-        (let [ok?
-              (repl/def-eval
-                {:code (str rd)
-                 :ns ns
-                 :session (repl/session-ensured! true)
-                 :id eval-id
-                 :line lin
-                 :column col
-                 :file file-name}
-                (loop [responses response-seq
-                       current-ns ns]
-                   (if-let [response (first responses)]
-                          (let [error? (= "eval-error" (-> response :status first))]
-                            (if-not error?
-                              (let [new-ns (process-response response current-ns update-ns-fn)]
-                                (recur (rest responses) new-ns))
-                              (do
-                                (repl/eval-interrupt (:session response) eval-id)
-                                (process-error nil file-name lin col)
-                                false))) ;; it did not go OK.  :-(
-                          true)))] ;; Everything went OK  :-)
-            (when ok?
-              (recur (line-column-read file-name rdr))))))))
+        (let [ok? (eval-one rd ns eval-id lin col file-name update-ns-fn)]
+          (when ok?
+            (recur (line-column-read file-name rdr))))))))
