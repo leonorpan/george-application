@@ -17,8 +17,6 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
 
     "
 
-
-
   (:require [george.javafx :as fx]
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
@@ -39,18 +37,6 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
            (java.nio ByteBuffer)
            (javafx.scene.control ContextMenu MenuItem)
            (javafx.stage Stage)))
-
-
-;; primitive math is faster
-;(set! *unchecked-math* :warn-on-boxed)
-
-;; avoiding reflection is A LOT faster!
-;(set! *warn-on-reflection* true)
-
-
-(definterface IScreen)
-
-
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -123,7 +109,23 @@ read <key> <not-found>  ;; reutrns a single value, else <not-found>
 update <key> <value>  ;; throws Exception if key not found.  Use 'create' for 'insert or update functionality'
 delete <key>  ;; returns nil whether key existed or not
 delete <key> <not-found>  ;; returns <not-found> if didn't exist
-  "
+"
+
+
+;; avoiding reflection is A LOT faster!
+;(set! *warn-on-reflection* true)
+;; primitive math is faster
+;(set! *unchecked-math* :warn-on-boxed)
+
+
+(declare screen)
+
+(def DEFAULT_SCREEN_SIZE [600 450])
+
+
+(definterface IScreen)
+
+
 (definterface ITurtle
     (sayHello [])
     (left [degrees])
@@ -138,7 +140,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (getPenColor [])
     (setPenColor [color])
     (getSpeed [])
-    (getCalculatedSpeed [])
     (setSpeed [number]))
 
 
@@ -150,29 +151,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- set-heading* [inst ^double ang]
   ;(println "  ## set-heading* " ang)
-  (let [diff (- ^double (heading* inst) ang)
-        speed (.getCalculatedSpeed  inst)]
-        ;duration (* (/ (Math/abs ^double diff) (* 3 360.)) 1000)
-    (if speed
-      (fx/synced-keyframe
-             (* (/ (Math/abs diff)  (double speed)) 1000)
-             [(.rotateProperty ^Group inst) (- ang)])
-      (.setRotate ^Group inst (- ang)))))
-
-
-(defn- normalize-angle [^double a]
-    (cond
-        (zero? a) 0.0
-        (< 0.0 a 360.0) a
-        :default (rem a 360)))
+  (.setRotate ^Group inst (- ang)))
 
 
 (defn- position* [^Group inst]
   [^double (.getTranslateX inst)  (- ^double (.getTranslateY inst))])
 
-
-
-(declare screen)
 
 (defn- add-node [^Stage screen node]
     (fx/now (fx/add (-> screen .getUserData :root) node)))
@@ -180,11 +164,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- set-position* [^Group inst [^double target-x ^double target-y]]
     (let []
-
       (fx/synced-keyframe
          250
          (when target-x [(.translateXProperty inst) target-x])
-         (when target-y [(.translateYProperty inst) (- target-y)]))))
+         (when target-y [(.translateYProperty inst) (- target-y)])))
+    inst)
 
 
 (defn- do-forward* [inst ^double dist]
@@ -202,20 +186,29 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                          (if (instance? String c)
                              (Color/web c)
                              c))))
-        speed (.getCalculatedSpeed inst)]
+        duration
+        (when-let [speed (.getSpeed inst)]
+          ;; 500 px per second is "default"
+          (* (/ (Math/abs (double dist))
+                (* 500. (double speed)))
+             1000.))
+        ;_ (println "  ## duration:" duration)
+
+        ;; A duration less than 1.0 may result in no rendering, so we set it to nil.
+        duration (if (and duration (< duration 1.)) nil duration)]
+        ;_ (println "  ## duration:" duration)
 
     (when line
         (add-node (screen) line)
         (fx/later (.toFront ^Group inst)))
 
-    (if speed
+    (if duration
       (fx/synced-keyframe
-           ;(* (/ (Math/abs ^double dist) 600) 1000)  ;; 600 px per second
-           (* (/ (Math/abs (double dist)) (double speed)) 1000)
-          [(.translateXProperty ^Group inst) target-x]
-          [(.translateYProperty ^Group inst) target-y]
-          (when line [(.endXProperty ^Line line) target-x])
-          (when line [(.endYProperty ^Line line) target-y]))
+        duration
+        [(.translateXProperty ^Group inst) target-x]
+        [(.translateYProperty ^Group inst) target-y]
+        (when line [(.endXProperty ^Line line) target-x])
+        (when line [(.endYProperty ^Line line) target-y]))
       (do
         (doto ^Group inst
           (.setTranslateX target-x)
@@ -239,8 +232,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (format "set-speed requires a number or 'nil'. Got %s" number))))
 
   (swap! state assoc
-               :speed number
-               :speed-calculated (when number (StrictMath/pow 2 number))))
+               :speed number))
 
 
 (defn turtle-polygon []
@@ -251,7 +243,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (let [state
           (atom {:pen-down true
                  :pen-color "black"})
-          _ (set-speed* state 9.5)
+          _ (set-speed* state 1)
 
           poly
           (turtle-polygon)
@@ -300,8 +292,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
             (getSpeed []
               (:speed @state))
-            (getCalculatedSpeed []
-              (:speed-calculated @state))
             (setSpeed [number]
               (set-speed* state number)))]
 
@@ -329,7 +319,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (fx/now
         (let [
               root ^Group (fx/group)
-              ;; rotation about X or Y axis not pissible on machines without SCENE3D
+              ;; rotation about X or Y axis not possible on machines without SCENE3D
               ;; (AKA very small cheap school laptops)
               ;_ (.setRotationAxis root Rotate/X_AXIS)
               ;_ (.setRotate root 180)
@@ -339,7 +329,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
               ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
               ;_ (fx/add root up-and-over)
-
 
               cm
               (ContextMenu.
@@ -353,7 +342,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               (fx/event-handler-2 [_ e]
                                   (.show cm root (.getScreenX e) (.getScreenY e)))
 
-
               stage ^Stage
                 (fx/stage
                         :title "Turtle Screen"
@@ -363,6 +351,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                         :resizable true
                         :location [90 100]
                         :tofront true
+                        :alwaysontop true
                         :onhidden #(reset! screen-and-turtle-singleton nil))]
 
           ;; not useful to bind now, as resizable is false
@@ -372,10 +361,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
           (.setUserData stage {:root root})
           stage)))
-
-
-
-(def DEFAULT_SCREEN_SIZE [600 450])
 
 
 (defn- get-or-create-screen-and-turtle
@@ -417,7 +402,6 @@ Returns turtle instance"
     (:turtle (get-or-create-screen-and-turtle)))
 
 
-
 (defn left
   "Turtle command.
   Rotates the turtle counter-clockwise from current heading.
@@ -425,13 +409,16 @@ Returns turtle instance"
 
   Ex.: (left 90)"
   [degrees]
-  (.left  (turtle) degrees))
+  (.left  (turtle) degrees)
+  nil)
+
 
 (defn right
   "Turtle command.
   Does the same as as 'left', but in opposite direction."
   [degrees]
-  (.right  (turtle) degrees))
+  (.right  (turtle) degrees)
+  nil)
 
 
 (defn forward
@@ -441,7 +428,8 @@ Returns turtle instance"
 
   Ex.: (forward 50)"
   [distance]
-  (.forward  (turtle) distance))
+  (.forward  (turtle) distance)
+  nil)
 
 
 (defn heading
@@ -451,7 +439,8 @@ Returns turtle instance"
 
   Ex.: (heading)"
   []
-  (.getHeading  (turtle)))
+  (.getHeading  (turtle))
+  nil)
 
 
 (defn set-heading
@@ -460,8 +449,8 @@ Returns turtle instance"
 
   Ex.: (set-heading 90)"
   [degrees]
-  (.setHeading  (turtle) degrees))
-
+  (.setHeading  (turtle) degrees)
+  nil)
 
 
 (defn position
@@ -478,7 +467,7 @@ Returns turtle instance"
   (let [x (first (position))] ...)
   "
   []
-  (.getPosition  (turtle)))
+  (.getPosition (turtle)))
 
 
 (defn set-position
@@ -490,7 +479,8 @@ Returns turtle instance"
   (set-position [30 40])
   (set-position [30 nil]) ;; y is changed, only x"
   [[x y]]
-  (.setPosition  (turtle) [x y]))
+  (.setPosition  (turtle) [x y])
+  nil)
 
 
 (defn pen-up
@@ -499,7 +489,8 @@ Returns turtle instance"
 
   Ex.: (pen-up)"
   []
-  (.setPenDown  (turtle) false))
+  (.setPenDown  (turtle) false)
+  nil)
 
 
 (defn pen-down
@@ -508,7 +499,8 @@ Returns turtle instance"
 
   Ex.: (pen-down)"
   []
-  (.setPenDown  (turtle) true))
+  (.setPenDown  (turtle) true)
+  nil)
 
 
 (defn get-pen-down
@@ -517,28 +509,56 @@ Returns turtle instance"
 
   Ex.: (is-pen-down)"
   []
-  (.getPenDown  (turtle)))
+  (.getPenDown (turtle)))
 
 
-(defn get-speed
+(defn speed
   "Turtle command.
   Returns a number or 'nil'.
 
-  Ex.: (get-speed)"
+  Ex.: (speed)"
   []
-  (.getSpeed  (turtle)))
+  (.getSpeed (turtle)))
 
 
 (defn set-speed
   "Turtle command.
   Sets the speed of the turtle to a number or 'nil'.
+  The number is multiples of \"standard speed\".
 
-  Ex.: (set-speed 10)"
+  1 or 1.0 is default/standard speed
+  2 or 2.0 is double speed
+  0.5 or 1/2 is half speed
+  etc.
+
+  'nil' is no speed, i.e. no animations -> as fast as possible.
+  A speed over 100 has no increase effect.
+
+  A speed set such that the animation duration is less than 1, results in speed 'nil' being used.
+  Ex.: (set-speed 1)"
   [number]
-  (.setSpeed (turtle) number))
+  (.setSpeed (turtle) number)
+  nil)
 
 
 (defn pen-color
+  "DEPRECATED: Use 'color' instead.
+   Pen command.
+   Returns a string representing a \"web color\", or a JavaFX Color instance,
+   e.g. \"black\" or \"#ff0000\" (red) or
+     Color/CORNFLOWERBLUE or (Color/color 0 255 0 0).
+
+   Ex.: (pen-color)
+
+   For more on JavaFX Color, see:
+   http://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
+ "
+  []
+  (println "WARNING: 'pen-color' is deprecated. Use 'color' instead")
+  (.getPenColor (turtle)))
+
+
+(defn color
   "Pen command.
   Returns a string representing a \"web color\", or a JavaFX Color instance,
   e.g. \"black\" or \"#ff0000\" (red) or
@@ -554,11 +574,24 @@ Returns turtle instance"
 
 
 (defn set-pen-color
+  "DEPRECATED: Use 'set-color' instead.
+
+  Pen command.
+  Sets the pen to the specified web color (String) or JavaFX Color.
+  See: 'pen-color'"
+  [color]
+  (println "WARNING: 'set-pen-color' is deprecated. Use 'set-color' instead")
+  (.setPenColor (turtle) color)
+  nil)
+
+
+(defn set-color
   "Pen command.
   Sets the pen to the specified web color (String) or JavaFX Color.
   See: 'pen-color'"
   [color]
-  (.setPenColor (turtle) color))
+  (.setPenColor (turtle) color)
+  nil)
 
 
 (defn show
@@ -567,7 +600,8 @@ Returns turtle instance"
 
   Ex. (show)"
   []
-  (.setVisible ^Group (turtle) true))
+  (.setVisible ^Group (turtle) true)
+  nil)
 
 
 (defn hide
@@ -575,7 +609,8 @@ Returns turtle instance"
 
   Ex.: (hide)"
   []
-  (.setVisible ^Group (turtle) false))
+  (.setVisible ^Group (turtle) false)
+  nil)
 
 
 (defn is-showing
@@ -606,8 +641,8 @@ Returns turtle instance"
         filtered (filter #(= % t) (fx/children root))]
 
       (fx/later
-        (fx/children-set-all root filtered))))
-
+        (fx/children-set-all root filtered)))
+  nil)
 
 
 (defn home
@@ -615,16 +650,14 @@ Returns turtle instance"
   Moves the turte back to the center of the screen.
   Makes the turtle visible, heading 0, postion [0 0], pen-down.
 
-  Ex.: (home)
-  "
-
+  Ex.: (home)"
   []
   (show)
   (pen-up)
   (set-heading 0)
   (set-position [0 0])
-  (pen-down))
-
+  (pen-down)
+  nil)
 
 
 (defn reset
@@ -635,10 +668,10 @@ Returns turtle instance"
   Ex.: (reset)"
   []
   (clear)
-  (set-speed 10)
-  (set-pen-color "black")
-  (home))
-
+  (set-speed 1)
+  (set-color "black")
+  (home)
+  nil)
 
 
 (defn sleep
@@ -678,16 +711,16 @@ Returns turtle instance"
 ;(eval frm)
 
 
-
 (defn -main [& _]
     (fx/later (turtle)))
 
 
 ;;; DEV ;;;
+
 ;(println "WARNING: Running george.application.turtle.turtle/-main" (-main))
 
 (defn run-sample
-  "A test program which uses most of the avilable turtle commands."
+  "A test program which uses most of the available turtle commands."
   []
   (reset)
   (println "heading:" (heading))
@@ -703,8 +736,8 @@ Returns turtle instance"
   (forward 30)
   (pen-down)
   (Thread/sleep 1000)
-  (set-pen-color "red")
-  (println "pen color:" (pen-color))
+  (set-color "red")
+  (println "pen color:" (color))
   (forward 30)
 
   (sleep 2000)
@@ -715,8 +748,7 @@ Returns turtle instance"
   (set-position [-75 -120])
   (left 90)
   ;(pen-down)
-
-  (set-pen-color Color/CORNFLOWERBLUE)
+  (set-color Color/CORNFLOWERBLUE)
   (rep 6
        (dotimes [_ 4]
          (forward 50) (left 90))
@@ -892,8 +924,10 @@ One might in future choose to save the 'initial directory' so as to return user 
    #'hide
    #'pen-up
    #'pen-down
+   #'speed
    #'set-speed
-   #'get-speed
+   #'color
+   #'set-color
    #'clear
    #'reset
 

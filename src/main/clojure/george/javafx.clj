@@ -823,7 +823,7 @@ It must return a string (which may be wrapped to fit the width of the list."
            :location nil ;[100 100]
            :size nil ;[200 200]
            :show true
-           :ontop false
+           :alwaysontop false
            :tofront false
            :resizable true
            :oncloserequest #()  ;; good for preventing closing (consume event)
@@ -835,7 +835,7 @@ It must return a string (which may be wrapped to fit the width of the list."
       (let [stg (doto (Stage. (stagestyle (:style kwargs)))
                     (.setTitle (:title kwargs))
                     (.setScene (:scene kwargs))
-                    (.setAlwaysOnTop (:ontop kwargs))
+                    (.setAlwaysOnTop (:alwaysontop kwargs))
                     (.setResizable (:resizable kwargs))
 
                     (setoncloserequest (:oncloserequest kwargs))
