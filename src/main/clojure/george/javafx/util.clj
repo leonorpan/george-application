@@ -19,7 +19,6 @@ If default-kwargs is supplies, then keywords not present in default will throw I
      (partition-args all-args nil))
 
   ([all-args default-kwargs]
-   ()
    (let [args (vec (take-while not-keyword? all-args))
          kwargs (apply hash-map (drop-while not-keyword? all-args))]
 

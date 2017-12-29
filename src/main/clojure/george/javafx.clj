@@ -70,8 +70,6 @@
          Duration]))
 
 
-
-
 (defn set-implicit-exit [b]
     (Platform/setImplicitExit false))
 
@@ -668,11 +666,14 @@ It must return a string (which may be wrapped to fit the width of the list."
       ta))
 
 
-(defn text
-    [s & {:keys [font]
-          :or {}}]
-    (doto (Text. s)
-        (.setFont font)))
+
+(defn text [s & {:keys [font size color]
+                   :or {size  12
+                        color Color/BLACK}}]
+  (doto (Text. s)
+    (.setFill color)
+    (.setFont (if font font (Font/font (double size))))))
+
 
 
 (defn insets* [[top right bottom left]]

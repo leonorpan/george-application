@@ -4,24 +4,31 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns no.andante.george.Main
+  (:require
+    [george.javafx :as fx]
+    [george.javafx.java :as fxj]
+    [george.application.launcher :as launcher])
+  (:import
+    [javafx.application Preloader$ProgressNotification])
 
   (:gen-class
     :main true
     :name no.andante.george.Main
     :extends javafx.application.Application
-    :implements [no.andante.george.IStageSharing])
-
-  (:require [george.application.launcher :as launcher]
-            [george.javafx.java :as fxj]
-            [george.javafx :as fx])
-  (:import (javafx.application Preloader$ProgressNotification)))
+    :implements [no.andante.george.IStageSharing]))
 
 
 (def WITH_PRELOADER_ARG "--with-preloader")
 
 (def state_ (atom {}))
 
-(defn -handover [this stage]
+
+(defn -handover
+  "Implements interface IStageSharing (via gen-class).
+  Is called by the preloader.
+  The preloader hands over a stage which is then passed on to launcher/start,
+  and where it is morphed into the main application window."
+  [this stage]
   ;(println "/-handover")
   (swap! state_ assoc :handover-done? true)
   (fxj/thread (launcher/start stage (:root @state_))))
@@ -35,7 +42,7 @@
       (Thread/sleep 50))
     (.notifyPreloader this (Preloader$ProgressNotification. 1.0)));
 
-  (let [root (launcher/launcher-root-node)]
+  (let [root (launcher/application-root)]
     (swap! state_ assoc :root root)))
 
 
@@ -44,7 +51,7 @@
   ;(println "  ## @state_:" @state_)
 
   (when-not (:handover-done? @state_)
-    (swap! state_ assoc :root (launcher/launcher-root-node))
+    (swap! state_ assoc :root (launcher/application-root))
     (-handover this (launcher/starting-stage stage))))
 
 

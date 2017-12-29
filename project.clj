@@ -1,5 +1,5 @@
 
-(defproject no.andante.george/george-application  "2018.0-b0-SNAPSHOT"
+(defproject no.andante.george/george-application  "2018.0-b1-SNAPSHOT"
 
   :description "George - Application"
   :url "https://bitbucket.org/andante-george/george-application"
@@ -40,6 +40,8 @@
                  [environ "1.1.0"]
                  ;; https://github.com/ztellman/potemkin
                  [potemkin "0.4.4"]]
+                 ;; https://github.com/alexander-yakushev/defprecated]
+                 ; [defprecated "0.1.3"] :exclusions [org.clojure/clojure]]
 
   :plugins [
             ;; https://github.com/weavejester/environ
@@ -64,6 +66,7 @@
 
   :main no.andante.george.Main
   :aot [no.andante.george.Main]
+
   :jvm-opts ["-Dapple.awt.graphics.UseQuartz=true"]  ;; should give crisper text on Mac
   :target-path "target/%s"
 

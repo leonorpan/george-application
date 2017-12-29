@@ -12,16 +12,19 @@
     [george.application.output :refer [oprint oprintln]]
     [george.util :as u]
     [george.code.codearea :as ca]
-    [environ.core :refer [env]])
+    [environ.core :refer [env]]
+    [george.application.eval :as eval])
 
   (:import [javafx.beans.property StringProperty]
-           [javafx.scene.control OverrunStyle]
+           [javafx.scene.control OverrunStyle Tab]
            [javafx.beans.value ChangeListener]
            (java.io File)))
 
 
 (defn load-from-file [file ns-str]
     ;(println "  ## load-from-file  ns:" ns-str)
+  (when (= ns-str "user.turtle")
+    (eval/ensure-ns-user-turtle))
   (binding [*ns* (create-ns (symbol ns-str))]
       ;(println "  ## *ns*:" *ns*)
       (println)
@@ -104,7 +107,7 @@
 
 
 (defn code-editor-pane [^StringProperty chrome-title & args]
-    (println " ## args:" args)
+    ;(println " ## args:" args)
     (let [
           default-kwargs {:file nil :library nil :namespace "user"}
           [_ kwargs] (fxu/partition-args args default-kwargs)
@@ -194,6 +197,48 @@
             (.addListener (codearea-changelistener save-chan file-meta file-label chrome-title)))
 
         [pane codearea load-fn open-file-fn save-file-as-fn save-file-fn]))
+
+
+
+
+
+(defn new-code-tab [& args]
+  (fx/now
+    (let [
+          ;scene
+          ;(doto
+          ;  (fx/scene (fx/group))  ;; temporary root
+          ;  (fx/add-stylesheets "styles/codearea.css"))
+
+          ;stage
+          ;(fx/stage
+          ;  :scene scene
+          ;  :title "<unsaved file>"
+          ;  :location [300 80]
+          ;  :size [800 600]
+          ;  :sizetoscene false)
+
+          tab
+          (Tab. "<unsaved file>")
+
+          [root codearea load-fn open-file-fn save-file-as-fn save-file-fn]
+          (apply code-editor-pane (cons (.textProperty tab) args))]
+
+      (doto root
+        (.setOnKeyPressed
+          (fx/key-pressed-handler {
+                                   #{:L :SHORTCUT} load-fn
+                                   #{:O :SHORTCUT} open-file-fn
+                                   #{:S :SHORTCUT :SHIFT} save-file-as-fn
+                                   #{:S :SHORTCUT} save-file-fn})))
+
+      ;(.setUserData stage {:codearea codearea})
+
+      (doto tab
+        (.setContent root)))))
+
+
+
 
 
 
