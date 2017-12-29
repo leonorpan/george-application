@@ -172,24 +172,33 @@
 
 
 (defn interrupt-sessions []
-  (let [sessions (client/sessions)]
-    (oprintln :system "Interrupt sessions ...")
-    (doseq [ses sessions]
-      (let [interupted? (client/interrupt ses)]
-        (oprint :system "  " ses "")
-        (if interupted?
-          (oprintln :system-em "Interrupted!")
-          (oprintln :system "Idle"))))))
+  (oprintln :system "Interrupt sessions ...")
+  (if-not (server/serving?)
+    (oprintln :system-em "  No server started!")
+    (let [sessions (client/sessions)]
+      (doseq [ses sessions]
+        (let [interupted? (client/interrupt ses)]
+          (oprint :system "  " ses "")
+          (if interupted?
+            (oprintln :system-em "Interrupted!")
+            (oprintln :system "Idle")))))))
 
 
 (defn recreate-session []
-  (interrupt-sessions)
-  (when (client/session?)
-    ;(client/interrupt)
-    ;(Thread/sleep 300)
-    (client/session-close!))
-  (let [id (client/session-create!)]
-    (oprintln :system "New default session" id)))
+  (if-not (server/serving?)
+    (do
+      (server/serve! 0)
+      (oprintln :system "New server on port" (server/port))
+      (let [id (client/session-create!)]
+        (oprintln :system "New default session" id)))
+    (do
+      (interrupt-sessions)
+      (when (client/session?)
+        ;(client/interrupt)
+        ;(Thread/sleep 300)
+        (client/session-close!))
+      (let [id (client/session-create!)]
+        (oprintln :system "New default session" id)))))
 
 
 (defn restart-server []
@@ -212,7 +221,7 @@
           "Clear"
           ;:width 150
           :onaction #(ca/set-text codearea "")
-          :tooltip (format "Clear output"))
+          :tooltip "Clear output")
 
         top-bar
         (fx/hbox
@@ -248,5 +257,4 @@
            :insets 5)]
 
     (setup-output codearea)
-
-    root))
+    [root clear-button]))

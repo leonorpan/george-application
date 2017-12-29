@@ -13,7 +13,8 @@
     [george.util.singleton :as singleton]
     [george.javafx :as fx]
     [george.javafx.java :as fxj]
-    [george.core.history :as hist])
+    [george.core.history :as hist]
+    [george.application.ui.layout :as layout])
   (:import
     [javafx.scene.control SplitPane Tab TabPane]
     [javafx.geometry Orientation]
@@ -24,7 +25,7 @@
 (def OIS_KW ::output-input-stage)
 
 
-(defn- input-tab []
+(defn input-tab []
   (let [nr (hist/next-repl-nr)
 
         [input-root _ on-close-fn]
@@ -36,45 +37,18 @@
               (on-close-fn))))))
 
 
-(defn- input-root []
-  (let [tab-pane
-        (doto
-          (TabPane. (fxj/vargs (input-tab))))
-
-        button-box
-        (fx/hbox
-          (fx/button "+" :tooltip "New Input tab"
-                     :onaction
-                     #(let [new-tab (input-tab)]
-                        (doto tab-pane
-                          (-> .getTabs (.add new-tab))
-                          (-> .getSelectionModel (.select new-tab))))))
-        a-pane
-        (doto
-          (AnchorPane. (fxj/vargs-t Node tab-pane button-box)))]
-    (AnchorPane/setTopAnchor button-box 3.0)
-    (AnchorPane/setRightAnchor button-box 5.0)
-
-    (AnchorPane/setTopAnchor tab-pane 0.0)
-    (AnchorPane/setRightAnchor tab-pane 40.0)
-    (AnchorPane/setLeftAnchor tab-pane 1.0)
-    (AnchorPane/setBottomAnchor tab-pane 1.0)
-
-    (doto a-pane
-      (.setMinHeight  2))))
-
-
 (defn output-input-root []
-  (let [o-root (output/output-root)
+  (let [[o-root clear-button] (output/output-root)
 
         split-pane
         (doto
           (SplitPane.
             (fxj/vargs-t Node
                          o-root
-                         (input-root)))
-
+                         (layout/tabpane "Inputs" "New Input" input-tab true)))
           (.setOrientation Orientation/VERTICAL))]
+
+    (.fire clear-button)
 
     split-pane))
 
