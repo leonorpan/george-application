@@ -13,7 +13,8 @@
     [george.application
      [environment :as ide]]
 
-    [george.application.turtle.turtle :as turtle])
+    [george.application.turtle.turtle :as turtle]
+    [george.application.ui.styled :as styled])
 
   (:import
     [javafx.animation Timeline]
@@ -59,22 +60,21 @@
     g))
 
 
-
-
 (defn label []
-  "Turtle Geometry IDE")
+  "Turtle Geometry")
 
 
 (defn description []
-  "Turtle Geometry
-IDE (Interactive Development Environment)")
+  "Turtle Geometry IDE
+(Interactive Development Environment)")
 
 
 (defn main []
   (ide/ide-root :turtle))
 
 (defn dispose []
-  (ide/ide-root-dispose :turtle))
+  (ide/ide-root-dispose :turtle)
+  (styled/heading (format "%s has been disposed of." (label))))
 
 
 (defn applet-info []

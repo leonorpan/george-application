@@ -25,7 +25,8 @@
 
     'main' - a 0-arg function which starts the applet. Called when launcher button is pressed. If it returns a ^javafx.scene.Node, then that node is inserted into the \"detail\" section of the application window.
 
-    'dispose' - a 0-arg fuction called before an applet is unloaded. This should handle saves, dereferencing singletons, etc.
+    'dispose' - a 0-arg fuction called before an applet is unloaded. This should handle saves, de-referencing singletons, etc.
+              As with 'main', if an instance of javafx.scene.Node is returned, then that will be displayed.
    "}
   AppletInfo [^Symbol label ^Symbol description ^Symbol icon ^Symbol main ^Symbol dispose])
 

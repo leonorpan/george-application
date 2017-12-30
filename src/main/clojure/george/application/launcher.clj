@@ -12,19 +12,21 @@
 
     [environ.core :refer [env]]
 
-    [george.javafx :as fx]
-    [george.applet :as applet]
+    [george
+     [javafx :as fx]
+     [applet :as applet]]
+
+    [george.javafx.java :as fxj]
 
     [george.application.ui
      [stage :as ui-stage]
      [layout :as layout]
-     [styled :refer [hr padding]]]
+     [styled :as styled :refer [hr padding]]]
 
     [george.util.singleton :as singleton]
     [george.application.repl-server :as repl-server]
 
-    [g]
-    [george.application.ui.styled :as styled])
+    [g])
 
   (:import
     [javafx.scene.image ImageView Image]
@@ -32,7 +34,7 @@
     [javafx.geometry Rectangle2D]
     [javafx.stage Stage]
     [javafx.application Platform]
-    [javafx.scene.control Hyperlink Button]
+    [javafx.scene.control Hyperlink Button MenuItem ContextMenu]
     [javafx.beans.property SimpleDoubleProperty]
     [javafx.scene.layout Pane VBox]
     [javafx.scene.text TextAlignment]))
@@ -64,8 +66,8 @@ Powered by open source software.
              (env :java-version)))
         link
         (doto (Hyperlink. "www.george.andante.no")
-          (.setStyle "-fx-border-color: transparent;-fx-padding: 10 0 10 0;-fx-text-fill:#337ab7;")
-          (.setOnAction (fx/event-handler (browse-url "http://www.george.andante.no"))))]
+              (.setStyle "-fx-border-color: transparent; -fx-padding: 10 0 10 0; -fx-text-fill:#337ab7;")
+              (.setOnAction (fx/event-handler (browse-url "http://www.george.andante.no"))))]
       (fx/stage
          :style :utility
          :sizetoscene true
@@ -77,7 +79,7 @@ Powered by open source software.
                     text
                     link
                     :padding 10
-                    :background (fx/color-background Color/WHITE))))))
+                    :background fx/WHITE)))))
 
 
 (defn- about-stage []
@@ -86,7 +88,7 @@ Powered by open source software.
     (singleton/get-or-create ABOUT_STAGE_KW about-stage-create)))
 
 
-(def tile-width 64)
+(def tile-width 48)
 
 (def launcher-width (+ ^int tile-width 20))
 
@@ -107,26 +109,43 @@ Powered by open source software.
 
 (defn- launcher-applet-tile
   "Builds a 'tile' (a parent) containing a labeled button (for the launcher)."
-  [applet-info width main-wrapper]
+  [applet-info tile-width main-wrapper]
   ;(println app-info)
   ;(pprint app-info)
   ;(println ":icon-fn:" (:icon-fn app-info) (type (:icon-fn app-info)))
   (let [
-        w (- width 8)
-        iw (- w 10)
+        {:keys [label description icon main dispose]} applet-info
+        arc 6
+        label-font-size 10
+        button-width (- tile-width (* 2 arc))
+        icon-width button-width
+        dispose-fn
+        (fn []
+          (main-wrapper
+            #(let [res (dispose)]
+               (if (fx/node? res)
+                   res
+                   (styled/heading (format "'%s' unloaded" (label)))))))
+
         tile
         (fx/vbox
-          (doto (Button. nil ((:icon applet-info) iw iw))
-                (fx/set-tooltip ((:description applet-info)))
-                (fx/set-onaction #(main-wrapper (:main applet-info)))
-                (.setPrefWidth w)
-                (.setPrefHeight w)
-                (.setStyle "-fx-background-radius: 8;"))
-          (doto (fx/label ((:label applet-info)))
-                (.setStyle "-fx-font-size: 12px;")
-                (.setMaxWidth w)
+
+          (doto (Button. nil (icon icon-width icon-width))
+            (fx/set-tooltip (description))
+            (fx/set-onaction #(main-wrapper main))
+            (.setPrefWidth button-width)
+            (.setPrefHeight button-width)
+            (.setStyle (format "-fx-background-radius: %s;" arc))
+            (.setContextMenu
+              (ContextMenu. (fxj/vargs
+                              (doto (MenuItem. "Unload (dispose of) this applet")
+                                    (fx/set-onaction dispose-fn))))))
+          (doto (fx/label (label))
+                (.setStyle (format "-fx-font-size: %spx;" label-font-size))
+                (.setMaxWidth tile-width)
                 (.setWrapText true)
                 (.setTextAlignment TextAlignment/CENTER))
+
           :alignment fx/Pos_CENTER
           :spacing 5)]
     tile))
@@ -135,16 +154,21 @@ Powered by open source software.
 (defn- launcher-root
   "The Launcher root node.  Was previously the sole content of Launcher.
   Is now inserted as \"master\" in the master-detail setup of the application window."
-  [details-setter]  ;; a 1-arg fn. If arg is ^javafx.scene.Node, then that node gets set as "detail" in application window.
+  [detail-setter]  ;; a 1-arg fn. If arg is ^javafx.scene.Node, then that node gets set as "detail" in application window.
   (let [
+        welcome-node
+        (styled/heading "Welcome to George" :size 24)
 
         main-wrapper ;; a function which calls the applet-fn, and passes the return-value to details-setter
-        #(details-setter (let [] (%)))
+        #(detail-setter (when % (%)))
 
         george-icon
         (doto (ImageView. (Image. "graphics/George_icon_128_round.png"))
           (.setFitWidth tile-width)
-          (.setFitHeight tile-width))
+          (.setFitHeight tile-width)
+          (.setOnMouseClicked (fx/event-handler
+                                (detail-setter
+                                  (styled/heading "George" :size 24)))))
 
         about-label
         (doto
@@ -158,7 +182,7 @@ Powered by open source software.
         applet-tiles-and-paddings
         (flatten
           (map #(vector
-                  (padding 30)
+                  (padding 20)
                   (launcher-applet-tile % tile-width main-wrapper))
                applet-infos))
 
@@ -191,6 +215,9 @@ Powered by open source software.
     (doto root
       (.setMaxWidth launcher-width)
       (.setMaxHeight launcher-height))
+
+    (detail-setter welcome-node)
+
     [root dispose-fn]))
 
 
@@ -293,7 +320,6 @@ Powered by open source software.
   (let [[master-detail-root master-setter detail-setter] (layout/master-detail)
         [l-root dispose-fn] (launcher-root detail-setter)]
     (master-setter l-root)
-    (detail-setter (styled/heading "Welcome to George" :size 24))
     [master-detail-root dispose-fn]))
 
 
