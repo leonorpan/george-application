@@ -588,6 +588,9 @@ It must return a string (which may be wrapped to fit the width of the list."
              (.setStrokeWidth (:strokewidth kwargs)))))
 
 
+(defn node? [item]
+  (instance? Node item))
+
 (defn rectangle [& args]
     (let [default-kwargs
           {:location [0 0]
@@ -715,7 +718,7 @@ It must return a string (which may be wrapped to fit the width of the list."
               (.setStyle (format "-fx-padding: %s %s;" (:padding kwargs) (:padding kwargs))))]
 
       (when-let [b (:background kwargs)]
-          (.setBackground box b))
+          (set-background box b))
 
       box))
 
