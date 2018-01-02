@@ -14,6 +14,10 @@ If you simply want to run George, it will be much quicker and easier for you to 
 [Get George for Windows / Mac / Java](http://www.george.andante.no).
 
 
+
+![George 2018.0](images/George_2018.1.png)
+
+
 ## Develop and contribute
 
 We would love your help developing George.
@@ -26,7 +30,7 @@ To learn more about how to download and run the source, develop, contribute, and
 ## License
 
 
-Copyright © 2016-2017 Terje Dahl
+Copyright © 2016-2018 Terje Dahl
 
 Distributed under the [Eclipse Public License 1.0](https://opensource.org/licenses/eclipse-1.0.php).
 
