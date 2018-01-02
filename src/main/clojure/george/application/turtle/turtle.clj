@@ -346,10 +346,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                 (fx/stage
                         :title "Turtle Screen"
                         :scene (doto
-                                 (fx/scene root :size [w h] :fill fx/WHITESMOKE)
+                                 (fx/scene root :size [w h] :fill fx/WHITE)
                                  (.setOnContextMenuRequested cm-handler))
                         :resizable true
-                        :location [90 100]
+                        ;:location [90 100]
                         :tofront true
                         :alwaysontop true
                         :onhidden #(reset! screen-and-turtle-singleton nil))]

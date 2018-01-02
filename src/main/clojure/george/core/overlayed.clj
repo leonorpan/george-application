@@ -11,10 +11,10 @@
 
     [george.javafx.java :as fxj])
 
-
-  (:import (javafx.scene.layout StackPane)
-           (javafx.scene Node)
-           (javafx.scene.control TextField)))
+  (:import
+    [javafx.scene.layout StackPane]
+    [javafx.scene Node]
+    [javafx.scene.control TextField]))
 
 
 (defn- the-root []
@@ -28,16 +28,18 @@ asølkdfja sfd"
         a-button
         (doto
           (fx/button "Click" :onaction #(println "Click"))
-          (.setFont(fx/SourceCodePro "BOLD" 20)))
+          ;(.setFont (fx/SourceCodePro "BOLD" 20)))
+          (fx/set-font "Source Code Pro Medium" 20))
 
         a-textfield
         (doto (TextField. "")
-          (.setFont(fx/SourceCodePro "BOLD" 20)))
+          ;(.setFont(fx/SourceCodePro "BOLD" 20))
+          (fx/set-font "Source Code Pro Medium" 20))
 
         a-textarea
         (doto
           (fx/textarea :text some-text
-                       :font (fx/SourceCodePro "Regular" 14))
+                       :font (fx/new-font "Source Code Pro" 14)) ;(fx/SourceCodePro "Regular" 14))
           (.setStyle "my-text-area-background: transparent;")
           (.setMouseTransparent true))
 
@@ -50,8 +52,6 @@ asølkdfja sfd"
                          a-button)
 
                        a-textarea))]
-
-
     pane))
 
 

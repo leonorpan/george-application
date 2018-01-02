@@ -96,16 +96,12 @@
           (if (< i 0)
             ""
             (if (= (count items) (count items-global))
-              "; No more 'global' history.\n"
-              "; No more 'local' history.
-; To access 'global' history use:
-;    SHIFT-click.\n")))]
+              ";; No more global history."
+              ";; No more local history.\n;; To access global history use SHIFT-CLICK.")))]
+
 
     (reset! current-history-index-atom i)
     (doto code-area
-      ;(.replaceText content)
       (ed/set-text content))))
-      ;(.selectRange 0 0)
-      ;(.setStyleSpans 0 (compute-highlighting content))
 
 

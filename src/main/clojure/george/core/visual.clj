@@ -18,7 +18,8 @@
            (javafx.scene.transform Translate Rotate)
            (javafx.scene.paint Color PhongMaterial)
            (javafx.scene.shape Sphere)
-           (javafx.geometry Point3D)))
+           (javafx.geometry Point3D)
+           (javafx.scene.text Font)))
 
 
 
@@ -32,7 +33,7 @@
     (let [
           pane
           (fx/borderpane
-              :center (fx/textarea :font (fx/SourceCodePro "Regular" 16))
+              :center (fx/textarea :font (fx/new-font "Source Code Pro Medium" 16))
               :bottom (fx/button "Do" :onaction #(println "do")))]
 
         (doto pane

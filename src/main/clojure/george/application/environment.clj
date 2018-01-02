@@ -7,21 +7,32 @@
   george.application.environment
   (:require
     [clojure.string :as cs]
+
     [george.javafx :as fx]
-    [george.application.turtle.turtle :as tr]
-    [george.application
-     [input :as input]
-     [output-input :as oi]]
-    [george.util.singleton :as singleton]
-    [george.application.code :as code]
     [george.javafx.java :as fxj]
-    [george.application.launcher :as launcher]
-    [george.application.ui.layout :as layout]
-    [george.application.ui.styled :as styled])
-  (:import (javafx.scene Node)
-           (javafx.scene.layout Pane)
-           (javafx.scene.control SplitPane)
-           (javafx.geometry Orientation)))
+    [george.util.singleton :as singleton]
+
+    [george.application.turtle.turtle :as tr]
+
+    [george.application
+     [output-input :as oi]
+     [editor :as editor]
+     [launcher :as launcher]]
+
+    [george.application.ui
+       [layout :as layout]
+       [styled :as styled]])
+
+  (:import
+    [javafx.scene Node]
+    [javafx.scene.control SplitPane]
+    [javafx.geometry Orientation]
+    [javafx.stage Stage]))
+
+
+;(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* true)
 
 
 (def ide-types #{:ide :turtle})
@@ -63,8 +74,8 @@
        (fx/now
          (fx/stage
            :title "Turtle commands"
-           :location [(- (first screen-WH) (first stage-WH) 10)
-                      (- (second screen-WH) (second stage-WH) 10)]
+           :location [(- ^int (first screen-WH) ^int (first stage-WH) 10)
+                      (- ^int (second screen-WH) ^int (second stage-WH) 10)]
            :sizetoscene false
            :tofront true
            :onhidden #(singleton/remove ::commands-stage)
@@ -73,38 +84,19 @@
            :scene (fx/scene (turtle-commands-root))))))
 
 
-
 (defn- turtle-commands-stage []
   (singleton/get-or-create
     ::commands-stage turtle-commands-stage-create))
 
 
-(defn- toolbar-pane [is-turtle]
-
-   (let [
-         ;button-width
-         ;150
-
-         ;user-ns-str
-         ;(if is-turtle "user.turtle" "user")
-
-         ;pane
-         ;(fx/hbox
-         ;  (fx/button "Code"
-         ;             :width button-width
-         ;             :onaction #(code/new-code-stage :namespace user-ns-str)
-         ;             :tooltip "Open a new code editor")
-
-         pane
-         (fx/hbox
-           (styled/heading "Turtle Geometry IDE" :size 20)
-           :spacing 10
-           :padding 10)]
-     pane))
+(defn- toolbar-pane [turtle?]
+  (fx/hbox
+    (styled/heading "Turtle Geometry IDE" :size 20)
+    :spacing 10
+    :padding 10))
 
 
-
-(def xy [(+ (launcher/xyxy 2) 5) (launcher/xyxy 1)])
+(def xy [(+ ^int (launcher/xyxy 2) 5) (launcher/xyxy 1)])
 
 
 (defn- create-toolbar-stage [ide-type]
@@ -121,7 +113,7 @@
 
 
 (defn toolbar-stage [ide-type]
-  (doto
+  (doto ^Stage
     (singleton/get-or-create [::toolbar-stage ide-type]
                              #(create-toolbar-stage ide-type))
     (.toFront)))
@@ -136,25 +128,30 @@
         (if (= ide-type :turtle) "user.turtle" "user")
 
         left
-        (layout/tabpane "Editors" "New editor" #(code/new-code-tab :namespace user-ns-str) false)
+        (doto
+          (editor/new-tabbed-editor-root :ns user-ns-str))
 
-        oi-root
-        (oi/output-input-root)
+        oi-root ^SplitPane
+        (doto
+          (oi/output-input-root :ns user-ns-str)
+          (.setStyle "-fx-box-border: transparent;"))
 
-        right
+        right ^SplitPane
         (doto
           (SplitPane. (fxj/vargs-t Node (turtle-commands-root) oi-root))
-          (.setOrientation Orientation/VERTICAL))
+          (.setOrientation Orientation/VERTICAL)
+          (.setStyle "-fx-box-border: transparent;"))
 
         root
         (doto
           (SplitPane. (fxj/vargs-t Node left right))
-          (.setDividerPosition 0 0.6))]
+          (.setDividerPosition 0 0.5)
+          (.setStyle "-fx-box-border: transparent;"))]
 
     ;; TODO: Implement general ratio function for height of total height
     ;; TODO: Calculate height based on application stage or passed-in dim.
     (.setDividerPosition right 0 0.2)
-    (.setDividerPosition oi-root 0 0.6)
+    (.setDividerPosition oi-root 0 0.58)
     ;; TODO: Ensure input gets focus!
     ;; TODO: Nicer SplitPane dividers!  See
     root))
@@ -163,9 +160,10 @@
 (defn- ide-root-create [ide-type]
   (assert (ide-types ide-type))
   (let [[root master-setter detail-setter] (layout/master-detail true)]
-    (master-setter (toolbar-pane ide-type))
+    (master-setter (doto (toolbar-pane ide-type)
+                         (.setBorder (styled/new-border [0 0 1 0]))))
     (detail-setter (main-root ide-type))
-    root))
+    (doto root (.setBorder (styled/new-border [0 0 0 1])))))
 
 
 (defn ide-root [ide-type]
@@ -176,6 +174,7 @@
 (defn ide-root-dispose [ide-type]
   (assert (ide-types ide-type))
   (singleton/remove [::ide-root ide-type]))
+
 
 ;;;; main ;;;;
 
@@ -188,6 +187,8 @@
     (fx/later (toolbar-stage ide-type))
     (fx/text "ide/main called")))
 
+
 ;;; DEV ;;;
+
 
 ;(println "WARNING: Running george.application.turtle.environment/-main" (-main :turtle))

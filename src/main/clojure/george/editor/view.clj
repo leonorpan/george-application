@@ -14,7 +14,7 @@
     [george.util.text :as ut])
 
   (:import (org.fxmisc.flowless Cell VirtualFlow)
-           (javafx.scene.text Text)
+           (javafx.scene.text Text Font)
            (javafx.scene.layout Region StackPane Pane)
            (javafx.geometry Pos Insets BoundingBox Bounds)
            (javafx.scene Node Group Parent)
@@ -24,12 +24,12 @@
 
 
 ;(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
-(def ^:const DEFAULT_FONT_SIZE 18)
-(def DEFAULT_FONT (fx/SourceCodePro "medium" DEFAULT_FONT_SIZE))
+(def ^:const DEFAULT_FONT_SIZE 16)
+(def DEFAULT_FONT (fx/new-font "Source Code Pro Medium" DEFAULT_FONT_SIZE))
 
 (def ^:const DEFAULT_LINE_HEIGHT 28.0)
 (def DEFAULT_LINE_INSETS (fx/insets 0.0, 24.0, 0.0, 12.0))
@@ -77,9 +77,9 @@
 
 (def DEFAULT_GUTTER_INSETS (fx/insets 0.0, 14.0, 0.0, 14.0))
 (def DEFAULT_GUTTER_TEXT_FILL (fx/web-color "#999"))
-(def DEFAULT_GUTTER_FONT (fx/SourceCodePro "medium" 14))
+(def DEFAULT_GUTTER_FONT (fx/new-font "Source Code Pro" 14))
 (def DEFAULT_GUTTER_BACKGROUND (fx/color-background DEFAULT_LINE_BACKGROUND_COLOR));(fx/web-color "#ddd")))
-(def DEFAULT_GUTTER_BORDER (fx/make-border DEFAULT_CURRENT_LINE_BORDER_COLOR [0 1 0 0]))
+(def DEFAULT_GUTTER_BORDER (fx/new-border DEFAULT_CURRENT_LINE_BORDER_COLOR [0 1 0 0]))
 
 
 (defn- ^Node selection-background-factory [^double w ^double h c]
@@ -287,7 +287,7 @@
                       (fx/set-translate-XY [x y])
                       (fx/set-background background)
                       (.setBorder
-                        (fx/make-border
+                        (fx/new-border
                           (DEFAULT_BLOCK_BORDERS (mod i DBCC)) ;; color
                           [(if first? b 0) b (if last? b 0) b] ;; widths
                           corner-radii)))]
@@ -329,11 +329,11 @@
 (defn- highlight-row [^StackPane pane current-row?]
   (if current-row?
     (doto pane
-      (.setBorder (fx/make-border  DEFAULT_CURRENT_LINE_BORDER_COLOR [1 0 1 0]))
+      (.setBorder (fx/new-border  DEFAULT_CURRENT_LINE_BORDER_COLOR [1 0 1 0]))
       (.setBackground (fx/color-background DEFAULT_CURRENT_LINE_BACKGROUND_COLOR))
       (.setMaxHeight (dec DEFAULT_LINE_HEIGHT)))
     (doto pane
-      (.setBorder (fx/make-border  DEFAULT_LINE_BACKGROUND_COLOR [1 0 1 0]))
+      (.setBorder (fx/new-border  DEFAULT_LINE_BACKGROUND_COLOR [1 0 1 0]))
       (fx/set-background DEFAULT_LINE_BACKGROUND_COLOR)
       (.setMaxHeight (dec DEFAULT_LINE_HEIGHT)))))
 

@@ -20,14 +20,14 @@
     [george.editor.state :as st]
     [george.editor.formatters.defs :as defs]
     [george.editor.buffer :as b]
-    [george.util :as u]
     [george.util.text :as ut])
 
-  (:import (javax.script ScriptEngineManager)
-           (jdk.nashorn.api.scripting ScriptObjectMirror NashornScriptEngine)))
+  (:import
+    [javax.script ScriptEngineManager]
+    [jdk.nashorn.api.scripting ScriptObjectMirror NashornScriptEngine]))
 
 
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 

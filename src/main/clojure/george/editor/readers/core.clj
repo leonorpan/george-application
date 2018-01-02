@@ -5,7 +5,7 @@
     [george.util.text :as ut]))
 
 
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 

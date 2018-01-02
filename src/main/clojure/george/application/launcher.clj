@@ -30,7 +30,6 @@
 
   (:import
     [javafx.scene.image ImageView Image]
-    [javafx.scene.paint Color]
     [javafx.geometry Rectangle2D]
     [javafx.stage Stage]
     [javafx.application Platform]
@@ -43,6 +42,7 @@
 ;(set! *warn-on-reflection* true)
 ;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
+
 
 (def about-tmpl "
 George version: %s
@@ -104,10 +104,7 @@ Powered by open source software.
 (def launcher-height (- ^int (xyxy 3) ^int (xyxy 1)))
 
 
-
-;; TODO: sort out sizes for applet-tiles et al
-
-(defn- launcher-applet-tile
+(defn- applet-tile
   "Builds a 'tile' (a parent) containing a labeled button (for the launcher)."
   [applet-info tile-width main-wrapper]
   ;(println app-info)
@@ -117,7 +114,7 @@ Powered by open source software.
         {:keys [label description icon main dispose]} applet-info
         arc 6
         label-font-size 10
-        button-width (- tile-width (* 2 arc))
+        button-width (- ^int tile-width (* 2 arc))
         icon-width button-width
         dispose-fn
         (fn []
@@ -136,12 +133,13 @@ Powered by open source software.
             (.setPrefWidth button-width)
             (.setPrefHeight button-width)
             (.setStyle (format "-fx-background-radius: %s;" arc))
+            (.setFocusTraversable false)
             (.setContextMenu
               (ContextMenu. (fxj/vargs
-                              (doto (MenuItem. "Unload (dispose of) this applet")
+                              (doto (MenuItem. (format "Dispose of (quit) '%s'" (label)))
                                     (fx/set-onaction dispose-fn))))))
           (doto (fx/label (label))
-                (.setStyle (format "-fx-font-size: %spx;" label-font-size))
+                (.setStyle (format "-fx-font-size: %s;" label-font-size))
                 (.setMaxWidth tile-width)
                 (.setWrapText true)
                 (.setTextAlignment TextAlignment/CENTER))
@@ -163,18 +161,17 @@ Powered by open source software.
         #(detail-setter (when % (%)))
 
         george-icon
-        (doto (ImageView. (Image. "graphics/George_icon_128_round.png"))
-          (.setFitWidth tile-width)
-          (.setFitHeight tile-width)
-          (.setOnMouseClicked (fx/event-handler
-                                (detail-setter
-                                  (styled/heading "George" :size 24)))))
+        (doto (fx/label nil (doto (fx/imageview "graphics/George_icon_128_round.png")
+                                  (.setFitWidth tile-width)
+                                  (.setFitHeight tile-width)))
+          (fx/set-tooltip "\"home\"")
+          (fx/set-onmouseclicked #(detail-setter (styled/heading "George" :size 24))))
 
         about-label
         (doto
           (fx/label "About")
           (.setStyle "-fx-font-size: 10px;")
-          (.setOnMouseClicked (fx/event-handler (about-stage))))
+          (fx/set-onmouseclicked about-stage))
 
         applet-infos
         (applet/load-applets)
@@ -183,7 +180,7 @@ Powered by open source software.
         (flatten
           (map #(vector
                   (padding 20)
-                  (launcher-applet-tile % tile-width main-wrapper))
+                  (applet-tile % tile-width main-wrapper))
                applet-infos))
 
         root ^VBox
@@ -232,21 +229,21 @@ Powered by open source software.
                (str "Do you want to quit George?"
                     (when repl? "\n\n(You are running from a repl.\n'Quit' will not exit the JVM instance.)"))
                :title "Quit?"
-               :options [(str "Quit")]
+               :options ["Quit"]  ;; quit is button-index 0
                :owner application-stage
                :mode nil
                :cancel-option? true))
            exit? (= 0 button-index)]
 
-          (if exit?
+          (if-not exit?
+            (.consume e) ;; do nothing
             (do (repl-server/stop!)
                 (dispose-fn)
                 (println "Bye for now!" (if repl? " ... NOT" ""))
                 (Thread/sleep 300)
                 (when-not repl?
                   (fx/now (Platform/exit))
-                  (System/exit 0)))
-            (.consume e))))) ;; do nothing
+                  (System/exit 0)))))))
 
 
 (defn- double-property [init-value value-change-fn]
@@ -255,6 +252,14 @@ Powered by open source software.
       (fx/changelistener
         [_ _ _ new-val]
         (value-change-fn new-val)))))
+
+
+;; TODO: we really need some sort of global application state!
+(defonce current-application-stage_ (atom nil))
+(defn set-current-application-stage [stage]
+  (reset! current-application-stage_ stage))
+(defn current-application-stage []
+   @current-application-stage_)
 
 
 (defn- morphe-launcher-stage [^Stage stage ^Pane application-root [x y w h :as target-bounds]]
@@ -281,20 +286,13 @@ Powered by open source software.
     ;; Fade in Launcher root
     (ui-stage/swap-with-fades stage root-node true 400)
 
-    ;(.setOnKeyPressed (.getScene stage)
-    ;                  (fx/key-pressed-handler
-    ;                    {#{:ALT :Q}
-    ;                     #(do
-    ;                        (repl-server/stop!)
-    ;                        (.hide stage))}))
-
     (fx/later
-         ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
-        (doto stage
-          (.setTitle "George")
-          (.setResizable true)
-          (fx/setoncloserequest (application-close-handler stage dispose-fn))))))
-
+      ;; TODO: prevent fullscreen.  Where does the window go after fullscreen?!?
+      (doto stage
+        (.setTitle "George")
+        (.setResizable true)
+        (set-current-application-stage)
+        (fx/setoncloserequest (application-close-handler stage dispose-fn))))))
 
 
 (defn starting-stage
@@ -305,14 +303,12 @@ Powered by open source software.
     (if stage
         (doto stage
           (.setTitle "Loading ...")
-          (.setScene (fx/scene (ui-stage/scene-root-with-child)
-                               :size [240 80]))
+          (.setScene (fx/scene (ui-stage/scene-root-with-child) :size [240 80]))
           (.centerOnScreen)
           (.show)
           (.toFront))
 
         (starting-stage (fx/stage)))))
-
 
 
 (defn application-root
@@ -330,8 +326,10 @@ Powered by open source software.
   ([stage]
    (start stage (application-root)))
   ([stage root]
-   (morphe-launcher-stage stage root [0 0 1280 720])))
-
+   (morphe-launcher-stage
+     (styled/style-stage stage)
+     root
+     [0 0 1280 720])))
 
 
 (defn -main

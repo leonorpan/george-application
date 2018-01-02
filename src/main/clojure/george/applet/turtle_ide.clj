@@ -74,7 +74,7 @@
 
 (defn dispose []
   (ide/ide-root-dispose :turtle)
-  (styled/heading (format "%s has been disposed of." (label))))
+  (styled/heading (format "%s has been disposed" (label))))
 
 
 (defn applet-info []

@@ -16,7 +16,7 @@
 
 /* control the labels of the line number factory function */
 .lineno {
-    -fx-font-family: "Source Code Pro Medium";
+    -fx-font-family: "Source Code Pro";
     -fx-font-size: 12;
     -fx-text-fill: #aaa;
     -fx-background-color: whitesmoke; /* transparent whitesmoke*/

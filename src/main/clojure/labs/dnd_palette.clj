@@ -103,10 +103,11 @@
           (.setCursor node Cursor/DEFAULT)
           (.consume me))))))
 
+
 (defn- canvas-scene []
   (let [pane
         (doto (FlowPane. 20. 20.)
-            (.setBorder (fx/make-border Color/TRANSPARENT 20.))
+            (.setBorder (fx/new-border Color/TRANSPARENT 20.))
             (make-dropspot))]
     (Scene. pane 600 800)))
 

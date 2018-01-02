@@ -12,40 +12,21 @@
      [launcher :as launcher]]
     [george.util.singleton :as singleton]
     [george.javafx :as fx]
-    [george.javafx.java :as fxj]
-    [george.core.history :as hist]
-    [george.application.ui.layout :as layout])
+    [george.javafx.java :as fxj])
   (:import
-    [javafx.scene.control SplitPane Tab TabPane]
+    [javafx.scene.control SplitPane]
     [javafx.geometry Orientation]
-    [javafx.scene Node]
-    [javafx.scene.layout AnchorPane]))
+    [javafx.scene Node]))
 
 
 (def OIS_KW ::output-input-stage)
 
 
-(defn input-tab []
-  (let [nr (hist/next-repl-nr)
-
-        [input-root _ on-close-fn]
-        (input/input-root "user.turtle" (format "\"Input %s\"" nr))]
-
-    (doto (Tab. (format "Input %s " nr) input-root)
-          (.setOnCloseRequest
-            (fx/event-handler
-              (on-close-fn))))))
-
-
-(defn output-input-root []
+(defn output-input-root [& {:keys [ns]}]
   (let [[o-root clear-button] (output/output-root)
-
+        inputs-root (input/new-tabbed-input-root :ns ns)
         split-pane
-        (doto
-          (SplitPane.
-            (fxj/vargs-t Node
-                         o-root
-                         (layout/tabpane "Inputs" "New Input" input-tab true)))
+        (doto (SplitPane. (fxj/vargs-t Node o-root inputs-root))
           (.setOrientation Orientation/VERTICAL))]
 
     (.fire clear-button)
@@ -78,7 +59,7 @@
           h (wh 1)
           out-h (- h in-h)
           div-pos (/ out-h h)]
-      (.setDividerPosition oi-root 0 div-pos) ;; must be called after stage is created
+      (.setDividerPosition oi-root 0 div-pos)               ;; must be called after stage is created
       stage)))
 
 

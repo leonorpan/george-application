@@ -21,10 +21,10 @@
 
 
 ;; primitive math is faster
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* :warn-on-boxed)
 
 ;; avoiding reflection is A LOT faster!
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 
 
 

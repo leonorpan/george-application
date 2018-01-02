@@ -65,10 +65,10 @@
   [shared-key & [throw-exception?]]
   (let [ns (str *ns*)]
     (fxj/thread
-      (let [r (slurp-shared shared-key throw-exception?)
-            [_ code-area] (input/new-input-stage ns)]
-        (fx/later
-          (george.editor.core/set-text code-area (if r r (format shared-error-message-f shared-key)))))))
+      (let [r   (slurp-shared shared-key throw-exception?)
+            is  (input/new-input-stage ns)])))
+        ;(fx/later
+        ;  (george.editor.core/set-text code-area (if r r (format shared-error-message-f shared-key)))))))
   nil)
 
 

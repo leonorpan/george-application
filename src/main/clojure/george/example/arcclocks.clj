@@ -22,7 +22,7 @@
 ;(set! *unchecked-math* :warn-on-boxed)
 
 ;; avoiding reflection can make your code A LOT faster and animations smoother!
-(set! *warn-on-reflection* true)
+;(set! *warn-on-reflection* true)
 
 
 (def BLUE1 (Color/rgb 126, 166, 212, 0.6))
@@ -33,8 +33,8 @@
 (def DIAMETER (int  200))
 (def SPACE 20)
 
-(def ^Font Calibri40 (Font/font "Calibri" 40))
-(def ^Font Calibri20 (Font/font "Calibri" 20))
+(def ^Font Calibri40 (fx/new-font "Calibri" 40))
+(def ^Font Calibri20 (fx/new-font "Calibri" 20))
 
 (def MILLION 1000000)
 (def ^SimpleDateFormat DATE_FORMAT (SimpleDateFormat. "yyyyMMddkkmmssX"))

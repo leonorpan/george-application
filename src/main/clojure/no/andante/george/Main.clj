@@ -5,7 +5,6 @@
 
 (ns no.andante.george.Main
   (:require
-    [george.javafx :as fx]
     [george.javafx.java :as fxj]
     [george.application.launcher :as launcher])
   (:import

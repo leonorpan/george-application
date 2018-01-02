@@ -51,7 +51,9 @@
 (defn- exception-dialog [header message details]
   ;; http://code.makery.ch/blog/javafx-dialogs-official/
   (let [textarea
-        (doto ^TextArea (fx/textarea :text details :font (fx/SourceCodePro "Regular" 12))
+        (doto ^TextArea
+              (fx/textarea :text details
+                           :font (fx/new-font "Source Code Pro" 12))
           (.setEditable false)
           (.setWrapText false)
           (.setMaxWidth Double/MAX_VALUE)
@@ -174,22 +176,22 @@
 
 (defn- line-column-read [F ^LineNumberingPushbackReader rdr]
   (consume-leading-whitespace rdr)
-  (let [lin (.getLineNumber rdr)
-        col (.getColumnNumber rdr)]
+  (let [R (.getLineNumber rdr)
+        C (.getColumnNumber rdr)]
     (try
-      [lin col (read rdr false nil)]
+      [R C (read rdr false nil)]
       (catch Throwable e
-        (process-error e F lin col)))))
+        (process-error e F R C)))))
 
 
-(defn- eval-one [rd ns eval-id lin col file-name update-ns-fn]
+(defn- eval-one [rd ns eval-id R C file-name update-ns-fn]
   (repl/def-eval
     {:code (str rd)
      :ns ns
      :session (repl/session-ensure! true)
      :id eval-id
-     :line lin
-     :column col
+     :line R
+     :column C
      :file file-name}
     (loop [responses response-seq
            current-ns ns]
@@ -200,22 +202,25 @@
               (recur (rest responses) new-ns))
             (do
               (repl/interrupt-eval (:session response) eval-id)
-              (process-error nil file-name lin col)
+              (process-error nil file-name R C)
               false))) ;; it did not go OK.  :-(
         true)))) ;; Everything went OK  :-)
 
 
-(defn read-eval-print-in-ns
-  "returns nil"
-  [^String code ^String ns eval-id ^String file-name update-ns-fn]
+(defn maybe-ensure-user-ns [ns]
   (when (= ns "user.turtle")
     (when (ensure-ns-user-turtle)
-      (oprintln :system "ns user.turtle prepared")))
+      (oprintln :system "user.turtle"))))
+
+
+(defn read-eval-print-in-ns
+  "returns nil"
+  [^String code ^String ns-str eval-id ^String file-name update-ns-fn]
+  (maybe-ensure-user-ns ns-str)
   (oprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
   (let [rdr (george.code.tokenizer/indexing-pushback-stringreader code)]
-    (loop [[lin col rd :as LCR] (line-column-read file-name rdr)]
-      ;(prn "  ## LCR:" LCR)
+    (loop [[R C rd] (line-column-read file-name rdr)]
       (when rd
-        (let [ok? (eval-one rd ns eval-id lin col file-name update-ns-fn)]
+        (let [ok? (eval-one rd ns-str eval-id R C file-name update-ns-fn)]
           (when ok?
             (recur (line-column-read file-name rdr))))))))
