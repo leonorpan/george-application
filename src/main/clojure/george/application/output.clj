@@ -6,21 +6,19 @@
 (ns george.application.output
   (:require
     [george.javafx :as fx]
-    [george.javafx.java :as fxj]
     [george.code.codearea :as ca]
     [george.util.singleton :as singleton]
     [george.code.highlight :as highlight]
     [george.application
      [repl :as client]
-     [repl-server :as server]])
+     [repl-server :as server]]
+    [george.application.ui.layout :as layout])
   (:import
     [java.io StringWriter PrintStream OutputStreamWriter]
     [org.apache.commons.io.output WriterOutputStream]
-    [javafx.geometry Pos Side]
-    [javafx.scene.control MenuButton MenuItem SeparatorMenuItem]
     [org.fxmisc.flowless VirtualizedScrollPane]
-    (org.fxmisc.richtext StyleClassedTextArea)
-    (clojure.lang Keyword)))
+    [org.fxmisc.richtext StyleClassedTextArea]
+    [clojure.lang Keyword]))
 
 
 (declare oprint)
@@ -29,9 +27,11 @@
 (defonce standard-out System/out)
 (defonce standard-err System/err)
 
+
 ;; To avoid cropping continuously, we wait til we are 20% over the limit, then crop to the limit.
 (def LINE_COUNT_LIMIT 500)
 (def LINE_COUNT_CROP_AT (int (* LINE_COUNT_LIMIT 1.2)))
+
 
 ;; Keywords used for singletons.
 (def OTA_KW ::output-textarea)
@@ -223,38 +223,24 @@
           :onaction #(ca/set-text codearea "")
           :tooltip "Clear output")
 
-        top-bar
-        (fx/hbox
+        top
+        (layout/menubar true
+          (doto clear-button (.setFocusTraversable false))
           (fx/region :hgrow :always)
-          clear-button
-          :spacing 3
-          :alignment Pos/TOP_RIGHT
-          :insets [0 0 5 0])
+          (layout/menu
+            [:button "nREPL" :bottom
+             [
+              [:item "Ping all sessions" ping-sessions]
+              [:item "Interrupt all sessions!" interrupt-sessions]
+              [:separator]
+              [:item "Create new default session" recreate-session]
+              [:separator]
+              [:item "Start new server" restart-server]]]))
 
-        bottom-bar
-        (fx/hbox
-          (fx/region :hgrow :always)
-          (doto (MenuButton. "nREPL"
-                             nil
-                             (fxj/vargs
-                               (doto (MenuItem. "Ping all sessions")
-                                 (fx/set-onaction #(ping-sessions)))
-                               (doto (MenuItem. "Interrupt all sessions!")
-                                 (fx/set-onaction #(interrupt-sessions)))
-                               (SeparatorMenuItem.)
-                               (doto (MenuItem. "Create new default session")
-                                     (fx/set-onaction #(recreate-session)))
-                               (SeparatorMenuItem.)
-                               (doto (MenuItem. "Start new server")
-                                     (fx/set-onaction #(restart-server)))))
-                (.setPopupSide Side/TOP))
-          :spacing 5)
         root
         (fx/borderpane
-           :top (style-bar top-bar)
-           :center (VirtualizedScrollPane. codearea)
-           :bottom (style-bar bottom-bar)
-           :insets 5)]
+           :top top
+           :center (VirtualizedScrollPane. codearea))]
 
     (setup-output codearea)
     [root clear-button]))

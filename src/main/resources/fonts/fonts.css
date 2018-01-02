@@ -1,24 +1,23 @@
 /*
-    For now, loading fonts with css doesn't seem to work ..
-    ... or at least not in IntelliJ on Windows over Dropbox.
-    So they are preloaded in george.javafx.clj in stead.
+http://www.guigarage.com/2014/10/integrate-custom-fonts-javafx-application-using-css/
+Note update at bottom of page.
 */
 
-/*
 @font-face {
-    font-family: 'Source Code Pro Regular';
     src: url('SourceCodePro-Regular.ttf');
 }
 @font-face {
-    font-family: 'Source Code Pro Medium';
     src: url('SourceCodePro-Medium.ttf');
 }
 @font-face {
-    font-family: 'Source Code Pro Bold';
-    src: url('SourceCodePro-Bold.ttf');
-}
-@font-face {
-    font-family: 'Source Code Pro Semibold';
     src: url('SourceCodePro-Semibold.ttf');
 }
-*/
+@font-face {
+    src: url('Roboto-Regular.ttf');
+}
+@font-face {
+    src: url('RobotoMono-Regular.ttf');
+}
+@font-face {
+    src: url('OpenSans-Regular.ttf');
+}

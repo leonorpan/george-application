@@ -155,9 +155,6 @@
   (errorlines ^SimpleObjectProperty []))
 
 
-(fx/preload-fonts)
-
-
 ;; Similar to CodeArea, but with some different settings - including my own CSS
 (defn new-codearea
  ([] (new-codearea true))

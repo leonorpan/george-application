@@ -3,11 +3,13 @@
 ;  By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;  You must not remove this notice, or any other, from this software.
 
-(ns george.util.text)
+(ns george.util.text
+  (:require
+    [clojure.pprint :as pprint]))
 
 
-(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -37,6 +39,7 @@
 
 (def coll-delim-chars #{\{ \[ \( \) \] \}})
 
+
 (defn coll-delim-char? [ch]
   (coll-delim-chars ch))
 
@@ -53,6 +56,7 @@
     \} \{
     nil))
 
+
 (defn coll-delim-char-matches? [ch1 ch2]
   (= (coll-delim-char-match ch1) ch2))
 
@@ -67,3 +71,9 @@
     (if (newline-end? txt)
       txt
       (str txt \newline))))
+
+
+(defn ppstr
+  "returns the data as a pprint-ed str"
+  [data]
+  (pprint/write data :stream nil))

@@ -5,12 +5,14 @@
 
 (ns george.application.ui.stage
   "Namespace contains utilities for creating and working with stages"
-  (:require [george.javafx :as fx]
-            [george.javafx.java :as fxj]))
+  (:require
+    [george.javafx :as fx]
+    [george.javafx.java :as fxj]
+    [george.application.ui.styled :as styled]))
 
 
 (defn scene-root-with-child []
-  (fx/stackpane (fx/text "Starting Launcher ...")))
+  (fx/stackpane (styled/heading "Starting Launcher ...")))
 
 
 (defn swap-stage-ensure

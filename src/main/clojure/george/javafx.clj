@@ -4,79 +4,46 @@
 ;  You must not remove this notice, or any other, from this software.
 
 (ns george.javafx
-    (:require
-        [clojure.java.io :as cio]
-        [clojure.string :as cs]
-        [george.javafx.java :as fxj]
-        [george.javafx.util :as fxu]
-        [george.util.javafx :as ufx])
-    (:import
-        [javafx.animation
-         Timeline KeyFrame KeyValue]
-
-        [javafx.application
-         Application Platform]
-
-        [javafx.beans.value
-         ChangeListener WritableValue]
-
-        [javafx.collections
-         FXCollections]
-
-        [javafx.embed.swing JFXPanel]
-
-        [javafx.event
-         EventHandler]
-
-        [javafx.geometry
-         Insets Pos VPos]
-
-        [javafx.scene
-         Group Node Parent Scene]
-
-        [javafx.scene.control
-         Alert Alert$AlertType
-         Button ButtonType ButtonBar$ButtonData
-         Label
-         ListView RadioButton
-         TextField TextArea
-         Tooltip
-         ScrollPane CheckBox]
-
-        [javafx.scene.image
-         Image ImageView]
-
-        [javafx.scene.input
-         MouseEvent]
-
-        [javafx.scene.layout
-         BorderPane HBox Priority Region StackPane VBox
-         Border
-         BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
-
-        [javafx.scene.paint
-         Color Paint]
-
-        [javafx.scene.text
-         Font Text]
-
-        [javafx.scene.shape
-         Line Rectangle Polygon]
-
-        [javafx.stage
-         FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
-
-        [javafx.util
-         Duration]))
+  (:require
+    [clojure.java.io :as cio]
+    [clojure
+     [string :as cs]
+     [pprint :refer [pprint]]]
+    [george.javafx
+     [java :as fxj]
+     [util :as fxu]]
+    [george.util.javafx :as ufx])
+  (:import
+    [javafx.animation Timeline KeyFrame KeyValue]
+    [javafx.application Application Platform]
+    [javafx.beans.value ChangeListener WritableValue]
+    [javafx.collections FXCollections]
+    [javafx.embed.swing JFXPanel]
+    [javafx.event EventHandler]
+    [javafx.geometry Insets Pos VPos Side]
+    [javafx.scene Group Node Parent Scene]
+    [javafx.scene.control
+     Alert Alert$AlertType
+     Button ButtonType ButtonBar$ButtonData
+     Label
+     ListView RadioButton
+     TextField TextArea
+     Tooltip
+     ScrollPane CheckBox]
+    [javafx.scene.image Image ImageView]
+    [javafx.scene.input MouseEvent]
+    [javafx.scene.layout
+     BorderPane HBox Priority Region StackPane VBox
+     Border
+     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
+    [javafx.scene.paint Color Paint]
+    [javafx.scene.text Font Text FontPosture FontWeight]
+    [javafx.scene.shape Line Rectangle Polygon]
+    [javafx.stage FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
+    [javafx.util Duration]))
 
 
-(defn set-implicit-exit [b]
-    (Platform/setImplicitExit false))
-
-(defn ^:deprecated dont-exit! []
-    (set-implicit-exit false))
-
-(set-implicit-exit false)
+;(set! *warn-on-reflection* true)
 
 
 (defn init-toolkit
@@ -87,8 +54,18 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
   (println (str *ns*"/init-toolkit ..."))
   (JFXPanel.))
 
+;; Must be called here, else the rest of the file won't load!
 (init-toolkit)
 
+
+(defn set-implicit-exit [b]
+  (println (str *ns*"/set-implicit-exit " b))
+  (Platform/setImplicitExit false))
+
+(set-implicit-exit false)
+
+
+;;;;;;;;;
 
 
 (defn web-color [s & [opacity]]
@@ -160,6 +137,12 @@ Has to be called before the first call to/on FxApplicationThread (javafx/later)"
     `(later* (fn [] ~@body)))
 
 
+(defmacro thread-later
+  "Runs the body in a fn in a later* on a separate thread"
+  [& body]
+  `(.start (Thread. (later* (fn [] ~@body)))))
+
+
 (defn now*
     "Ensure running body in JavaFX thread: javafx.application.Platform/runLater, but returns result. Prefer using 'later'"
     [expr]
@@ -201,8 +184,7 @@ and the body is called on 'handle'"
   (if (instance? EventHandler f) f (event-handler (f))))
 
 
-
-(defmacro changelistener
+(defmacro ^ChangeListener changelistener
     "Returns an instance of javafx.beans.value.ChangeListener,
 where args-vec is a vector of 4 elements  - naming the bindings for 'this', 'observable', 'old', 'new',
 and the body is called on 'changed'"
@@ -249,11 +231,11 @@ and the body is called on 'changed'"
     (.setTranslateY y)))
 
 
-(defn make-border
+(defn new-border
     ([color]
-     (make-border color 1.))
+     (new-border color 1.))
     ([color width]
-     (make-border color width 0.))
+     (new-border color width 0.))
     ([color width rad]
      (Border. (fxj/vargs
                   (BorderStroke. color
@@ -264,12 +246,53 @@ and the body is called on 'changed'"
                                      (BorderWidths. width)))))))
 
 
-(defn add-stylesheets [^Scene scene & sheetpaths]
-    (-> scene .getStylesheets (.addAll (into-array sheetpaths))))
+(import
+  '[com.sun.javafx.css.parser CSSParser]
+  '[com.sun.javafx.css Stylesheet FontFace FontFace$FontFaceSrc]
+  '[com.sun.javafx.util Logging]
+  '[sun.util.logging PlatformLogger$Level])
 
 
-(defn add-stylesheet [^Scene scene ^String sheetpath]
-    (-> scene .getStylesheets (.add sheetpath)))
+(defn- load-fontface-src [^FontFace$FontFaceSrc ffsrc]
+  (-> ffsrc .getSrc (cs/replace "%20" " ") (Font/loadFont 10.)))
+
+(defn- load-fontface [^FontFace ff]
+  (map load-fontface-src (.getSources ff)))
+
+(defn- load-fonts [^Stylesheet stylesheet]
+  (vec (flatten (map load-fontface (.getFontFaces stylesheet))))) ;; 'vec' ensures the lazy seq is realized
+
+(defn stylesheet-parsed [path]
+  (.parse (CSSParser.) (cio/resource path)))
+
+
+(defn load-fonts-from-stylesheet
+  "This does not add the stylesheet to the scene.
+In stead it only parses the stylesheet and loads any font-faces found in it.
+That way one avoids warnings and errors, yet the fonts are available.
+
+Ensure that the passed-in stylesheet only contains font-info. Nothing else."
+  [path]
+  (println (format "%s/load-fonts-from-stylesheet '%s' ..." *ns* path))
+  (-> path stylesheet-parsed load-fonts)) ;; parse and load fonts
+
+
+;; Fonts need to be loaded early, for where fonts are called for in code, rather than in CSS.
+(load-fonts-from-stylesheet "fonts/fonts.css")
+
+
+(defn add-stylesheet [^Scene scene path]
+  (let []
+        ;logger (Logging/getCSSLogger)
+        ;level (.level logger)]
+    ;(.setLevel logger PlatformLogger$Level/OFF)  ;; turn off logger. Doesn't work well.
+    (-> scene .getStylesheets (.add path))))  ;; set stylesheet
+    ;(.setLevel logger level))) ;; turn logger back to previous level
+    ;(load-fonts-from-stylesheet path)))
+
+
+(defn add-stylesheets [scene & paths]
+  (mapv #(add-stylesheet scene %) paths))
 
 
 (defn set-Modena []
@@ -283,20 +306,28 @@ and the body is called on 'changed'"
     (if (= option-index -1) nil option-index)))
 
 
+(def alert-types {
+                  :none Alert$AlertType/NONE
+                  :information Alert$AlertType/INFORMATION
+                  :warning Alert$AlertType/WARNING
+                  :confirmation Alert$AlertType/CONFIRMATION
+                  :error Alert$AlertType/ERROR})
+
 
 (defn alert [message & args]
   "returns index of selected option, else nil
 
   ex: (actions-dialog \"Message\" :title \"Title\" :options [\"A\" \"B\"] :cancel-option? true)
+
+  In this example \"A\" will return 0, \"B\" will return 1, cancel will return nil.
   "
-  (let [
-        default-kwargs {
-                        :title "Alert"
+  (let [default-kwargs {:title "Info"
                         :header nil
                         :options ["OK"]
                         :mode :show-and-wait ;; :show-and-wait or :show
                         :owner nil
-                        :cancel-option? false}
+                        :cancel-option? false
+                        :type :information}
 
         [_ {:keys [options] :as kwargs}] (fxu/partition-args args default-kwargs)
 
@@ -308,7 +339,7 @@ and the body is called on 'changed'"
             buttons)
 
         alert
-        (doto (Alert. Alert$AlertType/CONFIRMATION message (fxj/vargs* buttons))
+        (doto (Alert. (alert-types type) message (fxj/vargs* buttons))
           (.setTitle (:title kwargs))
           (.initOwner (:owner kwargs))
           (.setHeaderText (:header kwargs)))]
@@ -317,46 +348,6 @@ and the body is called on 'changed'"
          :show-and-wait (option-index (.showAndWait alert) options)
          :show (option-index (.show alert) options)
          alert))) ;default - simply return the dialog itself
-
-
-
-(defn SourceCodePro
-  ([size] (SourceCodePro "Medium" size))
-  ([weight size]  ;; "Regular" / "Medium" - but actually only "Medium" is available
-   (-> (format "fonts/SourceCodePro-%s.ttf" (cs/capitalize weight))
-       cio/resource
-       str
-       (cs/replace "%20" " ")
-       (Font/loadFont (double size)))))
-
-
-;; This is a hack!
-;; loading fonts from CSS doesn't work now, if there is a space in the file path.
-;; So we pre-load them here, and they should then be available in css
-
-(def ^:private some-fonts
-  ["SourceCodePro-Medium.ttf"])
-
-(defn preload-fonts
- ([]
-  (preload-fonts some-fonts))
- ([fonts]
-  (println (str *ns* "/preload-fonts ..."))
-  (doseq [f fonts]
-    (-> (format "fonts/%s" f)
-        cio/resource
-        str
-        (cs/replace "%20" " ")
-        (Font/loadFont  12.)))))
-
-(preload-fonts)
-
-
-
-
-
-
-
 
 
 (defn keyframe*
@@ -616,7 +607,8 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 (defn ^Label label
     ([] (Label.))
-    ([text] (Label. text)))
+    ([text] (Label. text))
+    ([text node] (Label. text node)))
 
 
 (defn set-tooltip [control s]
@@ -629,7 +621,12 @@ It must return a string (which may be wrapped to fit the width of the list."
   buttonbase)
 
 
-(defn button [label & {:keys [onaction width minwidth tooltip]}]
+(defn set-onmouseclicked [clickable fn-or-handler]
+  (.setOnMouseClicked clickable (ensure-handler fn-or-handler))
+  clickable)
+
+
+(defn ^Button button [label & {:keys [onaction width minwidth tooltip]}]
     (let [b (Button. label)]
         (if width (.setPrefWidth  b (double width)))
         (if minwidth (.setMinWidth b  (double minwidth)))
@@ -638,11 +635,44 @@ It must return a string (which may be wrapped to fit the width of the list."
         b))
 
 
-(defn checkbox [label & {:keys [onaction tooltip]}]
+(defn ^CheckBox checkbox [label & {:keys [onaction tooltip]}]
   (let [cb (CheckBox. label)]
     (when onaction (.setOnAction cb (event-handler (onaction))))
     (when tooltip (.setTooltip cb (Tooltip. tooltip)))
     cb))
+
+
+(def font-postures
+  {:regular FontPosture/REGULAR
+   :italic  FontPosture/ITALIC})
+
+
+(def font-weights
+  {:normal  FontWeight/NORMAL
+   :medium FontWeight/MEDIUM
+   :semibold FontWeight/SEMI_BOLD})
+
+
+(defn new-font
+ ([family-or-size]
+  (if (string? family-or-size)
+     (Font/font ^String family-or-size)
+     (Font/font (double family-or-size))))
+ ([family size]
+  (Font/font family (double size)))
+ ([family weight size]
+  (Font/font ^String family ^FontWeight (font-weights weight) (double size)))
+ ([family weight posture size]
+  (Font/font family (font-weights weight) (font-postures posture) (double size))))
+
+
+(defn set-font
+ ([item font-or-family-or-size]
+  (if (instance? Font font-or-family-or-size)
+    (.setFont item font-or-family-or-size)
+    (set-font item (new-font font-or-family-or-size))))
+ ([item family size]
+  (set-font item (new-font family size))))
 
 
 (defn textfield
@@ -665,9 +695,8 @@ It must return a string (which may be wrapped to fit the width of the list."
     (let [ta
           (doto (TextArea. text)
             (.setPromptText prompt))]
-      (when font (.setFont ta font))
+      (when font (set-font ta font))
       ta))
-
 
 
 (defn text [s & {:keys [font size color]
@@ -675,8 +704,7 @@ It must return a string (which may be wrapped to fit the width of the list."
                         color Color/BLACK}}]
   (doto (Text. s)
     (.setFill color)
-    (.setFont (if font font (Font/font (double size))))))
-
+    (set-font (or font (new-font size)))))
 
 
 (defn insets* [[top right bottom left]]
@@ -697,7 +725,6 @@ It must return a string (which may be wrapped to fit the width of the list."
      (.setPadding pane (insets v)))
     ([pane t r b l]
      (.setPadding pane (insets t r b l))))
-
 
 
 (defn box [vertical? & args]
@@ -722,13 +749,16 @@ It must return a string (which may be wrapped to fit the width of the list."
 
       box))
 
-(defn hbox [& args]
+
+(defn ^HBox hbox [& args]
     (apply box (cons false args)))
+
 
 (defn ^VBox vbox [& args]
     (apply box (cons true args)))
 
-(defn borderpane
+
+(defn ^BorderPane borderpane
     "args:  & :center :top :right :bottom :left :insets"
     [ & args]
     (let [
@@ -743,8 +773,7 @@ It must return a string (which may be wrapped to fit the width of the list."
           (.setPadding (insets (:insets kwargs))))))
 
 
-
-(defn scene [root & args]
+(defn ^Scene scene [root & args]
             (let [
                   default-kwargs
                   {:size         nil ;[300 300]
@@ -794,6 +823,15 @@ It must return a string (which may be wrapped to fit the width of the list."
           :utility StageStyle/UTILITY}
          style-kw
          StageStyle/DECORATED))
+
+
+(defn side [side-kw]
+  (get {:top Side/TOP
+        :bottom Side/BOTTOM
+        :left Side/LEFT
+        :right Side/RIGHT}
+       side-kw
+       Side/BOTTOM))
 
 
 (defn setoncloserequest [stage fn-or-handler]
@@ -874,13 +912,9 @@ It must return a string (which may be wrapped to fit the width of the list."
                                (filechooserfilter "All Files"   "*.*")])
 
 
-
-(defn filechooser [& filters]
+(defn ^FileChooser filechooser [& filters]
     (doto (FileChooser.)
-        (-> .getExtensionFilters
-            (.addAll
-               (fxj/vargs* filters)))))
-
+        (-> .getExtensionFilters (.addAll (fxj/vargs* filters)))))
 
 
 (def sample-codes-map {
@@ -892,12 +926,10 @@ It must return a string (which may be wrapped to fit the width of the list."
                        #{:SHORTCUT :ENTER} (event-handler-2 [_ event] (println "CTRL/CMD-ENTER") (.consume event))})
 
 
-
 (def sample-chars-map {
                        "a" #(println "a")
                        "A" #(println "A")
                        " " (event-handler-2 [_ e] (println "SPACE (consumed)") (.consume e))})
-
 
 
 ;; TODO make macro that does this:

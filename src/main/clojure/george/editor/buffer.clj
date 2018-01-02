@@ -10,21 +10,18 @@
   (:require
     [clojure.core.rrb-vector :as fv]
     [clojure.java.io :as cio]
-    [clojure.data :as cd]
-    [clj-diff.core :as diff]
-    [george.util :as u]
     [george.util.text :as ut])
-  (:import (java.io PushbackReader StringReader)
-           (javafx.collections ObservableList)
-           (clojure.core.rrb_vector.rrbt Vector)))
+  (:import
+    [java.io PushbackReader StringReader]
+    [clojure.core.rrb_vector.rrbt Vector]))
 
-(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+
+;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
 (declare read-char unread-char peek-char)
-
 
 
 (defn- normalized-newline

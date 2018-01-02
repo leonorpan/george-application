@@ -32,13 +32,11 @@
 
             pane
              (doto (StackPane. (j/vargs-t Node rectangle content))
-                 (.setBorder (fx/make-border Color/TRANSPARENT 2.))
+                 (.setBorder (fx/new-border Color/TRANSPARENT 2.))
                  (. setStyle "-fx-background-color: cornflowerblue;")
                  (. relocate loc-x loc-y))]
 
-
         pane))
-
 
 
 (defn ->swirl [loc-x loc-y]
@@ -48,7 +46,6 @@
                 (. setOnMouseClicked
                     (fx/event-handler-2 [_ event]
                         (. (. event getSource) setVisible false))))]
-
 
         tile))
 

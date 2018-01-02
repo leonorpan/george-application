@@ -16,15 +16,15 @@
     [george.javafx :as fx]
     [clojure.core.rrb-vector :as fv])
   (:import
-    (javafx.collections FXCollections ObservableList)
-    (javafx.scene.input ClipboardContent Clipboard)
-    (java.util List)
-    (clojure.core.rrb_vector.rrbt Vector)
-    (clojure.lang PersistentVector Keyword IFn Atom)))
+    [javafx.collections FXCollections ObservableList]
+    [javafx.scene.input ClipboardContent Clipboard]
+    [java.util List]
+    [clojure.core.rrb_vector.rrbt Vector]
+    [clojure.lang PersistentVector Keyword Atom IPersistentMap]))
 
 
-(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -241,8 +241,16 @@
   (buffer_ @state_))
 
 
+(defn buffer->text [buffer]
+  (String. (char-array buffer)))
+
+
+(defn text_ [^IPersistentMap state]
+  (-> state buffer_ buffer->text))
+
+
 (defn text [^Atom state_]
-  (-> state_ buffer (#(String. (char-array %)))))
+  (-> state_ deref text_))
 
 
 (defn- set-text_ [state ^String txt & [caret anchor]]
