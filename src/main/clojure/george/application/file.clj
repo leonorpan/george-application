@@ -11,43 +11,74 @@
     [clojure.java.io :as cio]
     [george.javafx :as fx]
     [george.util.file :as guf]
-    [george.util.time :as t])
+    [george.util.time :as t]
+    [george.application.output :refer [oprintln]]
+    [george.application.launcher :as appl]
+    [george.javafx.java :as fxj])
   (:import
-    [java.io File]
-    [javafx.stage FileChooser]))
+    [java.io File IOException]
+    [java.nio.file Files  StandardCopyOption]))
 
 
 (def GEORGE_DOCUMENT_DIR
-  (cio/file guf/MY_DOCUMENTS "George"))
+  (cio/file guf/USER_DOCUMENTS "George"))
 
 
 (def TEMP_SWAP_DIR
   (cio/file GEORGE_DOCUMENT_DIR "#swaps#"))
 
+(def missing-thing
+  {:folder ["Directory missing!" "previous folder location"]
+   :swap-dir ["File creation failed!" "file's directory"]
+   :swap-file ["Save failed!" "swap file"]})
 
-(defonce clj-filechooser ^FileChooser (apply fx/filechooser fx/FILESCHOOSER_FILTERS_CLJ))
+
+(defn show-something-missing-alert [what]
+  (let [[title thing] (missing-thing what)]
+    (fx/alert
+      :title title
+      :header (format "The %s has gone missing!" thing)
+      :content "Don't know what to do about that, exactly. :-( \nCan you fix it?"
+      :owner (appl/current-application-stage)
+      :type :error)))
+
+
+(defonce clj-filechooser
+         (doto (apply fx/filechooser fx/FILESCHOOSER_FILTERS_CLJ)
+               (.setInitialDirectory guf/USER_DOCUMENTS)))
 
 
 (defn select-file-for-open
   "Returns (an existing) selected file or nil"
-  [owner]
-  (when-let [^File f
-             (-> (doto clj-filechooser (.setTitle "Select a file ..."))
-                 (.showOpenDialog  owner))]
-    ;; leave the filechooser in a useful location
-    (.setInitialDirectory clj-filechooser (.getParentFile f))
-    ;; then return the selected file
-    f))
+  []
+  (let [fc (doto clj-filechooser (.setTitle "Select a file ..."))
+        owner (appl/current-application-stage)]
+    (when-let [^File f
+               (try (.showOpenDialog fc owner)
+                    (catch IllegalArgumentException e
+                           (show-something-missing-alert :folder)
+                           (.setInitialDirectory fc guf/USER_DOCUMENTS)
+                           (select-file-for-open)))]
+      ;; leave the filechooser in a useful location
+      (.setInitialDirectory clj-filechooser (.getParentFile f))
+      ;; then return the selected file
+      f)))
 
 
 (defn create-file-for-save
   "Returns a new created file or nil"
-  [owner]
-  (when-let [^File f
-             (-> (doto clj-filechooser (.setTitle "Save file as ..."))
-                 (.showSaveDialog owner))]
-    (.setInitialDirectory clj-filechooser (.getParentFile f))
-    f))
+  []
+  (let [fc (doto clj-filechooser (.setTitle "Save file as ..."))
+        owner (appl/current-application-stage)]
+    (when-let [^File f
+               (try (.showSaveDialog fc owner)
+                    (catch IllegalArgumentException e
+                      (show-something-missing-alert :folder)
+                      (.setInitialDirectory fc guf/USER_DOCUMENTS)
+                      (create-file-for-save)))]
+
+      (.setInitialDirectory clj-filechooser (.getParentFile f))
+      f)))
 
 
 (def ^:const swap-re #"#.+#")
@@ -95,16 +126,43 @@
     (guf/ensure-file f)))
 
 
+(defn parent-dir-exists-or-alert-print [^File d alert?]
+  (if (.exists d)
+      true
+      (fx/now
+        (when alert?
+          (show-something-missing-alert :swap-dir))
+        (oprintln :err "Directory missing: " (str d))
+        false)))
+
+
 (defn create-swap
-  "Creates a swap-file in same location as f, and returns it"
-  [f]
+  "Creates a swap-file in same location as f, and returns it.
+  If parent-dir doesn't exist, then it returns nil."
+  [f alert?]
   (let [d (guf/parent-dir f)
         n (.getName f)
         f (cio/file d (swap-wrap n))]
-    (guf/ensure-file f)))
+    (when (parent-dir-exists-or-alert-print d alert?)
+          (guf/ensure-file f))))
+
+
+(defn swap-file-exists-or-alert-print [^File swapf alert?]
+  (if (and swapf (.exists swapf))
+    true
+    (fx/now
+      (when alert?
+        (show-something-missing-alert :swap-file))
+      (oprintln :err "Swap file missing: " (str swapf))
+      false)))
 
 
 (defn save-swap
-  "Renames the swapf to f. This results in f now containing the new content, and swap no longer existing."
+  "Renames the swapf to f. This results in f now containing the new content, and swap no longer existing.
+  Returns true if swap was successful, else false."
   [^File swapf ^File f]
-  (.renameTo swapf f))
+  (if (swap-file-exists-or-alert-print swapf true)
+    ;(.renameTo swapf f) ;; doesn't work on Windows if file exists.
+    (try (boolean (Files/move (.toPath swapf) (.toPath f) (fxj/vargs StandardCopyOption/REPLACE_EXISTING StandardCopyOption/ATOMIC_MOVE)))
+         (catch IOException e (.printStackTrace e)))
+    false))

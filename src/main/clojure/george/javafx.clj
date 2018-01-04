@@ -35,7 +35,7 @@
     [javafx.scene.layout
      BorderPane HBox Priority Region StackPane VBox
      Border
-     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill]
+     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill GridPane]
     [javafx.scene.paint Color Paint]
     [javafx.scene.text Font Text FontPosture FontWeight]
     [javafx.scene.shape Line Rectangle Polygon]
@@ -297,57 +297,6 @@ Ensure that the passed-in stylesheet only contains font-info. Nothing else."
 
 (defn set-Modena []
     (Application/setUserAgentStylesheet Application/STYLESHEET_MODENA))
-
-
-(defn option-index
-  "returns the index of the selected option, or nil"
-  [result options]
-  (let [option-index (.indexOf options (-> result .get .getText))]
-    (if (= option-index -1) nil option-index)))
-
-
-(def alert-types {
-                  :none Alert$AlertType/NONE
-                  :information Alert$AlertType/INFORMATION
-                  :warning Alert$AlertType/WARNING
-                  :confirmation Alert$AlertType/CONFIRMATION
-                  :error Alert$AlertType/ERROR})
-
-
-(defn alert [message & args]
-  "returns index of selected option, else nil
-
-  ex: (actions-dialog \"Message\" :title \"Title\" :options [\"A\" \"B\"] :cancel-option? true)
-
-  In this example \"A\" will return 0, \"B\" will return 1, cancel will return nil.
-  "
-  (let [default-kwargs {:title "Info"
-                        :header nil
-                        :options ["OK"]
-                        :mode :show-and-wait ;; :show-and-wait or :show
-                        :owner nil
-                        :cancel-option? false
-                        :type :information}
-
-        [_ {:keys [options] :as kwargs}] (fxu/partition-args args default-kwargs)
-
-        buttons
-        (mapv #(ButtonType. %) options)
-        buttons
-        (if (:cancel-option? kwargs)
-            (conj buttons (ButtonType. "Cancel" ButtonBar$ButtonData/CANCEL_CLOSE))
-            buttons)
-
-        alert
-        (doto (Alert. (alert-types type) message (fxj/vargs* buttons))
-          (.setTitle (:title kwargs))
-          (.initOwner (:owner kwargs))
-          (.setHeaderText (:header kwargs)))]
-
-       (condp :mode kwargs
-         :show-and-wait (option-index (.showAndWait alert) options)
-         :show (option-index (.show alert) options)
-         alert))) ;default - simply return the dialog itself
 
 
 (defn keyframe*
@@ -793,6 +742,85 @@ It must return a string (which may be wrapped to fit the width of the list."
                                   (:antialiasing kwargs))
                           (Scene. root))
                     (.setFill (:fill kwargs)))))
+
+
+(defn option-index
+  "returns the index of the selected option, or nil"
+  [result options]
+  (let [index (.indexOf options (-> result .get .getText))]
+    (when (not= index -1)
+      index)))
+
+
+(def alert-types {:none Alert$AlertType/NONE
+                  :information Alert$AlertType/INFORMATION
+                  :warning Alert$AlertType/WARNING
+                  :confirmation Alert$AlertType/CONFIRMATION
+                  :error Alert$AlertType/ERROR})
+
+
+(defn expandable-content [expand-prompt content & [font pref-width]]
+  ;; http://code.makery.ch/blog/javafx-dialogs-official/
+  (let [ta
+        (doto ^TextArea (textarea :text content :font font)
+          (.setEditable false)
+          (.setWrapText false)
+          (.setMaxWidth Double/MAX_VALUE)
+          (.setMaxHeight Double/MAX_VALUE)
+          (GridPane/setVgrow Priority/ALWAYS)
+          (GridPane/setHgrow Priority/ALWAYS))]
+
+    (doto (GridPane.)
+      (.setMaxWidth Double/MAX_VALUE)
+      (.setPrefWidth (or pref-width 800))
+      (.add (label expand-prompt) 0 0)
+      (.add ta 0 1))))
+
+
+(defn alert [& args]
+  "returns index of selected option, else nil
+
+  ex: (actions-dialog \"Message\" :title \"Title\" :options [\"A\" \"B\"] :cancel-option? true)
+
+  In this example \"A\" will return 0, \"B\" will return 1, cancel will return nil.
+  "
+  (let [default-kwargs {:title "Info"
+                        :header nil
+                        :content nil
+                        :expandable-content nil
+                        :options ["OK"]
+                        :cancel-option? false
+                        :owner nil
+                        :mode :show-and-wait ;; :show-and-wait or :show
+                        :type :information}
+
+        [_ {:keys [options] :as kwargs}] (fxu/partition-args args default-kwargs)
+
+        buttons
+        (mapv #(ButtonType. %) options)
+        buttons
+        (if (:cancel-option? kwargs)
+          (conj buttons (ButtonType. "Cancel" ButtonBar$ButtonData/CANCEL_CLOSE))
+          buttons)
+
+        alert
+        (doto (Alert. (alert-types type))
+          (.setTitle (:title kwargs))
+          (.initOwner (:owner kwargs))
+          (.setHeaderText (:header kwargs))
+          (-> .getButtonTypes (.setAll (fxj/vargs* buttons))))]
+
+    (when-let [c (:content kwargs)]
+      (.setContentText alert c))
+
+    (when-let [ec (:expandable-content kwargs)]
+      (-> alert .getDialogPane (.setExpandableContent ec)))
+
+    (condp :mode kwargs
+      :show-and-wait (option-index (.showAndWait alert) options)
+      :show (option-index (.show alert) options)
+      ;; default - simply return the dialog itself
+      alert)))
 
 
 (defn centering-point-on-primary
