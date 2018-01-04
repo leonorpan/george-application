@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+export LEIN_SNAPSHOTS_IN_RELEASE=true
+
 echo "!! Updating version string in src/main/resources ..."
 source bin/_utils.sh
 V=`get_version`

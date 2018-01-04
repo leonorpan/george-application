@@ -3,11 +3,16 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
-## [Unreleased]
+## [2018.0] - 2018-01-04
 
-### Fixed
-- Line comments ';' are now rendered gray consistently.  
-- A single paren at end of text after line comment is now matched correctly.
+This is a major upgrade, with many changes.  
+A few highlight:
+
+- Single window application
+- New custom text-editor with Parinfer and "blocks"
+- Editor in tabs with robust file handling
+- Enhanced REPL usage, error handling, nREPL server control
+- Improved L&F
 
 
 ## [0.8.2] - 2017-10-11
