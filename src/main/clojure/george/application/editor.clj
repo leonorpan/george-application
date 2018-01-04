@@ -20,7 +20,9 @@
     [george.util.file :as guf]
     [george.application.input :as input]
     [george.application.launcher :as appl]
-    [george.application.file :as gf])
+    [george.application.file :as gaf]
+    [clojure.java.io :as cio]
+    [clojure.string :as cs])
 
   (:import
     [javafx.scene.control Tab TabPane]
@@ -48,6 +50,19 @@
     c))
 
 
+(defn alert-on-missing-dir [file-info_]
+  (:alert-on-missing-dir? @file-info_))
+
+(defn set-alert-on-missing-dir [file-info_ alert?]
+  (swap! file-info_ assoc :alert-on-missing-dir? alert?))
+
+(defn alert-on-missing-swap [file-info_]
+  (:alert-on-missing-swap? @file-info_))
+
+(defn set-alert-on-missing-swap [file-info_ alert?]
+  (swap! file-info_ assoc :alert-on-missing-swap? alert?))
+
+
 (defn save-to-swap
   "Returns the content that was saved.
   Does the actual save-to-swap - both for 'queue-save-to-swap' and before eval/run.
@@ -58,12 +73,22 @@
   [editor file-info_]
   (let [{:keys [file swap-file]} @file-info_
         f (if swap-file swap-file
-                        (if file (gf/create-swap file)
-                                 (gf/create-temp-swap)))
+                        (if file (gaf/create-swap file (alert-on-missing-dir file-info_))
+                                 (gaf/create-temp-swap)))
         content (ed/text editor)]
-    (spit f content)
-    (swap! file-info_ assoc :swap-saved? true :saved? false :swap-file f)
-    content))
+    (if-not f
+      (set-alert-on-missing-dir file-info_ false)
+      (if-not (gaf/swap-file-exists-or-alert-print f (alert-on-missing-swap file-info_))
+        (set-alert-on-missing-swap file-info_ false)
+        (do
+          (spit f content)
+          (swap! file-info_ assoc :swap-saved? true :saved? false :swap-file f)
+          (when-not (alert-on-missing-dir file-info_)
+            (oprintln :out "Directory available:" (str (guf/parent-dir f))))
+          (when-not (alert-on-missing-swap file-info_)
+            (oprintln :out "Swap file available:" (str f)))
+          (set-alert-on-missing-dir file-info_ true)
+          (set-alert-on-missing-swap file-info_ true))))))
 
 
 (defn save-to-swap-maybe [editor file-info_]
@@ -92,7 +117,7 @@
   Returns f, if saved, else nil.
   "
   [editor file-info_]
-  (when-let [f (gf/create-file-for-save (appl/current-application-stage))]
+  (when-let [f (gaf/create-file-for-save)]
     (swap! file-info_ assoc :file f)
     (save editor file-info_)))
 
@@ -110,24 +135,64 @@
       file
       (if-not file
         (save-as editor file-info_)
-        (do
-          (gf/save-swap swap-file file)
-          (swap! file-info_ assoc :saved? true :swap-file nil)
-          file)))))
+        (when (gaf/save-swap swap-file file)
+              (swap! file-info_ assoc :saved? true :swap-file nil)
+              file)))))
+
+
+(defn existing-differing-swap-file
+  "Returns the swap-file and it's content as e 2-item vector, if a swap-file is found for the file, in the expected location, and its content differs from the file. else nil."
+  [f content]
+  (let [p-dir (guf/parent-dir f)
+        n (.getName f)
+        swapf (cio/file p-dir (gaf/swap-wrap n))]
+    (when (.exists swapf)
+      (let [swapf-content (slurp swapf)]
+        ;; we don't care if there is only leading/trailing whitespace difference
+        (when (not= (cs/trim content) (cs/trim swapf-content))
+          [swapf swapf-content])))))
+
+
+(defn use-swap-content? [swap-content]
+  (let [res
+        (fx/alert
+          :title "Use swap-file content?"
+          :header "Found swap-file with different content from file."
+          :content "Would you like to load the content from the swap-file in stead of the content in the main file?"
+          :expandable-content
+          (fx/expandable-content
+            "Swap file content:"
+            swap-content
+            george.editor.view/DEFAULT_FONT)
+          :options ["Use" "Don't use"]
+          :owner (appl/current-application-stage)
+          :type :warning)]
+    (zero? res)))  ;; if zero, then user choose the first option
+
+
+(defn set-editor-content [editor content file-info_ file swap-file saved?]
+  (swap! file-info_ assoc
+         :file file  :swap-file swap-file
+         :saved? saved? :swap-saved? true
+         :ignore-next-buffer-change true)  ;; Signals the state-listener to ignore the next text change.
+  (ed/set-text editor content))
 
 
 (defn open
   "If selected file is f#, the place in f# and open content, leaving it up to the user whether they want to save it (later) to the f.  If the f# has a matching f, then set that as potential f, else (ISO#), set f to nil."
   [editor file-info_]
-  (when (close editor file-info_)
-    (when-let [f (gf/select-file-for-open (appl/current-application-stage))]
-      (let [content (slurp f)
-            ;; If the user opens a swap-file, it will be used as swap-file, and file is set to nil
-            swapf? (gf/swap? (.getName f))
-            [swapf f] (if swapf? [f nil] [nil f])]
-        (swap! file-info_ assoc :file f :swap-file swapf  :saved? (boolean f) :swap-saved? true
-               :ignore-next-buffer-change true)  ;; Signals the state-listener to ignore the next text change.
-        (ed/set-text editor content)))))
+  (let [res (close editor file-info_)]
+    (when (or (nil? res) res)
+      (when-let [f0 (gaf/select-file-for-open)]
+        (let [content (slurp f0)
+              ;; If the user opens a swap-file, it will be used as swap-file, and file is set to nil
+              swapf? (gaf/swap? (.getName f0))
+              [swapf f] (if swapf? [f0 nil] [nil f0])]
+          (set-editor-content editor content file-info_ f swapf (boolean f))
+          (when f
+            (when-let [[swapf swapf-content] (existing-differing-swap-file f content)]
+              (when (use-swap-content? swapf-content)
+                    (set-editor-content editor swapf-content file-info_ f swapf false)))))))))
 
 
 (def alert-header
@@ -152,32 +217,36 @@
    If no, then delete f#
   If ISO# (and no f), ask user if they want to save.
   (f no, then delete ISO#, else switch to save-as
-  Returns true, if close is acceptable, else false (if close should be interrupted)."
+  If no file or swap-file, returns nil.
+  Else returns true if close is acceptable, else false (if close should be interrupted)"
   [editor file-info_]
   (save-to-swap-maybe editor file-info_)
-  (if (:saved? @file-info_)
-    true
-    (let [res (fx/alert alert-message
-                        :title "Save?"
-                        :header alert-header
-                        :owner (appl/current-application-stage)
-                        :options ["Save" "Don't save"]
-                        :cancel-option? true
-                        :type :confirmation)]
-      (case res
-        0 (if (save editor file-info_)
-              (clean-and-clear file-info_)
-              (close editor file-info_))
-        1 (clean-and-clear file-info_)
-        ;; default
-        false))))
+  (let [{:keys [swap-file file]} @file-info_]
+    (when (or swap-file file)
+      (if (:saved? @file-info_)
+        true
+        (let [res (fx/alert :title "Save?"
+                            :header alert-header
+                            :content alert-message
+                            :options ["Save" "Don't save"]
+                            :cancel-option? true
+                            :owner (appl/current-application-stage)
+                            :type :confirmation)]
+          (case res
+            0 (if (save editor file-info_)
+                  (clean-and-clear file-info_)
+                  (close editor file-info_))
+            1 (clean-and-clear file-info_)
+            ;; default
+            false))))))
 
 
 (defn on-close
   "Wraps 'close', handling event correctly."
   [editor file-info_ event]
-  (when-not (close editor file-info_)
-            (.consume event)))
+  (let [res (close editor file-info_)]
+    (when (and (not (nil? res)) (not res))
+          (.consume event))))
 
 
 (defn state-listener [editor tab file-info_ save-chan]
@@ -190,22 +259,31 @@
                      (do (swap! file-info_ assoc :swap-saved? false :saved? false)
                          (queue-save-to-swap editor file-info_ save-chan))))))))
 
+(def tooltipf "file:       %s
+saved:      %s
+swap-file:  %s
+swap-saved: %s")
 
-(defn- indication
+(defn- indicate
   "Assembles the string shown in the editor tab.
   Filename or '<no file>.  Appends '*' if not saved to named file.  Appends '#' if content not yet saved to swap-file."
-  [{:keys [file swap-saved? saved?]}]
-  (let [fname (if file (.getName file) "<no file>")]
-    (format "%s %s%s " fname (if-not saved? "*" "") (if-not swap-saved? "#" ""))))
-
+  [tab {:keys [file swap-file swap-saved? saved?]}]
+  (let [fname (if file (.getName file) "<no file>")
+        indication (format "%s %s%s " fname (if-not saved? "*" "") (if-not swap-saved? "#" ""))
+        text-prop (.textProperty tab)]
+    (.set text-prop indication)
+    (fx/set-tooltip tab (format tooltipf file
+                                (when (or file swap-file) saved?)
+                                swap-file
+                                (when swap-file swap-saved?)))))
 
 (defn indicator
   "Updates the file-name and status in the tab whenever file-info_ changes."
-  [text-prop file-info_]
-  (.set text-prop (indication @file-info_))
+  [tab file-info_]
+  (indicate tab @file-info_)
   (add-watch file-info_ :indicator
              (fn [_ _ _ file-info]
-               (fx/later (.set text-prop (indication file-info))))))
+               (fx/later (indicate tab file-info)))))
 
 
 (defn new-editor-root [selected_ focused_ tab & {:keys [ns] :or {ns "user"}}]
@@ -215,6 +293,8 @@
                :swap-file nil
                :swap-saved? true  ;; saved to swap-file? Set to false by state-listener, and then true by auto-save
                :saved? true}) ;; swapped to real file? Set to false by auto-save and then to true by save/save-as
+        _ (set-alert-on-missing-swap file-info_ true)
+        _ (set-alert-on-missing-dir file-info_ true)
 
         save-chan (save-to-swap-channel)
 
@@ -307,7 +387,7 @@
 
     (fx/set-onaction run-button #(do-eval-fn))
 
-    (indicator (.textProperty tab) file-info_)
+    (indicator tab file-info_)
 
     (doto root
       (.addEventFilter KeyEvent/KEY_PRESSED

@@ -226,13 +226,13 @@ Powered by open source software.
            button-index
            (fx/now
              (fx/alert
+               :title "Quit?"
+               :content
                (str "Do you want to quit George?"
                     (when repl? "\n\n(You are running from a repl.\n'Quit' will not exit the JVM instance.)"))
-               :title "Quit?"
                :options ["Quit"]  ;; quit is button-index 0
-               :owner application-stage
-               :mode nil
-               :cancel-option? true))
+               :cancel-option? true
+               :owner application-stage))
            exit? (= 0 button-index)]
 
           (if-not exit?

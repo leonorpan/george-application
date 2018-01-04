@@ -5,21 +5,25 @@
 
 (ns george.util.file
   (:require
-    [clojure.java.io :as cio]
-    [george.util.system :as sys])
+    [clojure.java.io :as cio])
   (:import
     [java.io File]
     [java.nio.file Files]))
 
 
+(defn ^File user-documents
+ ([]
+  (let [user-home (System/getProperty "user.home")
+        dir (cio/file  user-home "Documents")  ;; Windows now uses "Documents"
+        dir (if (.exists dir) dir
+                              (user-documents "My Documents"))]  ;; In case older installation
+    (if (.exists dir) dir
+                      (user-documents ""))))  ;; OK. Lets go with naked user-dir
+ ([name]
+  (cio/file (System/getProperty "user.home") name)))
 
-(defn ^File my-documents []
-  (cio/file
-    (System/getProperty "user.home")
-    (if sys/WINDOWS? "My Documents" "Documents")))
 
-(def MY_DOCUMENTS (my-documents))
-
+(def USER_DOCUMENTS (user-documents))
 
 
 (defn ^File parent-dir
