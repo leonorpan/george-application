@@ -4,7 +4,7 @@ echo "!! Updating version string in src/main/resources ..."
 source bin/_utils.sh
 V=`get_version`
 VF=src/main/resources/george-version.txt
-echo $V > $VF
+echo -n $V > $VF
 cat $VF
 
 echo "!! Building ..."

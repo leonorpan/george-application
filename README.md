@@ -1,13 +1,14 @@
 
 
 
-# George
+![George logo](http://www.george.andante.no/static/george/graphics/George_logo.png)  
+*Create. Learn. Think.*
 
+***
 
-The main application code for [George](http://www.george.andante.no).
+This is the application code for [George](http://www.george.andante.no).
 
 It can be run as a standalone Jar, or as a natively installed application for Windows or Mac, and some time in the future, Linux.
-
 
 If you simply want to run George, it will be much quicker and easier for you to download and install the latest native version for your system.  That way you are also garanteed to always have an automatically updated latest version.  
 
@@ -15,7 +16,7 @@ If you simply want to run George, it will be much quicker and easier for you to 
 
 
 
-![George 2018.0](images/George_2018.1.png)
+![George 2018.0](http://www.george.andante.no/static/www/graphics/screenshots/George_2018.0.png)
 
 
 ## Develop and contribute
@@ -35,7 +36,3 @@ Copyright © 2016-2018 Terje Dahl
 Distributed under the [Eclipse Public License 1.0](https://opensource.org/licenses/eclipse-1.0.php).
 
 ***
-
-
-
-
