@@ -75,11 +75,10 @@ Powered by open source software.
          :onhidden #(singleton/remove ABOUT_STAGE_KW)
          :scene (fx/scene
                   (fx/vbox
-                    (ImageView. (Image. "graphics/George_logo.png"))
+                    (fx/imageview "graphics/George_logo.png" :width 160)
                     text
                     link
-                    :padding 10
-                    :background fx/WHITE)))))
+                    :padding 10)))))
 
 
 (defn- about-stage []

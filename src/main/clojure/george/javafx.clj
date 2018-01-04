@@ -831,8 +831,21 @@ It must return a string (which may be wrapped to fit the width of the list."
           (-> prim-bounds .getHeight (/ 2) (- (/ (.getHeight scene-or-stage ) 2)))]))
 
 
-(defn imageview [rsc-str]
-    (ImageView. (Image. rsc-str)))
+(defn imageview [image-or-rsc-str & {:keys [width height preserveratio smooth]
+                                     :or {width nil
+                                          height nil
+                                          preserveratio true
+                                          smooth true}}]
+  (let [iv
+        (doto
+          ;(ImageView. (if (instance? Image image-or-rsc-str) image-or-rsc-str (Image. image-or-rsc-str)))
+          (ImageView.  image-or-rsc-str)
+          (.setSmooth smooth)
+          (.setPreserveRatio preserveratio))]
+
+    (when width (.setFitWidth iv (double width)))
+    (when height (.setFitheight iv (double height)))
+    iv))
 
 
 (defn screens []

@@ -21,7 +21,8 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
             [clojure.string :as cs]
-            [george.javafx.java :as fxj])
+            [george.javafx.java :as fxj]
+            [george.application.ui.styled :as styled])
   (:import (javafx.scene.paint Color)
            (javafx.scene.canvas Canvas)
            (javafx.scene Node Group)
@@ -343,16 +344,18 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                                   (.show cm root (.getScreenX e) (.getScreenY e)))
 
               stage ^Stage
-                (fx/stage
-                        :title "Turtle Screen"
-                        :scene (doto
-                                 (fx/scene root :size [w h] :fill fx/WHITE)
-                                 (.setOnContextMenuRequested cm-handler))
-                        :resizable true
-                        ;:location [90 100]
-                        :tofront true
-                        :alwaysontop true
-                        :onhidden #(reset! screen-and-turtle-singleton nil))]
+              (doto
+                  (fx/stage
+                          :title "Turtle Screen"
+                          :scene (doto
+                                   (fx/scene root :size [w h] :fill fx/WHITE)
+                                   (.setOnContextMenuRequested cm-handler))
+                          :resizable true
+                          ;:location [90 100]
+                          :tofront true
+                          :alwaysontop true
+                          :onhidden #(reset! screen-and-turtle-singleton nil))
+                  (styled/add-icon))]
 
           ;; not useful to bind now, as resizable is false
           (doto root
