@@ -49,7 +49,9 @@
             ;; https://github.com/weavejester/environ
             [lein-environ "1.1.0"]
             ;; https://github.com/weavejester/codox
-            [lein-codox "0.10.3"]]
+            [lein-codox "0.10.3"]
+            ;; https://github.com/technomancy/leiningen/tree/stable/lein-pprint
+            [lein-pprint "1.1.2"]]
 
   :repositories [
                  ["jcenter" "https://jcenter.bintray.com"]] ;; apache.commons.io

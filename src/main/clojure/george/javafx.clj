@@ -9,6 +9,7 @@
     [clojure
      [string :as cs]
      [pprint :refer [pprint]]]
+    [george.javafx-init] ;; Important!
     [george.javafx
      [java :as fxj]
      [util :as fxu]]
@@ -18,7 +19,6 @@
     [javafx.application Application Platform]
     [javafx.beans.value ChangeListener WritableValue]
     [javafx.collections FXCollections]
-    [javafx.embed.swing JFXPanel]
     [javafx.event EventHandler]
     [javafx.geometry Insets Pos VPos Side]
     [javafx.scene Group Node Parent Scene]
@@ -30,7 +30,7 @@
      TextField TextArea
      Tooltip
      ScrollPane CheckBox]
-    [javafx.scene.image Image ImageView]
+    [javafx.scene.image ImageView]
     [javafx.scene.input MouseEvent]
     [javafx.scene.layout
      BorderPane HBox Priority Region StackPane VBox
@@ -44,18 +44,6 @@
 
 
 ;(set! *warn-on-reflection* true)
-
-
-(defn init-toolkit
-    "An easy way to 'initalize [JavaFX] Toolkit'
-Needs only be called once in the applications life-cycle.
-Has to be called before the first call to/on FxApplicationThread (javafx/later)"
-  []
-  (println (str *ns*"/init-toolkit ..."))
-  (JFXPanel.))
-
-;; Must be called here, else the rest of the file won't load!
-(init-toolkit)
 
 
 (defn set-implicit-exit [b]
@@ -838,7 +826,6 @@ It must return a string (which may be wrapped to fit the width of the list."
                                           smooth true}}]
   (let [iv
         (doto
-          ;(ImageView. (if (instance? Image image-or-rsc-str) image-or-rsc-str (Image. image-or-rsc-str)))
           (ImageView.  image-or-rsc-str)
           (.setSmooth smooth)
           (.setPreserveRatio preserveratio))]

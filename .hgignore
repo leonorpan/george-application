@@ -2,10 +2,9 @@
 .*.iml
 
 # directories
+.idea/
 target/
 checkouts/
-.idea/libraries/
-.idea/
 
 # files
 .*.DS_Store

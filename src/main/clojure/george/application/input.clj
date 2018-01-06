@@ -7,6 +7,7 @@
   (:require
     [clojure.string :as cs]
     [environ.core :refer [env]]
+    [george.javafx-init] ;; Important!
     [george.javafx :as fx]
     [george.core.history :as hist]
     [george.application.repl :as repl]
