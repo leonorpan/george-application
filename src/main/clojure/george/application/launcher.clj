@@ -13,6 +13,7 @@
     [environ.core :refer [env]]
 
     [george
+     [javafx-init] ;; Important!
      [javafx :as fx]
      [applet :as applet]]
 
@@ -29,7 +30,6 @@
     [g])
 
   (:import
-    [javafx.scene.image ImageView Image]
     [javafx.geometry Rectangle2D]
     [javafx.stage Stage]
     [javafx.application Platform]
