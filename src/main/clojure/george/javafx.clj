@@ -542,12 +542,6 @@ It must return a string (which may be wrapped to fit the width of the list."
           (.setArcHeight arc))))
 
 
-(defn ^Label label
-    ([] (Label.))
-    ([text] (Label. text))
-    ([text node] (Label. text node)))
-
-
 (defn set-tooltip [control s]
   (.setTooltip control (Tooltip. s))
   control)
@@ -642,6 +636,17 @@ It must return a string (which may be wrapped to fit the width of the list."
   (doto (Text. s)
     (.setFill color)
     (set-font (or font (new-font size)))))
+
+
+(defn ^Label new-label
+  [s & {:keys [graphic font size color mouseclicked tooltip style]  :or {size 12}}]
+  (let [label (doto  (Label. s graphic)
+                (set-font (or font (new-font size))))]
+    (when color (.setTextFill label color))
+    (when style (.setStyle label style))
+    (when mouseclicked (set-onmouseclicked label mouseclicked))
+    (when tooltip (set-tooltip label tooltip))
+    label))
 
 
 (defn insets* [[top right bottom left]]
@@ -761,7 +766,7 @@ It must return a string (which may be wrapped to fit the width of the list."
     (doto (GridPane.)
       (.setMaxWidth Double/MAX_VALUE)
       (.setPrefWidth (or pref-width 800))
-      (.add (label expand-prompt) 0 0)
+      (.add (new-label expand-prompt) 0 0)
       (.add ta 0 1))))
 
 

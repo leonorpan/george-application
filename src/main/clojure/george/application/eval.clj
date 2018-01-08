@@ -61,7 +61,7 @@
           (GridPane/setVgrow Priority/ALWAYS)
           (GridPane/setHgrow Priority/ALWAYS))
         label
-        (fx/label "The exception stacktrace is:")
+        (fx/new-label "The exception stacktrace is:")
         ex-content
         (doto (GridPane.)
           (.setMaxWidth Double/MAX_VALUE)

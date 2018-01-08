@@ -5,9 +5,11 @@
 
 (ns george.application.ui.layout
   (:require
+    [markdown.core :refer [md-to-html-string]]
     [george.javafx :as fx]
     [george.javafx.java :as fxj]
-    [george.application.ui.styled :as styled])
+    [george.application.ui.styled :as styled]
+    [clojure.string :as cs])
   (:import
     [javafx.scene Node]
     [javafx.scene.control TabPane SeparatorMenuItem MenuItem MenuButton Tab]
@@ -24,18 +26,13 @@
   [& [vertical?]]
   (let [detail-pane
         (fx/borderpane)
-
         root
-        (fx/borderpane
-          :center detail-pane)
+        (fx/borderpane :center detail-pane)
         master-setter
         #(when (nil-or-node? %)
-               (if vertical?
-                   (.setTop root %)
-                   (.setLeft root %)))
+               (if vertical? (.setTop root %) (.setLeft root %)))
         detail-setter
-        #(when (nil-or-node? %)
-               (.setCenter detail-pane %))]
+        #(when (nil-or-node? %) (.setCenter detail-pane %))]
     [root master-setter detail-setter]))
 
 
@@ -79,7 +76,7 @@
         (fx/hbox newbutton)
 
         empty-text
-        (styled/heading empty-label)
+        (styled/new-heading empty-label)
 
         root
         (doto (AnchorPane. (fxj/vargs-t Node empty-text tpane newbutton-box))
@@ -104,8 +101,8 @@
 
     (.addEventFilter tpane
                       KeyEvent/KEY_PRESSED
-                      (fx/key-pressed-handler {#{:N :SHORTCUT} #(.fire newbutton)
-                                               #{:C :SHORTCUT}  #(close-tab-nicely tpane nil)}))
+                      (fx/key-pressed-handler {#{:N :SHORTCUT} #(.fire newbutton)}))
+                                               ;#{:C :SHORTCUT}  #(close-tab-nicely tpane nil)}))
 
     [root tpane]))
 
@@ -158,3 +155,17 @@
                     :alignment fx/Pos_TOP_LEFT]))
                     ;:background fx/GREEN]))
     (.setBorder (styled/new-border (if top? [0 0 1 0] [1 0 0 0])))))
+
+
+(defn- code-tag [text state]
+  [(cs/replace text #"<code>" "<code class=\"clj\">") state])
+
+(defn- ahref-tag [text state]
+  [(cs/replace text #"<a href" "<a <a onclick=\"window.status='CLICK:'+this;return false;\" href") state])
+
+(defn doc->html
+  "Returns the markdown as an html-string"
+  [^String md]
+  (let [html (md-to-html-string md :custom-transformers [code-tag ahref-tag])]
+    ;(println html)
+    html))

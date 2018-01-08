@@ -16,6 +16,12 @@ Note update at bottom of page.
     src: url('Roboto-Regular.ttf');
 }
 @font-face {
+    src: url('Roboto-Italic.ttf');
+}
+@font-face {
+    src: url('Roboto-Bold.ttf');
+}
+@font-face {
     src: url('RobotoMono-Regular.ttf');
 }
 @font-face {

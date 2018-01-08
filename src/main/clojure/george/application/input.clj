@@ -108,10 +108,8 @@ Run code, then do the inverse of checkbox selection. SHIFT-%s-ENTER" u/SHORTCUT_
 
 
 (defn ns-label []
-  (doto (fx/label)
-    (.setStyle "-fx-font: 14 'Source Code Pro Medium';
-                            -fx-text-fill: gray;
-                            -fx-padding: 3;")))
+  (fx/new-label nil
+     :style "-fx-font: 14 'Source Code Pro Medium'; -fx-text-fill: gray; -fx-padding: 3;"))
 
 
 (defn set-ns-label-fn [label]
