@@ -17,7 +17,8 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
 
     "
 
-  (:require [george.javafx :as fx]
+  (:require [defprecated.core :as depr]
+            [george.javafx :as fx]
             [george.javafx.util :as fxu]
             [clojure.java.io :as cio]
             [clojure.string :as cs]
@@ -287,7 +288,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             (getPenColor []
                 (:pen-color @state))
             (setPenColor [color]
-                ;; TODO: assert color one of web(str), key (in pallette), javafx.paint.Color
+                ;; TODO: assert color one of web(str), key (in palette), javafx.paint.Color
                 ;; TODO: calculate a JavaFX Color and store calculated result
                 (swap! state assoc :pen-color color))
 
@@ -388,7 +389,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;;; "public" ;;;
 
 
-
 (defn ^Stage screen
   "same as 'turtle', but with possibility to create different sized screen."
     ([]
@@ -399,236 +399,326 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn turtle
-    "get-or-create a screen (with default size) and a turtle.
-Returns turtle instance"
+    "Returns the turtle object.  
+     Creates and shows a screen with default size if one is not already created.
+
+*Example:*
+```
+(turtle)
+```"
     []
     (:turtle (get-or-create-screen-and-turtle)))
 
 
 (defn left
-  "Turtle command.
-  Rotates the turtle counter-clockwise from current heading.
-  Negative number also possible, which will result in a clockwise rotation.
+  "Rotates the turtle counter-clockwise.  
+  A negative number will result in a clockwise rotation.
 
-  Ex.: (left 90)"
+  *Example:*
+```
+(left 90)
+(left -90)  ;; Rotates to the right.
+```"
   [degrees]
   (.left  (turtle) degrees)
   nil)
 
 
 (defn right
-  "Turtle command.
-  Does the same as as 'left', but in opposite direction."
+  "Similar to `left`, but in the opposite direction."
   [degrees]
   (.right  (turtle) degrees)
   nil)
 
 
 (defn forward
-  "Tutle command.
-  Moves the turtle forward 'distance' in the direction the turtle is heading.
-  Negative number also possible, which results in the turtle moving backward.
+  "Moves the turtle forward `distance` in the direction the turtle is heading.  
+  A negative number is also possible. It will result in the turtle moving backward.  
 
-  Ex.: (forward 50)"
+  *Example:* 
+```
+(forward 50)
+(forward -50)
+```"
   [distance]
   (.forward  (turtle) distance)
   nil)
 
 
-(defn heading
-  "Turtle command.
-  Returns the current heading (angle) of the turtle relative to positive X axis, rotation counter-clockwise.
-  The returned number will be a positive number from 0 to 359.
-
-  Ex.: (heading)"
-  []
-  (.getHeading  (turtle))
-  nil)
-
-
 (defn set-heading
-  "Turtle command.
-  Rotates the turtle to the given heading.  See 'heading'.
+  "Rotates the turtle to the given heading:  
+  `0` is facing right.  
+  `90` is facing up.  
+  `180` is facing left.  
+   etc.  
 
-  Ex.: (set-heading 90)"
+  *Example:* 
+```
+(set-heading 90)
+```
+See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information.
+"
   [degrees]
   (.setHeading  (turtle) degrees)
   nil)
 
 
-(defn position
-  "Turtle command.
-  Returns the current position (coordinates) of the turtle relative to 'origo' (center of screen.) 'x' is right, 'y' is up.
-
-  The value is a 2-item vector: [x y]
-  The vector can be desctructed, or 'first' or 'second' can be called on it to get just the x or y value.
-
-  Ex.:
-  (position)
-  (let [p (position)] ...)
-  (let [[x y] (position)] ...) ;; destructing
-  (let [x (first (position))] ...)
+(defn get-heading
   "
+  Returns the turtles current absolute heading (angle).  
+  The returned number will be always be a positive number ranging from 0 to 359.  
+  See [`set-heading`](var:set-heading) for more details.
+  
+  *Example:* 
+```
+(heading)
+```  
+  See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information."
   []
-  (.getPosition (turtle)))
+  (.getHeading  (turtle))
+  nil)
+
+
+(depr/defn heading
+           {:deprecated {:in "2018.1"}
+                        :use-instead get-heading
+                        :print-warning :always}
+  []
+  (get-heading))
 
 
 (defn set-position
-  "Turtle command.
-  Moves the turtle to the given position.  (See 'position').
-  If x or y are \"falsy\" (i.e. 'nil' or 'false'), then that part is ignored.
+  "Moves the turtle to the given absolute position (coordinates) relative to \"origo\" (center of screen.)  
+  'x' is right, 'y' is up.
 
-  Ex.:
+  'position' is a 2-item vector [x y].  
+  If 'x' or 'y' are \"falsy\" (i.e. `nil` or `false`), then that part is ignored.
+
+  *Examples:*
+```
   (set-position [30 40])
-  (set-position [30 nil]) ;; y is changed, only x"
+  (set-position [30 nil]) ;; only x is changed, not y
+```
+  See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information."
   [[x y]]
   (.setPosition  (turtle) [x y])
   nil)
 
 
-(defn pen-up
-  "Pen command.
-  Picks up the pen, so when the turtle moves, no line will be drawn.
+(defn get-position
+  "Returns the turtle's current absolute position.
 
-  Ex.: (pen-up)"
+  The value is a 2-item vector: [x y]  
+  The vector can be \"destructed\", or 'first' or 'second' can be called on it to get just the x or y value.
+
+  *Examples:*
+```
+(position)  ;; returns the position
+(let [[x y] (position)] ...) ;; destructing
+(let [x (first (position))] ...)
+```
+See [`set-position`](var:set-position) for more details.
+"
+  []
+  (.getPosition (turtle)))
+
+
+(depr/defn position
+           {:deprecated {:in "2018.1"}
+            :use-instead get-position
+            :print-warning :always}
+           []
+           (get-position))
+
+
+(defn pen-up
+  "Picks up the pen, so when the turtle moves, no line will be drawn.
+ 
+  *Example:* 
+```
+(pen-up)
+```"
   []
   (.setPenDown  (turtle) false)
   nil)
 
 
 (defn pen-down
-  "Pen command.
-  Sets down the pen, so when the turtle moves, a line will be drawn.
+  "Sets down the pen, so when the turtle moves, a line will be drawn.
 
-  Ex.: (pen-down)"
+  *Example:* 
+```
+(pen-down)
+```"
   []
   (.setPenDown  (turtle) true)
   nil)
 
 
-(defn get-pen-down
-  "Pen command.
-  Returns 'true' or 'false'.
+(defn is-pen-down
+  "Returns `true` if the turtle's pen is \"down\", else `false`.
 
-  Ex.: (is-pen-down)"
+  *Example:* 
+```
+(is-pen-down)
+```"
   []
   (.getPenDown (turtle)))
 
 
-(defn speed
-  "Turtle command.
-  Returns a number or 'nil'.
-
-  Ex.: (speed)"
-  []
-  (.getSpeed (turtle)))
+(depr/defn get-pen-down
+           {:deprecated {:in "2018.1"}
+            :use-instead is-pen-down
+            :print-warning :always}
+           []
+           (is-pen-down))
 
 
 (defn set-speed
-  "Turtle command.
-  Sets the speed of the turtle to a number or 'nil'.
+  "Sets the speed of the turtle to a number or `nil`.  
   The number is multiples of \"standard speed\".
 
-  1 or 1.0 is default/standard speed
-  2 or 2.0 is double speed
-  0.5 or 1/2 is half speed
-  etc.
+  `1` or `1.0` is default/standard speed  
+  `2` or `2.0` is double speed  
+  `0.5` or `1/2` is half speed  
+  etc.  
 
-  'nil' is no speed, i.e. no animations -> as fast as possible.
-  A speed over 100 has no increase effect.
+  `nil` is no speed, i.e. no animations -> as fast as possible.  
+  A speed over `100` has no increase effect.  
 
-  A speed set such that the animation duration is less than 1, results in speed 'nil' being used.
-  Ex.: (set-speed 1)"
+  A speed set such that the animation duration is less than 1, results in speed `nil` being used.
+  
+  *Example:* 
+```
+(set-speed 1)
+(set-speed 2)
+(set-speed 0.5)
+(set-speed 1/2)
+(set-speed nil)
+```"
   [number]
   (.setSpeed (turtle) number)
   nil)
 
 
-(defn pen-color
-  "DEPRECATED: Use 'color' instead.
-   Pen command.
-   Returns a string representing a \"web color\", or a JavaFX Color instance,
-   e.g. \"black\" or \"#ff0000\" (red) or
-     Color/CORNFLOWERBLUE or (Color/color 0 255 0 0).
+(defn get-speed
+  "Returns a number or `nil` - whatever the speed is.  
 
-   Ex.: (pen-color)
+  *Example:*
+```
+(get-speed)
+```
 
-   For more on JavaFX Color, see:
-   http://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
- "
+  See [`set-speed`](var:set-speed) for more information.\n
+" 
   []
-  (println "WARNING: 'pen-color' is deprecated. Use 'color' instead")
-  (.getPenColor (turtle)))
+  (.getSpeed (turtle)))
 
 
-(defn color
-  "Pen command.
-  Returns a string representing a \"web color\", or a JavaFX Color instance,
-  e.g. \"black\" or \"#ff0000\" (red) or
-    Color/CORNFLOWERBLUE or (Color/color 0 255 0 0).
+(depr/defn speed
+           {:deprecated {:in "2018.1"}
+            :use-instead get-speed
+            :print-warning :always}
+           []
+           (get-speed))
 
-  Ex.: (pen-color)
 
-  For more on JavaFX Color, see:
-  http://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
+(defn set-color
+  "Sets the turtle's (pen) color.
+  
+  *Examples:*
+```
+(set-color \"orange\")
+(set-color \"#0000ee\") ;; a blue
+(set-color Color/CORNFLOWERBLUE)
+(set-color (Color/color 0 255 0)) ;; a green
+```  
+  See topic [Color](:Color) for more information."
+  [color]
+  (.setPenColor (turtle) color)
+  nil)
+
+
+(depr/defn set-pen-color
+           {:deprecated {:in "2018.0"
+                         :use-instead set-color
+                         :print-warning :always}}
+           [color]
+           (set-color color))
+
+
+(defn get-color
+  "Returns the turtle's (pen) color.
+  
+  *Example:*
+```
+(get-color)
+```
+
+  See topic [Color](:Color) for more information.
 "
   []
   (.getPenColor (turtle)))
 
 
-(defn set-pen-color
-  "DEPRECATED: Use 'set-color' instead.
-
-  Pen command.
-  Sets the pen to the specified web color (String) or JavaFX Color.
-  See: 'pen-color'"
-  [color]
-  (println "WARNING: 'set-pen-color' is deprecated. Use 'set-color' instead")
-  (.setPenColor (turtle) color)
-  nil)
-
-
-(defn set-color
-  "Pen command.
-  Sets the pen to the specified web color (String) or JavaFX Color.
-  See: 'pen-color'"
-  [color]
-  (.setPenColor (turtle) color)
-  nil)
+(depr/defn get-pen-color
+           {:deprecated {:in "2018.0"
+                         :use-instead get-color
+                         :print-warning :always}}
+           []
+           (get-color))
 
 
 (defn show
-  "Turtle command.
-  Makes the turtle visible.
+  "Makes the turtle visible.
 
-  Ex. (show)"
+  *Example:* 
+```
+(show)
+```"
   []
   (.setVisible ^Group (turtle) true)
   nil)
 
 
 (defn hide
-  "Turtle command.
+  "Makes the turtle *not* visible.
 
-  Ex.: (hide)"
+  *Example:*
+```
+(hide)
+```"
   []
   (.setVisible ^Group (turtle) false)
   nil)
 
 
-(defn is-showing
-  "Turtle command.
-  Returns 'true' or 'false'.
+(defn is-visible
+  "Returns `true` if the turtle is visible, else `false`.
 
-  Ex.: (is-showing)"
+  *Example:* 
+```
+(is-visible)
+```"
   []
   (.isVisible ^Group (turtle)))
+
+
+(depr/defn is-showing
+           {:deprecated {:in "2018.1"}
+            :use-instead is-visible
+            :print-warning :always}
+           []
+           (is-visible))
 
 
 (defn clear
   "Removes all graphics from screen.
 
-  Ex.: (clear)"
+  *Example:*
+```
+(clear)
+```"
   []
   (let [sc (screen)
 
@@ -649,40 +739,52 @@ Returns turtle instance"
 
 
 (defn home
-  "Turtle command.
-  Moves the turte back to the center of the screen.
-  Makes the turtle visible, heading 0, postion [0 0], pen-down.
+  "Moves the turtle back to the center of the screen.
+   Sets heading to `0` (and position to `[0 0]`).
 
-  Ex.: (home)"
+  *Example:*
+```
+(home)
+```"
   []
+  (let [pen-down? (is-pen-down)]
+    (pen-up)
+    (set-heading 0)
+    (set-position [0 0])
+    (when pen-down? (pen-down))
+    nil))
+
+
+(defn reset
+  "A combined screen and turtle command.  
+  Clears the screen, and center the current turtle, leaving only one turtle.
+
+  Same as calling   
+`(clear) (show) (set-speed 1) (pen-up) (home) (pen-down)`
+
+  *Example:* 
+```
+(reset)
+```"
+  []
+  (clear)
   (show)
+  (set-speed 1)
+  (set-color "black")
   (pen-up)
-  (set-heading 0)
-  (set-position [0 0])
+  (home)
   (pen-down)
   nil)
 
 
-(defn reset
-  "Combined screen and turtle command.
-  Clears the screen, and center the current turtle, leaving only one turtle.
-  Same as calling `(clear) (home)`
-
-  Ex.: (reset)"
-  []
-  (clear)
-  (set-speed 1)
-  (set-color "black")
-  (home)
-  nil)
-
-
 (defn sleep
-  "Utility command.
-  Causes the thread to \"sleep\" for the number of milliseconds.
+  "Causes the thread to \"sleep\" for a number of milliseconds.
   1 second = 1000 milliseconds
 
-  Ex.: (wait 2000)  ;; sleep for 2 seconds"
+  *Example:* 
+```
+(sleep 2000)  ;; Sleeps for 2 seconds
+```"
   [milliseconds]
   (Thread/sleep milliseconds))
 
@@ -692,12 +794,24 @@ Returns turtle instance"
 ;       ~@body))
 
 (defmacro rep
-  "Utility command.
-  Repeatedly executes body (presumably for side-effects) from 0 through n-1.
+  "Macro.  
+  Repeatedly executes body (presumably for side-effects) from 0 through n-1 times.  
+  
+  *Example:*
+```
+(rep 3
+     (forward 50) 
+     (left 120))
+ ```
+If you need to get the count in the body, then use the standard Clojure `dotimes` in stead:
+```
+(dotimes [i 3]
+         (println i)
+         (forward 50)
+         (left 120))
+```
+See topic [Clojure](:Clojure) for more information."
 
-  Ex.:
-  (rep 3
-       (forward 50) (left 120))"
   [n & body]
   `(let [n# (try (clojure.lang.RT/longCast ~n)
                  (catch Exception ~'e
@@ -723,16 +837,16 @@ Returns turtle instance"
 ;(println "WARNING: Running george.application.turtle.turtle/-main" (-main))
 
 (defn run-sample
-  "A test program which uses most of the available turtle commands."
+  "A simple test program which uses many of the available turtle commands."
   []
   (reset)
-  (println "heading:" (heading))
+  (println "heading:" (get-heading))
   (left 60)
   (right 30)
   (left 45)
-  (println "heading:" (heading))
+  (println "heading:" (get-heading))
   (set-heading 120)
-  (println "heading:" (heading))
+  (println "heading:" (get-heading))
   (forward 30)
   (pen-up)
   (right 60)
@@ -740,7 +854,7 @@ Returns turtle instance"
   (pen-down)
   (Thread/sleep 1000)
   (set-color "red")
-  (println "pen color:" (color))
+  (println "pen color:" (get-color))
   (forward 30)
 
   (sleep 2000)
@@ -917,31 +1031,125 @@ One might in future choose to save the 'initial directory' so as to return user 
   (put-image-on-clipboard (screenshot) (format "<%s>" SCREENSHOT_BASE_FILENAME)))
 
 
+;;;;;;;;; Documentation details
 
-(def ordered-command-list
-  [#'forward
+
+(def topic-welcome "# Welcome
+
+Click on any command or topic in the list to to the left for more information.
+
+*Here is a super quick piece of code you can try:*
+```
+(reset)
+(set-color \"orange\")
+(rep 5
+  (forward 50)
+  (left 144))
+```
+*(Type it yourself, or copy-and-paste it into an Input or Editor and do 'Run'.)*
+
+**Enjoy!**")
+
+
+(def topic-color
+  "# Color
+
+George uses JavaFX for its graphics.  This gives you a lot of power to do whatever you want with colors.  
+There are both easy and more advanced things you can do.
+
+## Easy
+
+The easiest is to use named HTML color such as `\"red\"`, `\"orange\"`, `\"blue\"`.  
+You can find a good list online: [HTML Color Values](https://www.w3schools.com/colors/colors_hex.asp).
+
+Or, if you prefer, you can use the same colors defined in 'Color', such as `Color/CORNFLOWERBLUE`.  
+You can find the list online: [Color - Fields](https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html#field.summary) .
+
+## Medium
+
+You can mix your own color. To do so, use HTML colors, and specify Your mix of Red Green Blue with hexadecimal number.  
+A hex number is a number that goes from `0` to `f`.  So to make red, you can write`\"#f00\"` or `\"#ff0000\"`.  
+You can experiment with mixing HTML colors online: [Colors RGB](https://www.w3schools.com/colors/colors_rgb.asp) .
+
+## Advanced
+
+You can also use the JavaFX Color functions directly.  That will give you ultimate power - including making colors transparent, and doing number-calculations.  
+
+*Examples:*
+```
+(Color/color 0 0 1) ;; blue
+(Color/color 0.0 0.0 1.0) ;; the same blue
+(Color/color 0.0 0.0 0.0 0.5) ;; semi-transparent blue 
+(Color/rgb 0 0 255) ;; again blue
+```
+You can read the complete documentation online: [JavaFX Color](https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html)")
+
+
+(def topic-clojure
+  "# Clojure
+
+The underlying programming language for the Turtle API (and for all of George) is Clojure.
+
+Clojure is buildt into the system, which means you can \"dip down\" and do pretty much anything you want that you can do with Clojure.
+
+See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of all available \"commands\" - aka functions, macros, and special forms.")
+
+
+(def topics 
+  {:Welcome              topic-welcome 
+   :Color                topic-color
+   :Clojure              topic-clojure
+   (keyword (str *ns*))  ((meta *ns*) :doc)}) ;(meta (find-ns (symbol (str *ns*))))
+
+
+(def headings 
+  {"Turtle" 
+   "# Turtle\n\nBasic commands for the turtle."
+   "Pen" 
+   "# Pen\n\nCommands related to the turtle's pen."
+   "Screen" 
+   "# Screen\n\nCommands related the screen itself."
+   "Utils" 
+   "# Utilities \n\nCustom utility Clojure commands in the turtle API.\n\nSee topic [Clojure](:Clojure) for more information.\n"
+   "Advanced" 
+   "# Advanced\n\nMore advanced turtle commands."
+   "Demos"
+   "# Demos\n\nFun or interesting demonstrations of Turtle Geometry."
+   "Topics"
+   "# Topics\n\nIn-depth on certain topics of interest."})
+
+(def turtle-API-list
+  ["Turtle"
+   #'forward
    #'left
    #'right
    #'home
    #'show
    #'hide
+   #'is-visible
+   #'set-speed
+   #'get-speed
+   "Pen"
    #'pen-up
    #'pen-down
-   #'speed
-   #'set-speed
-   #'color
+   #'is-pen-down
    #'set-color
+   #'get-color
+   "Screen"
    #'clear
    #'reset
-
-   #'heading
-   #'set-heading
-   #'position
-   #'set-position
-   #'turtle
    #'screen
+   "Utils"
    #'rep
    #'sleep
-   #'run-sample])
-
-
+   "Advanced"
+   #'set-heading
+   #'get-heading
+   #'set-position
+   #'get-position
+   #'turtle
+   "Demos"
+   #'run-sample
+   "Topics"
+   :Color
+   :Clojure])

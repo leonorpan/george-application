@@ -41,9 +41,11 @@
                  ;; https://github.com/ztellman/potemkin
                  [potemkin "0.4.4"]
                  ;; https://github.com/clj-time/clj-time
-                 [clj-time "0.13.0"]]
-                 ;; https://github.com/alexander-yakushev/defprecated]
-                 ; [defprecated "0.1.3"] :exclusions [org.clojure/clojure]]
+                 [clj-time "0.13.0"]
+                 ;; https://github.com/yogthos/markdown-clj
+                 [markdown-clj "1.0.2"]
+                 ;; https://github.com/alexander-yakushev/defprecated
+                 [defprecated "0.1.3" :exclusions [org.clojure/clojure]]]
 
   :plugins [
             ;; https://github.com/weavejester/environ

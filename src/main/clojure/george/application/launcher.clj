@@ -33,7 +33,7 @@
     [javafx.geometry Rectangle2D]
     [javafx.stage Stage]
     [javafx.application Platform]
-    [javafx.scene.control Hyperlink Button MenuItem ContextMenu]
+    [javafx.scene.control Button MenuItem ContextMenu]
     [javafx.beans.property SimpleDoubleProperty]
     [javafx.scene.layout Pane VBox]
     [javafx.scene.text TextAlignment]))
@@ -44,41 +44,51 @@
 ;(set! *unchecked-math* true)
 
 
-(def about-tmpl "
-George version: %s
-Clojure version: %s
-Java version: %s
-
-
-Copyright 2015-2018 Terje Dahl.
-Powered by open source software.
-")
-
 (def ABOUT_STAGE_KW ::about-stage)
+
+(def versionf "
+  George: %s
+ Clojure: %s
+    Java: %s")
+
+(def copyright "
+Copyright 2015-2018 Terje Dahl.
+Powered by open source software.")
 
 
 (defn- about-stage-create []
-  (let [text
-        (fx/label
-          (format about-tmpl
-             (slurp (cio/resource "george-version.txt"))
-             (clojure-version)
-             (env :java-version)))
+  (let [version-info
+        (doto
+          (fx/new-label
+            (format versionf
+               (slurp (cio/resource "george-version.txt"))
+               (clojure-version)
+               (env :java-version)
+               :font (fx/new-font "Roboto Mono"))))
+
+        copyright-info
+        (fx/new-label copyright)
+
         link
-        (doto (Hyperlink. "www.george.andante.no")
-              (.setStyle "-fx-border-color: transparent; -fx-padding: 10 0 10 0; -fx-text-fill:#337ab7;")
-              (.setOnAction (fx/event-handler (browse-url "http://www.george.andante.no"))))]
+        (styled/new-link "www.george.andante.no" #(browse-url "http://www.george.andante.no"))
+
+        root
+        (fx/vbox
+           (fx/imageview "graphics/George_logo.png" :width 160)
+           version-info
+           copyright-info
+           link
+           :padding 10)]
+
+    (styled/style-stage
       (fx/stage
          :style :utility
          :sizetoscene true
          :title "About George"
          :onhidden #(singleton/remove ABOUT_STAGE_KW)
-         :scene (fx/scene
-                  (fx/vbox
-                    (fx/imageview "graphics/George_logo.png" :width 160)
-                    text
-                    link
-                    :padding 10)))))
+         :resizable false
+         :scene (fx/scene root)))))
+
 
 
 (defn- about-stage []
@@ -121,7 +131,7 @@ Powered by open source software.
             #(let [res (dispose)]
                (if (fx/node? res)
                    res
-                   (styled/heading (format "'%s' unloaded" (label)))))))
+                   (styled/new-heading (format "'%s' unloaded" (label)))))))
 
         tile
         (fx/vbox
@@ -137,8 +147,8 @@ Powered by open source software.
               (ContextMenu. (fxj/vargs
                               (doto (MenuItem. (format "Dispose of (quit) '%s'" (label)))
                                     (fx/set-onaction dispose-fn))))))
-          (doto (fx/label (label))
-                (.setStyle (format "-fx-font-size: %s;" label-font-size))
+          (doto (fx/new-label (label)
+                              :style (format "-fx-font-size: %s;" label-font-size))
                 (.setMaxWidth tile-width)
                 (.setWrapText true)
                 (.setTextAlignment TextAlignment/CENTER))
@@ -154,23 +164,23 @@ Powered by open source software.
   [detail-setter]  ;; a 1-arg fn. If arg is ^javafx.scene.Node, then that node gets set as "detail" in application window.
   (let [
         welcome-node
-        (styled/heading "Welcome to George" :size 24)
+        (styled/new-heading "Welcome to George" :size 24)
 
         main-wrapper ;; a function which calls the applet-fn, and passes the return-value to details-setter
         #(detail-setter (when % (%)))
 
         george-icon
-        (doto (fx/label nil (doto (fx/imageview "graphics/George_icon_128_round.png")
-                                  (.setFitWidth tile-width)
-                                  (.setFitHeight tile-width)))
-          (fx/set-tooltip "\"home\"")
-          (fx/set-onmouseclicked #(detail-setter (styled/heading "George" :size 24))))
+        (fx/new-label nil 
+           :graphic (doto (fx/imageview "graphics/George_icon_128_round.png")
+                          (.setFitWidth tile-width)
+                          (.setFitHeight tile-width)) 
+           :tooltip  "\"home\""
+           :mouseclick  #(detail-setter (styled/new-heading "George" :size 24)))
 
         about-label
-        (doto
-          (fx/label "About")
-          (.setStyle "-fx-font-size: 10px;")
-          (fx/set-onmouseclicked about-stage))
+        (fx/new-label "About"
+          :style "-fx-font-size: 10px;"
+          :mouseclicked about-stage)
 
         applet-infos
         (applet/load-applets)

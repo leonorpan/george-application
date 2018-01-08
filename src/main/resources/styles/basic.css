@@ -42,3 +42,13 @@ Tutorial:
     -fx-font-family: "Roboto Mono";
     -fx-background-radius: 3;
 }
+
+.hyperlink {
+    -fx-border-color: transparent;
+}
+.hyperlink:visited {
+    -fx-underline: false;   
+}
+.hyperlink:hover:visited {
+    -fx-underline: true;   
+}

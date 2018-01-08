@@ -121,7 +121,7 @@
 
           file-label
           (doto
-              (fx/label "<unsaved file>")
+              (fx/new-label "<unsaved file>")
               (.setTextOverrun OverrunStyle/LEADING_ELLIPSIS))
 
           save-file-fn

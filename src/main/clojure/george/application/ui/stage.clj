@@ -12,7 +12,7 @@
 
 
 (defn scene-root-with-child []
-  (fx/stackpane (styled/heading "Starting Launcher ...")))
+  (fx/stackpane (styled/new-heading "Starting Launcher ...")))
 
 
 (defn swap-stage-ensure

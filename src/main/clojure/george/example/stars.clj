@@ -64,10 +64,9 @@
     (vec (repeatedly STAR_COUNT #(fx/rectangle :size [1 1] :fill Color/WHITE))))
 
 
-(def fps-label
-    (doto ^Label (fx/label "FPS")
-        (. setTextFill Color/RED)
-        ))
+(def fps-label ^Label 
+  (fx/new-label "FPS" :color Color/RED))
+        
 
 
 (def scene ^Scene (fx/scene

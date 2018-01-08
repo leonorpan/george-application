@@ -50,7 +50,7 @@
   "removes singleton from singelton-map"
   [k]
   (when *debug* (printf "singleton/remove '%s' ... " k))
-  (if-let [f (get k)]
+  (if-let [_ (get k)]
         (do
           (swap! singletons_ dissoc k)
           (when *debug* (println "done")))
@@ -58,13 +58,14 @@
 
 
 (defn clear-all
-  "removes all singletons (by reseting it to an empty map."
+  "Removes all singletons by reset-ing the atom to an empty map."
   []
   (reset! singletons_ {}))
 
 
 (defn all-keys []
   (keys @singletons_))
+
 
 (defn print-all-keys []
   (pprint (all-keys)))

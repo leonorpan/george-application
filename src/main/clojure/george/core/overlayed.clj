@@ -47,7 +47,7 @@ asølkdfja sfd"
         (StackPane.
           (fxj/vargs-t Node
                        (fx/vbox
-                         (fx/label "")
+                         (fx/new-label "")
                          a-textfield
                          a-button)
 

@@ -40,7 +40,7 @@
                 (fx/region :vgrow :always)
                 app-buttons
                 (fx/region :vgrow :always)
-                (fx/label "About"))
+                (fx/new-label "About"))
 
           (.setAlignment fx/Pos_TOP_CENTER))
         root-pane
@@ -50,8 +50,8 @@
         (fn [app-b app-root-fn]
           (.setOnAction app-b (load-app-action root-pane app-buttons left app-root-fn)))]
 
-    (set-app-action-fn app1-b  #(fx/label "App 1"))
-    (set-app-action-fn app2-b  #(fx/label "App 2"))
+    (set-app-action-fn app1-b  #(fx/new-label "App 1"))
+    (set-app-action-fn app2-b  #(fx/new-label "App 2"))
 
     (.setOnAction logo-b
                   (fx/event-handler
