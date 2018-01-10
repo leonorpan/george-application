@@ -156,6 +156,10 @@
     (when-let [o (:out res)]
       (print o) (flush))
 
+    (when-let [o (:err res)]
+      (binding [*out* *err*]
+        (print o) (flush)))
+
     ns))
 
 
