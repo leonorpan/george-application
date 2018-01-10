@@ -7,13 +7,16 @@
   (:require
     [george.editor.core :as e]
     [george.javafx :as fx]
-    [george.editor.buffer :as b]))
+    [george.editor.buffer :as b]
+    [george.application.ui.styled :as styled]))
 
 
 (defn- test-stage [view]
   (fx/now
-    (fx/stage :title "Editor demo stage"
-              :scene (fx/scene view :size [400 400]))))
+    (styled/style-stage
+      (fx/stage :title "Editor demo stage"
+                :scene (fx/scene view :size [400 400])
+                :alwaysontop true))))
 
 
 (defn no-text-editor []

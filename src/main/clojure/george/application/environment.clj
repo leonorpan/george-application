@@ -229,7 +229,7 @@
 
         left
         (doto
-          (editor/new-tabbed-editor-root :ns user-ns-str))
+          (editor/new-tabbed-editor-root :ns user-ns-str :with-one? true))
 
         oi-root ^SplitPane
         (doto

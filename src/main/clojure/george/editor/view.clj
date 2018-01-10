@@ -14,7 +14,7 @@
     [george.util.text :as ut])
 
   (:import (org.fxmisc.flowless Cell VirtualFlow)
-           (javafx.scene.text Text Font)
+           (javafx.scene.text Text)
            (javafx.scene.layout Region StackPane Pane)
            (javafx.geometry Pos Insets BoundingBox Bounds)
            (javafx.scene Node Group Parent)
@@ -46,12 +46,6 @@
 
 
 ;; https://www.sessions.edu/color-calculator/
-(def DEFAULT_BLOCK_COLORS
-  (mapv (fn [[r g]] (Color/rgb r g 255))
-        (reverse
-          (map vector
-            (range 180 260 8)
-            (range 140 240 10)))))
 
 (def DEFAULT_BLOCK_BORDER_COLOR (fx/web-color "#0080ff"))
 
@@ -83,14 +77,15 @@
 
 
 (defn- ^Node selection-background-factory [^double w ^double h c]
-  (let [rect (fx/rectangle :size [(inc w) h] :fill DEFAULT_TEXT_SELECTION_COLOR)]
+  (let [rect (fx/rectangle :size [(inc w) h])]
+    (-> rect .getStyleClass (.add "selection"))
     (cond
       (= c \newline)
       (doto
         ^StackPane
         (fx/stackpane
            (doto (Ellipse. w (/ h 2))
-             (.setFill DEFAULT_TEXT_SELECTION_COLOR))
+             (-> .getStyleClass (.add "selection")))
            rect)
         (.setAlignment Pos/CENTER_LEFT))
 
@@ -99,13 +94,15 @@
 
 
 (defn- ^Rectangle anchor-factory [height]
-  (let [rect (fx/rectangle :size [0.5 height] :fill DEFAULT_CARET_COLOR)]
-    rect))
+  (doto (fx/rectangle :size [0.5 height])
+        (-> .getStyleClass (.add "caret"))))
+        
 
 
 (defn- cursor-factory [height]
-  (let [rect (fx/rectangle :size [3 height ] :fill DEFAULT_CARET_COLOR)]
-    rect))
+  (doto (fx/rectangle :size [3 height])
+        (-> .getStyleClass (.add "caret"))))
+
 
 
 (def DEFAULT_CURSOR_FACTORY cursor-factory)
@@ -144,14 +141,19 @@
           (.setPrefHeight (+ 2.0 ^double DEFAULT_LINE_HEIGHT))
           (.setTextFill DEFAULT_GUTTER_TEXT_FILL)
           (.setPadding DEFAULT_GUTTER_INSETS)
-          (.setBorder DEFAULT_GUTTER_BORDER))]
+          (.setBorder DEFAULT_GUTTER_BORDER))
+        root
+        (proxy [Group IGutter] [(fxj/vargs nr-label)]
+          (getWidth []
+            (.layout this)
+            (.getWidth nr-label))
+          (setText [s]
+            (.setText nr-label s)))]
+       
+    (-> root .getStyleClass (.add "gutter"))
+    (-> nr-label .getStyleClass (.add "nr-label"))
 
-       (proxy [Group IGutter] [(fxj/vargs nr-label)]
-         (getWidth []
-           (.layout this)
-           (.getWidth nr-label))
-         (setText [s]
-           (.setText nr-label s)))))
+    root))
 
 
 (def paren-chars #{\( \) \[ \] \{ \}})
@@ -477,7 +479,7 @@
 
           scrolling-part
           (new-scrolling-part gutter text-pane marks-pane blocks-pane  scroll-offset_ chars texts)
-
+          
           node
           (proxy [Region] []
             ;; @override
