@@ -7,25 +7,23 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0"]
                  ;; https://github.com/clojure/core.async
-                 [org.clojure/core.async "0.3.465"]
+                 [org.clojure/core.async "0.4.474"]
                  ;; https://github.com/clojure/tools.reader
-                 [org.clojure/tools.reader "1.0.0-alpha1"]
+                 [org.clojure/tools.reader "1.1.1"]
                  ;; https://github.com/mmcgrana/clj-stacktrace
                  [clj-stacktrace "0.2.8"]
                  ;[leiningen "2.8.1" :exclusions [org.clojure/clojure clj-stacktrace]]
                  [org.apache.directory.studio/org.apache.commons.io "2.4"]
                  ;; https://github.com/clojure/tools.namespace
-                 [org.clojure/tools.namespace "0.3.0-alpha3"]
+                 [org.clojure/tools.namespace "0.3.0-alpha4"]
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
-                 ;; https://github.com/clojure/tools.nrepl
-                 [org.clojure/tools.nrepl "0.2.13"]
-                 ;; https://github.com/clojure-emacs/cider-nrepl
-                 [cider/cider-nrepl "0.14.0"]
+                 ;; https://github.com/cemerick/nREPL
+                 [com.cemerick/nrepl "0.3.0-RC1"]
                  ;; https://github.com/FXMisc/RichTextFX
-                 [org.fxmisc.richtext/richtextfx "0.7-M5"]
+                 [org.fxmisc.richtext/richtextfx "0.8.1"]
                  ;; https://github.com/TomasMikula/Flowless
                  [org.fxmisc.flowless/flowless  "0.6"]
                  ;; https://github.com/brentonashworth/clj-diff
