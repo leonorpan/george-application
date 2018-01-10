@@ -59,7 +59,7 @@
 
       ;; Important! Otherwise the flow can not receive events.
       (.setFocusTraversable true)
-
+      (-> .getStyleClass (.add "editor-area"))
       (-> .breadthOffsetProperty
           (.addListener (fx/changelistener [_ _ _ offset]
                                            (reset! scroll-offset_ offset))))

@@ -158,8 +158,8 @@ Run code, then do the inverse of checkbox selection. SHIFT-%s-ENTER" u/SHORTCUT_
           (fx/checkbox "Clear"
                        :tooltip
                        "Clear on 'Run'. Code is cleared after successful evaluation.")
-          (.setStyle "-fx-padding: 3px;")
-          (.setSelected true))
+          (.setStyle "-fx-padding: 3px;"))
+          ;(.setSelected true))
 
         do-clear-fn
         (fn [inverse-clear]  ;; do the opposite of clear-checkbox
@@ -303,7 +303,7 @@ Next global history.  SHIFT-CLICK")
         focused_ (atom false)
         [root ^TabPane tabpane] (layout/tabpane "Inputs" "New Input"
                                                 #(new-input-tab selected_ focused_ :ns ns)
-                                                false)]
+                                                true)]
     (layout/set-listeners tabpane selected_ focused_)
 
     (fxj/thread
