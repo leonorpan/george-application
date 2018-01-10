@@ -20,8 +20,6 @@
                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ;; https://github.com/clojure/java.classpath
                  [org.clojure/java.classpath "0.2.3"]
-                 ;; https://github.com/ccw-ide/ccw/tree/master/paredit.clj
-                 [org.lpetit/paredit.clj "0.19.3" :exclusions [org.clojure/clojure]]
                  ;; https://github.com/clojure/tools.nrepl
                  [org.clojure/tools.nrepl "0.2.13"]
                  ;; https://github.com/clojure-emacs/cider-nrepl

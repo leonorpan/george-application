@@ -16,8 +16,6 @@
     [george.application.output :refer [oprintln]]
     [george.util :as u]
     [george.application.eval :as eval]
-    ;[george.code.paredit :as paredit]
-    ;[george.code.codearea :as ca]
     [george.editor.core :as ed]
     [george.application.ui.layout :as layout])
   (:import
@@ -211,22 +209,7 @@ Next global history.  SHIFT-CLICK")
              (fx/event-handler-2 [_ e]
                 (do-history-fn hist/NEXT (.isShiftDown ^MouseEvent e))
                 (.consume e))))
-
-         ;structural-combo (ComboBox. (fx/observablearraylist "Paredit" "No structural"))
-         ;paredit-kphandler (paredit/key-pressed-handler)
-         ;paredit-kthandler (paredit/key-typed-handler)
-         ;_ (doto editor
-         ;   (.addEventFilter KeyEvent/KEY_PRESSED
-         ;                    (fx/event-handler-2 [_ event]
-         ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
-         ;                               (.handle paredit-kphandler event))))
-         ;
-         ;   (.addEventFilter KeyEvent/KEY_TYPED
-         ;     (fx/event-handler-2 [_ event]
-         ;                         (when (-> structural-combo .getSelectionModel (.isSelected 0))
-         ;                               (.handle paredit-kthandler event)))))
-         ;_ (-> structural-combo .getSelectionModel (.select 0))
-
+        
         top
         (layout/menubar true
           ns-label)
