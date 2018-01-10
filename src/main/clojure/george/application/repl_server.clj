@@ -10,13 +10,10 @@
 "
   (:require
     [clojure
-     [pprint :refer [pprint]]
-     [repl :refer [doc dir]]]
+     [pprint :refer [pprint]]]
+    [clojure.tools.nrepl :as nrepl]
     [clojure.tools.nrepl.server :refer [start-server stop-server]]
-    [clojure.tools.nrepl.middleware.session :refer [session]]
-    [cider.nrepl :refer [cider-nrepl-handler]]
-    [george.util :refer [pprint-str]]
-    [clojure.tools.nrepl :as nrepl]))
+    [george.util :refer [pprint-str]]))
 
 
 (defonce ^:private server_ (atom nil))
@@ -59,8 +56,7 @@
   [& [port]]
   (stop!)
   (let [prt (or port 11000)]
-    (reset! server_
-            (start-server :port prt :handler cider-nrepl-handler))))
+    (reset! server_ (start-server :port prt))))
 
 
 

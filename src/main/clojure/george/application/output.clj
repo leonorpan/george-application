@@ -93,7 +93,7 @@
     (when (> cnt LINE_COUNT_CROP_AT)
       ;; Get the number of chars in each paragraph with 'map', and sum them up with 'reduce'
       (let [len (reduce +
-                        (map #(inc (.getParagraphLenth outputarea %))  ;; Yes, a typo in the method name.
+                        (map #(inc (.getParagraphLength outputarea %))
                              (range (- cnt LINE_COUNT_LIMIT))))]
         (.replaceText outputarea 0  len "")))))
 
