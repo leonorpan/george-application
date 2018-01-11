@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
+## [2018.1] - 2018-01-11
+
+### Fixed
+- Regression: CTRL-C now is "copy" in editor again, not "close tab"
+- \*err\* messages from nrepl now also get printed.
+- A nagging JavaFX Toolkit load/repl issue.
+
+### Added
+- Extensive master/detail "Turtle API" window, pulling content from docs and other texts in turtle API.
+- Markdown parsing and HTML rendering of/for Turtle API. 
+- New turtle commands: 'set-width'/'get-width', 'set-visible', 'set-pen-down'.
+- Enhanced color handling in Turtle API.
+- Library "defprecated" now prints warning when deprecated "turtle commands" are used.
+
+### Changed
+- Altered name of certain turtle "getter" commands.  
+- Moved previous minimal embedded command list into a separate "Turtle API" tool window with link.
+- Select color in editor now becomes gray when editor loose focus.
+- Clojure 1.8 -> 1.9
+- Sensible defaults: 1 editor and 1 input open, and input's "clear" not checked.
+- Moved namespace 'george.application.turtle.turtle' to 'george.turtle'
+
+### Removed
+- Unused modules from code - including Paredit and cider-nrepl.
+
+
 ## [2018.0] - 2018-01-04
 
 This is a major upgrade, with many changes.  
