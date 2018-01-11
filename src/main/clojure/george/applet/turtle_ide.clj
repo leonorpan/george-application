@@ -13,7 +13,7 @@
     [george.application
      [environment :as ide]]
 
-    [george.application.turtle.turtle :as turtle]
+    [george.turtle :as turtle]
     [george.application.ui.styled :as styled])
 
   (:import

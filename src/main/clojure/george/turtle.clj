@@ -3,17 +3,17 @@
 ;; By using this software in any fashion, you are agreeing to be bound by the terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns george.application.turtle.turtle
+(ns george.turtle
 
-    "George Turtle Geometry implements only the basic (procedural) single-turtle  functions of the original UCB Logo TG, not (for now) the obect-oriented multi-turtle environment of Python.
+    "George Turtle Geometry implements only the basic (procedural) single-turtle  functions of the original UCB Logo TG, not (for now) the object-oriented multi-turtle environment of Python.
 
-Furthermore, certain changes have been made to some of the function-names to make them more consistent, readable, an 'clojure-y' - mainly inserting hifens in multy-word function names.
+Furthermore, certain changes have been made to some of the function-names to make them more consistent, readable, an 'clojure-y' - mainly inserting hyphens in multi-word function names.
 
 We use 'standard' mode for TG as this is most in line with underlying standard math:
 1. Turtle home is origo.
 2. Origo is center of screen.
 3. X increases to the right, Y increases upwards.
-4. Degrees are counter-clocwise. 0 degrees is facing right.
+4. Degrees are counterclockwise. 0 degrees is facing right.
 
     "
 
@@ -23,8 +23,9 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
             [clojure.java.io :as cio]
             [clojure.string :as cs]
             [george.javafx.java :as fxj]
-            [george.application.ui.styled :as styled])
-  (:import (javafx.scene.paint Color)
+            [george.application.ui.styled :as styled]
+            [george.turtle.gui])
+  (:import (javafx.scene.paint Color Paint)
            (javafx.scene.canvas Canvas)
            (javafx.scene Node Group)
            (javafx.scene.transform Rotate)
@@ -120,9 +121,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(set! *unchecked-math* :warn-on-boxed)
 
 
-(declare screen)
+(declare 
+  screen
+  to-color)
+
 
 (def DEFAULT_SCREEN_SIZE [600 450])
+
 
 
 (definterface IScreen)
@@ -141,6 +146,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (setPenDown [bool])
     (getPenColor [])
     (setPenColor [color])
+    (setPenWidth [width])
+    (getPenWidth [])
     (getSpeed [])
     (setSpeed [number]))
 
@@ -180,14 +187,14 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         [^double x-fac ^double y-fac] (fxu/degrees->xy-factor ang)
         target-x (+ x (* dist x-fac))
         target-y (-  (+ y (* dist y-fac)))
+        c (.getPenColor inst)
+        w (.getPenWidth inst)
         line
-        (when (.getPenDown inst)
-              (fx/line :x1 x :y1  (- y)
-                       :color
-                       (let [c (.getPenColor inst)]
-                         (if (instance? String c)
-                             (Color/web c)
-                             c))))
+        (when (and (.getPenDown inst) c w)
+              (fx/line :x1 x :y1  (- y) 
+                       :width w
+                       :color (to-color c)))
+
         duration
         (when-let [speed (.getSpeed inst)]
           ;; 500 px per second is "default"
@@ -238,15 +245,19 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn turtle-polygon []
-  (fx/polygon 5 0  -5 5  -3 0  -5 -5  :fill fx/ANTHRECITE))
+  (fx/polygon 6 0  -6 6  -3 0  -6 -6  
+              :fill fx/ANTHRECITE 
+              :stroke (to-color [:white 0.7]) 
+              :strokewidth 0.5))
 
 
 (defn- turtle-impl [name]
     (let [state
           (atom {:pen-down true
-                 :pen-color "black"})
-          _ (set-speed* state 1)
-
+                 :pen-color :black
+                 :pen-width 1
+                 :speed 1
+                 :name name})
           poly
           (turtle-polygon)
 
@@ -255,42 +266,38 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             (sayHello []
                 (println (format "Hello.  My name is %s.  %s the Turtle." name name)))
             (left [deg]
-                ;(println "  ## left" deg)
                 (do-rotate* this deg))
             (right [^double deg]
-                ;(println "  ## right" deg)
                 (do-rotate* this (- deg)))
             (forward [dist]
-                ;(println "  ## forward" dist)
                 (do-forward* this dist))
             (getHeading []
                 (let [a  (heading* this)]
-                    ;(println "  ## getHeading" a)
                     a))
             (setHeading [angle]
-                ;(println "  ## setHeading" angle)
                 (set-heading* this angle))
 
             (getPosition []
               (let [p (position* this)]
-                ;(println "  ## getPosition" p)
                 p))
             (setPosition [[x y]]
-                ;(println "  ## setXY" x y)
                 (set-position* this [x y]))
 
             (getPenDown []
                 (:pen-down @state))
             (setPenDown [b]
-                ;; TODO: assert boolean type
                 (swap! state assoc :pen-down b))
+
 
             (getPenColor []
                 (:pen-color @state))
             (setPenColor [color]
-                ;; TODO: assert color one of web(str), key (in palette), javafx.paint.Color
-                ;; TODO: calculate a JavaFX Color and store calculated result
                 (swap! state assoc :pen-color color))
+
+            (setPenWidth [w]
+                (swap! state assoc :pen-width w))
+            (getPenWidth []
+                (:pen-width @state))
 
             (getSpeed []
               (:speed @state))
@@ -303,7 +310,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-turtle []
-    (doto (turtle-impl "Tom") .sayHello))
+    (turtle-impl "Tom"))
 
 
 ;; TODO: implement CRUD ref. spec
@@ -389,6 +396,90 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;;; "public" ;;;
 
 
+;; TODO: use clojure.spec for assertions.
+(defn to-color 
+  "Returns an instance of javafx.scene.paint.Paint, usually Color.
+  'color' may be one of:  
+
+- instance of sublcass of javafx.scene.paint.Paint, usually Color - i.e. `Color/GREEN`  
+- str, a web-color - named or hex  - i.e. `\"green\"` or `\"#00ff00\"`  
+- keyword, a named web-color - i.e. `:green`  
+- a single number for gray, integer 0-255 or 0.0-1.0, ranging from black to white
+- `[gray opacity]`, 'gray' as above, and alpha 0.0-1.0
+- `[red green blue]`, either all all doubles 0.0-1.0 or all integers - i.e. [0.0 1.0 0.0] or [0 255 0]
+- `[red green blue opacity]`, as above, but with 'opacity'; a double 0.0-1.0 where 0 is transparent and 1 is opaque - i.e.  [0 255 0 1.0]
+- `nil`, returns `nil`.
+
+  This function is  normally *not* used by the developer, but always called by `set-color`, and agian by `forward` when pen is down.
+  
+  However, you can use this to \"pre-validate\" a color if you want, such that you know that it will be acceptable, and so you can see the web-color it will result in.
+  "
+  [color]
+  (cond
+    (nil? color) nil
+
+    (instance? Paint color) color
+    (string? color) (Color/web color)
+    (keyword? color) (Color/web (name color))
+    (number? color) (if (float? color) (Color/gray color) (Color/grayRgb color))
+
+    ;; web-color or gray + opacity
+    (and (vector? color) (= 2 (count color)))
+    (let [[g o] color]
+      (when o 
+        (assert (<= 0.0 o 1.0) (format "[_ opacity] must be a number between 0.0 and 1.0. Got '%s'" o)))
+      (cond
+        (string? g)  (Color/web g o)
+        (keyword? g) (Color/web (name g) o)
+        (float? g)   (Color/gray g o)
+        :default (Color/grayRgb g o)))
+    
+    ;; RGB + opacity
+    (vector? color)
+    (let [cnt (count color)
+          _ (assert (<= 3 cnt 4)
+                    "'color' must be '[red green blue]' or '[red green blue opacity]'")
+          rgb (subvec color 0 3)
+          ints? (every? integer? rgb)
+          floats? (every? float? rgb)
+          _ (assert (or ints? floats?)
+                    (format "'[red green blue _]'  must be all integers or all floats or doubles. Got '%s'" rgb))
+
+          [r g b o] color]
+
+      (when o 
+        (assert (<= 0.0 o 1.0) (format "'[_ _ _ opacity]' must be a float or double. Got '%s'" o)))
+
+      (if o
+        (if ints? (Color/rgb r g b o) (Color/color r g b o))
+        (if ints? (Color/rgb r g b) (Color/color r g b))))
+
+    ;; ehhh ...
+    :default
+    (throw (IllegalArgumentException. (str "Type of color is not acceptable. Got " color)))))
+
+(comment
+  (println (to-color :red))
+  (println (to-color "red"))
+  (println (to-color "#ff0000"))
+  (println (to-color [:red 1.0]))
+  (println (to-color ["red" 1.0]))
+  (println (to-color Color/RED))
+  (println (to-color ["#ff0000" 1.0]))
+  (println (to-color 0.5))  ;; gray
+  (println (to-color 127))  ;; gray
+  (println (to-color [0.5 1.0]))  ;; gray
+  (println (to-color [127 1.0]))  ;; gray
+  (println (to-color [1.0 0.0 0.0]))  ;; red
+  (println (to-color [1.0 0.0 0.0 1.0])) ;; red
+  (println (to-color [255 0 0]))  ;; red
+  (println (to-color [255 0 0 1.0])) ;; red
+  (println (to-color [255 0 0 1])) ;; red
+  ;; FAIL
+  (println (to-color [255 0.1 0 1.0])) ;; Fail: Mix of mumber types
+  (println (to-color [255 1 0 127]))) ;; Fail: Opacity is not [0.0 .. 1.0]
+
+
 (defn ^Stage screen
   "same as 'turtle', but with possibility to create different sized screen."
     ([]
@@ -408,6 +499,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```"
     []
     (:turtle (get-or-create-screen-and-turtle)))
+
+
+(defn tom
+  "Same as `(turtle)`, but Tom introduces himself."
+  []
+  (doto (turtle)
+        (.sayHello)))
 
 
 (defn left
@@ -531,28 +629,21 @@ See [`set-position`](var:set-position) for more details.
            (get-position))
 
 
-(defn pen-up
-  "Picks up the pen, so when the turtle moves, no line will be drawn.
- 
-  *Example:* 
+(defn set-pen-down 
+  "Sets the pen in down up up position.  If 'down?' is `true`, then the pen will be set to down.  
+  The purpose of this is to allow you to explicitly toggle the pen in code.  
+  
+  Any value that is \"truth-y\" in clojure is allowed.
+  
+  *examples:*
 ```
-(pen-up)
+(set-pen-down true)  ;; down
+(set-pen-down false) ;; up
+(set-pen-down nil)   ;;  up
+
 ```"
-  []
-  (.setPenDown  (turtle) false)
-  nil)
-
-
-(defn pen-down
-  "Sets down the pen, so when the turtle moves, a line will be drawn.
-
-  *Example:* 
-```
-(pen-down)
-```"
-  []
-  (.setPenDown  (turtle) true)
-  nil)
+  [down?]
+  (.setPenDown  (turtle) (boolean down?)))
 
 
 (defn is-pen-down
@@ -564,6 +655,32 @@ See [`set-position`](var:set-position) for more details.
 ```"
   []
   (.getPenDown (turtle)))
+
+
+(defn pen-up
+  "Picks up the pen, so when the turtle moves, no line will be drawn.
+ 
+  *Example:* 
+```
+(pen-up)
+```"
+  []
+  (set-pen-down false)
+  nil)
+
+
+(defn pen-down
+  "Sets down the pen, so when the turtle moves, a line will be drawn.
+
+  *Example:* 
+```
+(pen-down)
+```"
+  []
+  (set-pen-down true)
+  nil)
+
+
 
 
 (depr/defn get-pen-down
@@ -635,6 +752,7 @@ See [`set-position`](var:set-position) for more details.
 ```  
   See topic [Color](:Color) for more information."
   [color]
+  (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize." 
   (.setPenColor (turtle) color)
   nil)
 
@@ -669,27 +787,48 @@ See [`set-position`](var:set-position) for more details.
            (get-color))
 
 
-(defn show
-  "Makes the turtle visible.
-
-  *Example:* 
+(defn set-width 
+  "Sets the width of the turtle's pen - e.g. how wide/thick the drawn line will be.  There are no upper limits.  
+  'width' must must be a positive number or `nil`.   
+  `1` is default.
+  
+  *Examples:*
 ```
-(show)
+(set-width 1)
+(set-width 1.0)
+(set-width 2/3)
+(set-width 20)
+(set-width nil)  ;; no line will be drawn.
+```"
+  [width]
+  (assert (or (nil? width) (number? width) (not (neg? width)))
+          "'width' must be a positive number or nil")
+  (.setPenWidth (turtle) width))
+
+
+(defn get-width 
+  "Returns the width of the pen.
+  
+*Example:*
+```
+(get-width)
 ```"
   []
-  (.setVisible ^Group (turtle) true)
-  nil)
+  (.getPenWidth (turtle)))
 
 
-(defn hide
-  "Makes the turtle *not* visible.
-
-  *Example:*
+(defn set-visible
+  "Makes the turtle visible - or not.
+  Any value that is \"truth-y\" in clojure is allowed.
+   
+   *examples:*
 ```
-(hide)
+(set-visible true)  ;; showing
+(set-visible false) ;; hidden
+(set-visible nil)   ;; hidden
 ```"
-  []
-  (.setVisible ^Group (turtle) false)
+  [visible?]
+  (.setVisible (turtle) (boolean visible?))
   nil)
 
 
@@ -710,6 +849,31 @@ See [`set-position`](var:set-position) for more details.
             :print-warning :always}
            []
            (is-visible))
+
+
+(defn show
+  "Makes the turtle visible.
+
+  *Example:* 
+```
+(show)
+```"
+  []
+  (set-visible true)
+  nil)
+
+
+(defn hide
+  "Makes the turtle *not* visible.
+
+  *Example:*
+```
+(hide)
+```"
+  []
+  (set-visible false))
+
+
 
 
 (defn clear
@@ -760,7 +924,7 @@ See [`set-position`](var:set-position) for more details.
   Clears the screen, and center the current turtle, leaving only one turtle.
 
   Same as calling   
-`(clear) (show) (set-speed 1) (pen-up) (home) (pen-down)`
+`(clear) (show) (set-speed 1) (set-color :black) (set-width 1= (pen-up) (home) (pen-down)`
 
   *Example:* 
 ```
@@ -770,7 +934,8 @@ See [`set-position`](var:set-position) for more details.
   (clear)
   (show)
   (set-speed 1)
-  (set-color "black")
+  (set-color :black)
+  (set-width 1)
   (pen-up)
   (home)
   (pen-down)
@@ -834,7 +999,7 @@ See topic [Clojure](:Clojure) for more information."
 
 ;;; DEV ;;;
 
-;(println "WARNING: Running george.application.turtle.turtle/-main" (-main))
+;(println "WARNING: Running george.turtle/-main" (-main))
 
 (defn run-sample
   "A simple test program which uses many of the available turtle commands."
@@ -1057,6 +1222,7 @@ Click on any command or topic in the list to to the left for more information.
 George uses JavaFX for its graphics.  This gives you a lot of power to do whatever you want with colors.  
 There are both easy and more advanced things you can do.
 
+
 ## Easy
 
 The easiest is to use named HTML color such as `\"red\"`, `\"orange\"`, `\"blue\"`.  
@@ -1065,11 +1231,18 @@ You can find a good list online: [HTML Color Values](https://www.w3schools.com/c
 Or, if you prefer, you can use the same colors defined in 'Color', such as `Color/CORNFLOWERBLUE`.  
 You can find the list online: [Color - Fields](https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html#field.summary) .
 
+
 ## Medium
 
 You can mix your own color. To do so, use HTML colors, and specify Your mix of Red Green Blue with hexadecimal number.  
 A hex number is a number that goes from `0` to `f`.  So to make red, you can write`\"#f00\"` or `\"#ff0000\"`.  
 You can experiment with mixing HTML colors online: [Colors RGB](https://www.w3schools.com/colors/colors_rgb.asp) .
+
+
+## Special
+
+You can also control and mix colors any way you want by passing in a vector of values.  \nSee [`to-color`](var:to-color) for information on how to do this.
+
 
 ## Advanced
 
@@ -1126,15 +1299,19 @@ See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of 
    #'home
    #'show
    #'hide
+   #'set-visible
    #'is-visible
    #'set-speed
    #'get-speed
    "Pen"
    #'pen-up
    #'pen-down
+   #'set-pen-down
    #'is-pen-down
    #'set-color
    #'get-color
+   #'set-width
+   #'get-width
    "Screen"
    #'clear
    #'reset
@@ -1148,6 +1325,7 @@ See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of 
    #'set-position
    #'get-position
    #'turtle
+   #'to-color
    "Demos"
    #'run-sample
    "Topics"

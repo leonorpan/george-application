@@ -34,7 +34,7 @@
       (ns user.turtle
         (:require [clojure.repl :refer :all])
         (:require [clojure.pprint :refer [pprint]])
-        (:require [george.application.turtle.turtle :refer :all])
+        (:require [george.turtle :refer :all])
         (:import [javafx.scene.paint Color]))
       ;; switch back to this namespace
       (ns current-ns))))
