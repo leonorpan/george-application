@@ -13,6 +13,10 @@
     [clojure.lang Symbol]))
 
 
+;; For further development of this consept:
+;; https://www.developer.com/java/article.php/3848881/Service-Provider-Interface-Creating-Extensible-Java-Applications.htm
+
+
 (defrecord
   ^{:doc "
     AppletInfo should contain symbols for a number of functions.

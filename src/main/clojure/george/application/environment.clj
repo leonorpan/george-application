@@ -12,7 +12,7 @@
     [george.javafx.java :as fxj]
     [george.util.singleton :as singleton]
 
-    [george.application.turtle.turtle :as tr]
+    [george.turtle :as tr]
 
     [george.application
      [output-input :as oi]
@@ -51,7 +51,7 @@
                                    kw-or-sym 
                                    detail-fn)
             (symbol? kw-or-sym)  (rendered-var-detail 
-                                   (ns-resolve (find-ns 'george.application.turtle.turtle) 
+                                   (ns-resolve (find-ns 'george.turtle) 
                                                kw-or-sym) 
                                    detail-fn)
             :default  (fx/text (format "ERROR: unknown click-type %s %s" (type kw-or-sym) kw-or-sym)))]            
