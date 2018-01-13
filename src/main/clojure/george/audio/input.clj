@@ -210,7 +210,7 @@ It there a need / purpose for for this, though, as long as whatever data they ar
     (when (not= o n)
        ; (println "selected-MID-watcher MID changed:" n)
         (doseq [pane @selected-input-panes-atom]
-            (fx/set! pane
+            (fx/set pane
                      (doto (create-monitor-pane n)
                          (set-active))))))
 
@@ -562,7 +562,7 @@ It there a need / purpose for for this, though, as long as whatever data they ar
 (defn selected-input-pane []
     (let [pane (fx/group)]
         (refresh-MIDs)
-        (fx/set! pane (create-monitor-pane (get-selected-MID)))
+        (fx/set pane (create-monitor-pane (get-selected-MID)))
         ;; FIX: Memory leak: The panes aren't removed again when disposed of
         (swap! selected-input-panes-atom conj pane)
         pane))

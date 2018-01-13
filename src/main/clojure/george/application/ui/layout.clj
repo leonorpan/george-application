@@ -160,12 +160,24 @@
 (defn- code-tag [text state]
   [(cs/replace text #"<code>" "<code class=\"clj\">") state])
 
+
 (defn- ahref-tag [text state]
   [(cs/replace text #"<a href" "<a <a onclick=\"window.status='CLICK:'+this;return false;\" href") state])
+
+
+(defn nonspaced-br [text {:keys [code lists] :as state}]
+  ;(prn "  ## text:" text)
+  [(if (and (not (or code 
+                     lists
+                     (cs/ends-with? text ">")
+                     (empty? text))))
+     (str text "<br />")
+     text)
+   state])
 
 (defn doc->html
   "Returns the markdown as an html-string"
   [^String md]
-  (let [html (md-to-html-string md :custom-transformers [code-tag ahref-tag])]
+  (let [html (md-to-html-string md :custom-transformers [code-tag ahref-tag nonspaced-br])]
     ;(println html)
     html))

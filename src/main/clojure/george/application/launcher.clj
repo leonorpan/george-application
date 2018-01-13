@@ -175,7 +175,7 @@ Powered by open source software.")
                           (.setFitWidth tile-width)
                           (.setFitHeight tile-width)) 
            :tooltip  "\"home\""
-           :mouseclick  #(detail-setter (styled/new-heading "George" :size 24)))
+           :mouseclicked  #(detail-setter (styled/new-heading "George" :size 24)))
 
         about-label
         (fx/new-label "About"

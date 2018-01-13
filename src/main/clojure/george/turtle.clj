@@ -17,29 +17,20 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
 
     "
 
-  (:require [defprecated.core :as depr]
-            [george.javafx :as fx]
-            [george.javafx.util :as fxu]
-            [clojure.java.io :as cio]
-            [clojure.string :as cs]
-            [george.javafx.java :as fxj]
-            [george.application.ui.styled :as styled]
-            [george.turtle.gui])
-  (:import (javafx.scene.paint Color Paint)
-           (javafx.scene.canvas Canvas)
-           (javafx.scene Node Group)
-           (javafx.scene.transform Rotate)
-           (javafx.scene.shape Polygon Line)
-           (javafx.scene.image WritableImage ImageView Image)
-           (java.awt.image BufferedImage)
-           (javafx.embed.swing SwingFXUtils)
-           (javax.imageio ImageIO)
-           (javafx.scene.input Clipboard ClipboardContent DataFormat)
-           (java.io File FilenameFilter ByteArrayOutputStream)
-           (java.net URI)
-           (java.nio ByteBuffer)
-           (javafx.scene.control ContextMenu MenuItem)
-           (javafx.stage Stage)))
+  (:require
+    [defprecated.core :as depr]
+    [flatland.ordered.map :refer [ordered-map]]
+    [george.javafx :as fx]
+    [george.javafx.util :as fxu]
+    [george.turtle.gui :as gui]
+    [george.util.singleton :as singleton]
+    [george.application.ui.styled :as styled])
+  (:import
+    [javafx.scene.paint Color Paint]
+    [javafx.scene Group Node]
+    [javafx.scene.shape Line Rectangle Polygon]
+    [javafx.scene.text Font FontWeight]
+    [javafx.stage Stage]))
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -115,133 +106,114 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 "
 
 
-;; avoiding reflection is A LOT faster!
 ;(set! *warn-on-reflection* true)
-;; primitive math is faster
 ;(set! *unchecked-math* :warn-on-boxed)
 
 
-(declare 
+
+
+(declare
+  get-color
+  get-width
+  set-visible
+  is-visible
+  is-down
+  is-round
+  get-speed
+  set-heading
+  get-heading
+  set-position
+  get-position
+  get-node
+  get-parent
+  default-font
+  reset
+  to-color
+  to-font
   screen
-  to-color)
+  turtle
+  register-turtle)
 
 
-(def DEFAULT_SCREEN_SIZE [600 450])
+;; Empty records allow for easy typing of maps.
+(defrecord Turtle [])
+(defrecord Screen [])
 
 
-
-(definterface IScreen)
-
-
-(definterface ITurtle
-    (sayHello [])
-    (left [degrees])
-    (right [degrees])
-    (forward [distance])
-    (getHeading [])
-    (setHeading [angle])
-    (getPosition [])
-    (setPosition [pos])
-    (getPenDown [])
-    (setPenDown [bool])
-    (getPenColor [])
-    (setPenColor [color])
-    (setPenWidth [width])
-    (getPenWidth [])
-    (getSpeed [])
-    (setSpeed [number]))
+(defn- nil-or-not-neg-number? [x]
+  (or (nil? x)
+      (and (number? x)
+           (not (neg? (double x))))))
 
 
+(defn- add-now [parent node]
+  (fx/now (fx/add parent node)))
 
-(defn- heading* [^Group inst]
-  (let [a (- (rem (.getRotate inst) 360.0))]
-    a))
-
-
-(defn- set-heading* [inst ^double ang]
-  ;(println "  ## set-heading* " ang)
-  (.setRotate ^Group inst (- ang)))
+(defn- add-later [parent node]
+  (fx/later (fx/add parent node)))
 
 
-(defn- position* [^Group inst]
-  [^double (.getTranslateX inst)  (- ^double (.getTranslateY inst))])
+(defn- set-now [parent node]
+  (fx/now (fx/set parent node)))
 
 
-(defn- add-node [^Stage screen node]
-    (fx/now (fx/add (-> screen .getUserData :root) node)))
+(defn- get-root
+  "Returns the top-level parent for all turtle rendering."
+  [screen]
+  (:root @screen))
 
 
-(defn- set-position* [^Group inst [^double target-x ^double target-y]]
-    (let []
-      (fx/synced-keyframe
-         250
-         (when target-x [(.translateXProperty inst) target-x])
-         (when target-y [(.translateYProperty inst) (- target-y)])))
-    inst)
+(defn- add-node [screen node]
+  (add-now (get-root screen) node))
 
 
-(defn- do-forward* [inst ^double dist]
+(defn- forward-impl [turtle ^double dist]
   ;(println "  ## do-forward*" dist)
-  (let [ang (heading* inst)
-        [^double x ^double y] (position* inst)
+  (let [ang (get-heading turtle)
+        [^double x ^double y] (get-position turtle)
         [^double x-fac ^double y-fac] (fxu/degrees->xy-factor ang)
         target-x (+ x (* dist x-fac))
         target-y (-  (+ y (* dist y-fac)))
-        c (.getPenColor inst)
-        w (.getPenWidth inst)
+        c (get-color turtle)
+        w (get-width turtle)
+        r (is-round turtle)
+        node (:group @turtle)
         line
-        (when (and (.getPenDown inst) c w)
+        (when (and (is-down turtle) c w)
               (fx/line :x1 x :y1  (- y) 
                        :width w
-                       :color (to-color c)))
+                       :color (to-color c)
+                       :round r))
 
         duration
-        (when-let [speed (.getSpeed inst)]
+        (when-let [speed (get-speed turtle)]
           ;; 500 px per second is "default"
           (* (/ (Math/abs (double dist))
                 (* 500. (double speed)))
              1000.))
-        ;_ (println "  ## duration:" duration)
 
         ;; A duration less than 1.0 may result in no rendering, so we set it to nil.
-        duration (if (and duration (< duration 1.)) nil duration)]
-        ;_ (println "  ## duration:" duration)
+        duration (if (and duration (< ^double duration 1.)) nil duration)]
 
     (when line
         (add-node (screen) line)
-        (fx/later (.toFront ^Group inst)))
+        (fx/later (.toFront ^Group node)))
 
     (if duration
       (fx/synced-keyframe
         duration
-        [(.translateXProperty ^Group inst) target-x]
-        [(.translateYProperty ^Group inst) target-y]
+        [(.translateXProperty ^Group node) target-x]
+        [(.translateYProperty ^Group node) target-y]
         (when line [(.endXProperty ^Line line) target-x])
         (when line [(.endYProperty ^Line line) target-y]))
       (do
-        (doto ^Group inst
+        (doto ^Group node
           (.setTranslateX target-x)
           (.setTranslateY target-y))
         (when line
           (doto ^Line line
             (.setEndX target-x)
             (.setEndY target-y)))))))
-
-
-(defn- do-rotate* [inst ^double deg]
-    ;(println "  ## do-rotate* " deg)
-    (let [new-angle (+ ^double (heading* inst) deg)]
-        (set-heading* inst new-angle)))
-
-
-(defn- set-speed* [state number]
-  (when (and number (not (instance? Number number)))
-    (throw
-      (IllegalArgumentException.
-        (format "set-speed requires a number or 'nil'. Got %s" number))))
-
-  (swap! state assoc
-               :speed number))
 
 
 (defn turtle-polygon []
@@ -251,149 +223,600 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               :strokewidth 0.5))
 
 
-(defn- turtle-impl [name]
-    (let [state
-          (atom {:pen-down true
-                 :pen-color :black
-                 :pen-width 1
-                 :speed 1
-                 :name name})
-          poly
-          (turtle-polygon)
-
-          turt
-          (proxy [Group ITurtle] []
-            (sayHello []
-                (println (format "Hello.  My name is %s.  %s the Turtle." name name)))
-            (left [deg]
-                (do-rotate* this deg))
-            (right [^double deg]
-                (do-rotate* this (- deg)))
-            (forward [dist]
-                (do-forward* this dist))
-            (getHeading []
-                (let [a  (heading* this)]
-                    a))
-            (setHeading [angle]
-                (set-heading* this angle))
-
-            (getPosition []
-              (let [p (position* this)]
-                p))
-            (setPosition [[x y]]
-                (set-position* this [x y]))
-
-            (getPenDown []
-                (:pen-down @state))
-            (setPenDown [b]
-                (swap! state assoc :pen-down b))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-            (getPenColor []
-                (:pen-color @state))
-            (setPenColor [color]
-                (swap! state assoc :pen-color color))
-
-            (setPenWidth [w]
-                (swap! state assoc :pen-width w))
-            (getPenWidth []
-                (:pen-width @state))
-
-            (getSpeed []
-              (:speed @state))
-            (setSpeed [number]
-              (set-speed* state number)))]
-
-        (fx/add turt poly)
-
-        turt))
+(defn get-state 
+  "Returns all attributes of the turtle as a map.
+  
+  **Warning:** As the JavaFX Node is a mutable subclass, the position, heading, and visibility may be inconsistent if the turtle is being manipulated on another thread while this function is executing."
+  [turtle] 
+  (let [turt @turtle]
+    (conj turt
+      {:position (get-position turtle)
+       :heading  (get-heading turtle)
+       :parent   (get-parent turtle)
+       :visible  (is-visible turtle)
+       :node     (get-node turtle)})))
 
 
-(defn- create-turtle []
-    (turtle-impl "Tom"))
+(defn- default-state []
+  {:parent nil ; (get-root (screen))
+   :name "<anonymous>"
+   :node (turtle-polygon)
+   :position [0 0]
+   :heading 0
+   :visible true
+   :speed 1
+   :color :black
+   :width 1
+   :round false
+   :fill :gray
+   :down true
+   :font (default-font)
+   :history-size 0
+   :props {}})
 
 
-;; TODO: implement CRUD ref. spec
-(defonce  data (atom {}))
+;; TODO: update this doc.
 
-;(def ^:private screen-singleton (atom nil))
-;(def ^:private turtle-singleton (atom nil))
-(defonce ^:private screen-and-turtle-singleton (atom nil))
+(defn new-turtle
+  "Creates and returns a new turtle.
+  You can choose to \"hold on to it\" for later access. 
+   
+  The last turtle to be created is always the default turtle, and any \"turtle commands\" will be applied to it unless you wish otherwise.
+  
+  See topic [Turtles](:Turtles) for more information.
+
+*Examples:*
+```
+(new-turtle)                 ;; easy
+(new-turtle :name \"Tina\")  ;; this can help you identify you turtle(s) - in printout or when asked directly
+```
+
+  ***
+
+  **Advanced**
+  
+  A turtle is an standard key-value structure. It contains a JavaFX Group, which represents it graphically.
+  And it holds a number of other internal parameters - including one substructure 'props' 
+  
+  'props' holds any keyed values the user wishes to set on the turtle - even allowing the user to use the turtle as a pure storage.
+  
+  The group wraps a \"shape\", which is any JavaFX node.
+  This and any other attribute of the turtle can be overridden on creation - and most manipulated any time later also.
+  
+  A `clone-turtle` function is coming soon.
+  "
+  ;; TODO: implements 'clone-turtle' ...
+
+  [& {:keys [name parent node position heading visible speed color width round down fill font history-size props]
+      :or {parent (get-root (screen))
+           name "<anonymous>"
+           node (turtle-polygon)
+           position [0 0]
+           heading 0
+           visible true
+           speed 1
+           color :black
+           width 1
+           round false
+           fill :gray
+           down true
+           font (default-font)
+           history-size 0
+           props {}}
+      :as args}]
+  ;(user/pprint ["  ## args:" args])
+
+  ;; validate color, fill, font
+  (to-color color)
+  (to-color fill)
+  (to-font font)
+
+  (let [group 
+        (fx/group node)         
+
+        turtle
+        (atom
+          (map->Turtle
+            {:name name
+             :speed speed
+             :color color
+             :width width
+             :round round
+             :down down
+             :fill fill
+             :font font
+             :history-size history-size
+             :history []
+             :props props
+             :group group}))]
+    
+       (doto turtle
+         (set-position position)
+         (set-heading heading)
+         (set-visible visible))
+
+    (register-turtle turtle)
+    (when parent (add-later parent group))
+    
+    turtle))
 
 
-(declare copy-screenshot-to-clipboard)
-(declare save-screenshot-to-file)
-
-(defn- create-screen [w h]
-    (fx/now
-        (let [
-              root ^Group (fx/group)
-              ;; rotation about X or Y axis not possible on machines without SCENE3D
-              ;; (AKA very small cheap school laptops)
-              ;_ (.setRotationAxis root Rotate/X_AXIS)
-              ;_ (.setRotate root 180)
-
-              ;origo (fx/rectangle :location [-1 -1] :size [3 3] :fill fx/RED)
-              ;_ (fx/add root origo)
-
-              ;up-and-over (fx/rectangle :location [20 20] :size [3 3] :fill fx/BLACK)
-              ;_ (fx/add root up-and-over)
-
-              cm
-              (ContextMenu.
-                (fxj/vargs
-                  (doto (MenuItem. "Copy screenshot to clipboard")
-                    (.setOnAction (fx/event-handler (copy-screenshot-to-clipboard))))
-                  (doto (MenuItem. "Save screenshot to file ...")
-                    (.setOnAction (fx/event-handler (save-screenshot-to-file))))))
-
-              cm-handler
-              (fx/event-handler-2 [_ e]
-                                  (.show cm root (.getScreenX e) (.getScreenY e)))
-
-              stage ^Stage
-              (doto
-                  (fx/stage
-                          :title "Turtle Screen"
-                          :scene (doto
-                                   (fx/scene root :size [w h] :fill fx/WHITE)
-                                   (.setOnContextMenuRequested cm-handler))
-                          :resizable true
-                          ;:location [90 100]
-                          :tofront true
-                          :alwaysontop true
-                          :onhidden #(reset! screen-and-turtle-singleton nil))
-                  (styled/add-icon))]
-
-          ;; not useful to bind now, as resizable is false
-          (doto root
-            (-> .layoutXProperty (.bind (-> stage .widthProperty (.divide 2))))
-            (-> .layoutYProperty (.bind (-> stage .heightProperty (.divide 2)))))
-
-          (.setUserData stage {:root root})
-          stage)))
+(defn- transfer-node-values [^Node to-node ^Node from-node]
+  (doto to-node
+    (.setRotate (.getRotate from-node))
+    (.setTranslateX (.getTranslateX from-node))
+    (.setTranslateY (.getTranslateY from-node))
+    (.setVisible (.isVisible from-node))))
 
 
-(defn- get-or-create-screen-and-turtle
-    ([]
-     (apply get-or-create-screen-and-turtle DEFAULT_SCREEN_SIZE))
-    ([w h]
-     (if-let [s-n-t @screen-and-turtle-singleton]
-         (let [screen ^Stage (:screen s-n-t)]
-             (when (.isIconified screen)
-               (fx/later
-                 (doto screen
-                   (.setIconified false)
-                   (.toFront))))
-             s-n-t)
-         (let [scrn (create-screen w h)
-               trtl (create-turtle)]
-             (add-node scrn trtl)
-             (Thread/sleep 500)
-             (reset! screen-and-turtle-singleton {:screen scrn :turtle trtl})))))
+;(ns-unmap *ns* 'clone)
+(defmulti clone
+          "Clones certain JavaFX Node sub-classes"
+          (fn [obj] (class obj)))
+
+;(defmethod clone String [obj]
+;  (println "Got a String:" obj)
+;  obj)
+
+;(defmethod clone Long [obj]
+;  (println "Got a Long:" obj)
+;  obj)
+
+(defmethod clone Polygon [^Polygon obj]
+  ;(println "Got a Polygon:" obj)
+  (doto
+    (apply fx/polygon
+           (concat
+             (vec (.getPoints obj))
+             [:fill (.getFill obj) :stroke (.getStroke obj) :strokewidth (.getStrokeWidth obj)]))
+    (transfer-node-values obj)))
 
 
-;;; "public" ;;;
+(defmethod clone Group [^Group obj]
+  ;(println "Got a Group!:" obj)
+  ;(println "clone:" (.getPoints obj) (.getFill obj) (.getStroke obj) (.getStrokeWidth obj) (userdata
+  (apply fx/group (map clone (.getChildren obj))))
+
+
+(defmethod clone :default [obj]
+  (throw (IllegalArgumentException. (format "Don't know how to clone object of type '%s'" (.getName (class obj))))))
+
+
+;(clone "Hello")
+;(clone 1)
+;(clone (int 2))
+;(println (clone (turtle-polygon)))
+
+
+(defn clone-turtle
+  "Allows you to clone a turtle, and override chosen attributes in one easy command.
+  
+  All parameters are taken from the passed-in turtle, any overrides are applied, an then `new-turtle` is called.
+  See [`new-turtle`](var:new-turtle) for more.
+"
+  [turtle & {:as args}] 
+  (let [state 
+        (get-state turtle) 
+        new-state 
+        (assoc (conj state args)
+               ;; Important to replace the node with a clone.
+               :node (clone (:node state)))]
+        
+    (apply new-turtle (reduce concat (seq new-state)))))
+
+
+;;;;;;;
+
+
+(def ^:private turtles_ (atom (ordered-map)))
+
+
+(defn get-all-turtles
+  "Returns a global list of all turtles.  
+
+  The user may filter the list based on state and props, and manipulate the individual turtles directly.  
+
+  The same turtle won't appear twice in the list.  
+  The list is ordered based on creation order."
+  []
+  (vals @turtles_))
+
+
+(defn- register-turtle
+  "Appends turtle to the global registry if it is not already registered."
+  [turtle]
+  ;(println "register-turtle turtle-count (approx):" (count @turtles_))
+  (swap! turtles_ assoc turtle turtle)
+  turtle)
+
+
+(defn- unregister-turtle
+  "Remove the turtle from the global list."
+  [turtle]
+  (swap! turtles_ dissoc turtle)
+  nil)
+
+
+(defn delete-turtle 
+  "Removes the given turtle from the screen, and from the global list of all turtles.
+  See also [`get-all-turtles`](var:get-all-turtles).
+  
+  **Warning:** Deleting a turtle while it is still being moved has unknown consequences.
+  "
+  [turtle]
+  (unregister-turtle turtle)
+  (when-let [p (get-parent turtle)]
+    (fx/later
+      (fx/remove p (:group @turtle)))))
+
+
+(defn delete-all-turtles 
+  "Removes all turtles from the screen, and empties the global list of turtles.
+
+  **Warning:** Deleting a turtle while it is still being moved has unknown consequences.
+  "
+  []
+  (let [turtles (get-all-turtles)]
+    (reset! turtles_ (ordered-map))
+    (doseq [t turtles]
+      (when-let [p (get-parent t)]
+        (fx/later
+          (fx/remove p (:group @t)))))))
+        
+
+(def ^:dynamic *turtle* nil)
+
+
+(defn turtle
+  "Returns the turtle object.     
+  Creates and shows a screen with default size if one is not already created.
+  
+  *Example:*
+```
+(turtle)
+```
+
+  ***
+
+  **Advanced**
+  
+  First looks in dynamic scope for *turtle* and returns it,
+  else looks in the global list of turtles and returns the last one,
+  else creates a new turtle (which gets added to the global list).
+
+  If you want to control another turtle than the latest one,
+  then use the command [`with-turtle`](var:with-turtle) "
+  []
+  (if-let [turt *turtle*]
+    turt
+    (if-let [turt (last (get-all-turtles))]
+      turt
+      (new-turtle :name "Tom"))))
+
+
+(defmacro with-turtle
+  "Applies any turtle-commands in the 'body' to the specified turtle.
+
+  Uses dynamic binding for turtle which means that the specified must be bound lexically if to be used inside a thread inside the body.
+
+  See topic [Turtles](:Turtles) for mor information.
+
+  *Example:*
+```
+(let [lars (new-turtle :name \"Lars\")
+      john (new-turtle :name \"John\")]
+  (with-turtle lars
+    (forward 50) (left 90))) ;; Lars moves.
+  (forward 70) (right 90)))  ;; John moves, 
+                             ;;   because he is the most recently created 
+                             ;;   and therefore the default turtle.
+```"
+  [turtle & body]
+  `(do
+     (binding [*turtle* ~turtle]
+       ~@body)))
+
+;(pprint (macroexpand-1 '(with-turtle (make-turtle) (forward 100))))
+;(with-turtle (make-turtle) (forward 100))
+
+
+;;;;;;;;;;;;;
+
+
+(def ^:private DEFAULT_SCREEN_SIZE [600 450])
+(def ^:private SCREEN ::screen)
+(def ^:private STAGE ::stage)
+
+
+(defn- get-screen []
+  (singleton/get SCREEN))
+
+
+(defn- create-screen 
+  "Returns an outer node which centers 'root' group.
+  The root group is the actual parent for all items. 
+  The outer node, and is the root of a (stage) scene, or framed in a layout"
+  [size]
+  (let [
+        background 
+        :white
+        
+        border
+        (doto
+          (fx/rectangle :arc 4 :fill Color/TRANSPARENT)
+          (fx/set-stroke Color/CORNFLOWERBLUE 2)
+          (fx/set-translate-XY [2 2])
+          (.setVisible false))
+
+        axis
+        (doto ^Group
+          (fx/group
+            (fx/line :x1 -100 :x2 100 :color Color/CORNFLOWERBLUE :width 2)
+            (fx/line :y1 -100 :y2 100 :color Color/CORNFLOWERBLUE :width 2))
+          (.setVisible false))
+
+        root
+        (fx/group axis)
+
+        container 
+        (doto
+          (fx/pane root border)
+          (fx/set-background (to-color background)))]    
+    (atom
+      {:container container  ;; This is the part that becomes root on scene.
+       :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
+       :axis axis
+       :border border
+       :size size
+       :background background})))    
+
+
+(defn set-background 
+  "Sets screen background.
+  
+  See [Color](:Color) for more information."
+  [color]
+  (let [c (to-color color)]
+    (-> (screen) deref :container (fx/set-background c))
+    (swap! (screen) assoc :background color)))
+
+
+(defn get-background
+  "Returns the screens background color."
+  
+  []
+  (-> (screen) deref :background))
+
+
+(defn- get-or-create-screen
+  ([]
+   (get-or-create-screen DEFAULT_SCREEN_SIZE))
+  ([size]
+   (singleton/get-or-create SCREEN #(create-screen size))))
+
+
+(defn- delete-screen
+  "This should be called when closing the turtle screen. It, in first calls delete-all-turtles."
+  []
+  (when (get-screen)
+    (delete-all-turtles)
+    (singleton/remove SCREEN)))
+
+
+(defn- new-screen-scene [scrn]
+  (let [
+        scene
+        (fx/scene (:container @scrn) :size (:size @scrn) :fill fx/RED)]
+
+    (doto ^Rectangle (:border @scrn)
+      (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
+      (-> .heightProperty (.bind (-> scene .heightProperty (.subtract 4)))))
+
+    (doto ^Group (:root @scrn)
+      (-> .layoutXProperty (.bind (-> scene .widthProperty (.divide 2))))
+      (-> .layoutYProperty (.bind (-> scene .heightProperty (.divide 2)))))
+
+    scene))
+
+
+(defn- get-stage []
+  (when-let [stg ^Stage (singleton/get STAGE)]
+    (when (.isIconified stg)
+      (fx/later
+        (doto stg
+          (.setIconified false)
+          (.toFront))))
+    stg))
+
+
+(defn- create-stage [scrn]
+  (fx/now
+    (let [scene
+          (new-screen-scene scrn)
+          stg
+          (fx/stage
+            :scene scene
+            :title "Turtle Screen"
+            :resizable true
+            :sizetoscene true
+            :tofront true
+            :alwaysontop true
+            :onhidden 
+            #(do
+               (delete-screen)
+               (singleton/remove SCREEN)
+               (singleton/remove STAGE)))]
+      (doto stg
+        (gui/set-cm-menu-on-stage)
+        (styled/add-icon)))))
+
+(defn- ^Stage get-or-create-stage [scrn]
+  (if-let [stg (get-stage)]
+    stg
+    (singleton/put STAGE (create-stage scrn))))
+
+
+(defn- get-new-size [scrn size]
+  (if (nil? size)
+    (if scrn (:size @scrn) DEFAULT_SCREEN_SIZE)
+    size))
+
+
+(defn screen
+  "Returns a screen object, creating and showing one, and creating and adding a turtle on it.
+  It (re-)sized to size.  If no size, then sizes to default, which is [600 450].
+  
+  Screen will not automatically create a turtle.  If you want a screen with a turtle on it, then call `turtle` or any other turtle command in stead.
+  "
+ ([]
+  (screen nil))
+
+ ([[w h :as size]]
+  (let [scrn (get-screen)
+        stg (get-stage)] 
+    (if (and (nil? size) stg scrn)
+        scrn ;; Don't resize.  
+        (let [size (get-new-size scrn size)
+              scrn (get-or-create-screen size)
+              stg  (get-or-create-stage scrn)
+              scene (.getScene stg)
+      
+              ;; figure out the diffs for the chrome
+              diff-w (- (.getWidth stg) (.getWidth scene))
+              diff-h (- (.getHeight stg) (.getHeight scene))
+              [^double w ^double h] size]
+          (fx/set-WH stg [(+ w diff-w) (+ h diff-h)])
+          (doto scrn
+            (swap! assoc :size size)))))))
+
+
+(defn set-axis-visible 
+  "Shows/hides x/y axis at origo.
+
+*Example:*
+```
+(set-axis-visible true)
+```
+"
+  [bool]
+  (-> (screen) deref :axis (#(.setVisible ^Group % bool))))
+
+
+(defn is-axis-visible 
+  "Returns `true` if axis is visible, else `false`."
+  []
+  (-> (screen) deref :axis (#(.isVisible ^Group %))))
+
+
+(defn set-border-visible 
+  "Shows/hides a border axis at edge of screen.
+
+*Example:*
+```
+(set-border-visible true)
+```
+"  
+  [bool]
+  (-> (screen) deref :border (#(.setVisible ^Rectangle % bool))))
+
+
+(defn is-border-visible
+  "Returns `true` if border is visible, else `false`."
+  []
+  (-> (screen) deref :border (#(.isVisible ^Rectangle %))))
+
+
+;;;;;;;;;;;;;;;;;;;;
+
+
+(defn swap-prop
+  "'function' is a 1-arg function which takes the old value, and returns whatever new value should be set."
+  ([key function]
+   (swap-prop (turtle) key function))
+  ([turtle key function]
+   (swap! turtle update-in [:props key] function)))
+
+
+(defn set-prop
+  ([key value]
+   (set-prop (turtle) key value))
+  ([turtle key value]
+   (swap! turtle assoc-in [:props key] value)))
+
+
+(defn get-props
+  "Returns a map of all props set on turtle."
+  ([]
+   (get-props (turtle)))
+  ([turtle]
+   (:props @turtle)))
+
+
+(defn get-prop
+  "Returns the prop value of the turtle for the given 'key'."
+  ([key]
+   (get-prop (turtle) key))
+  ([turtle key]
+   (-> turtle get-props key)))
+
+
+(defn set-node
+  "Sets the \"shape\" for the turtle. 'shape' can be any JavaFX Node."
+  ([shape]
+   (set-node (turtle) shape))
+  ([turtle shape]
+   (set-now (:group @turtle) shape)))
+
+
+(defn get-node
+  ([]
+   (get-node (turtle)))
+  ([turtle]
+   (-> @turtle :group (#(.getChildren ^Group %)) first)))
+
+
+(defn get-parent
+  ([]
+   (get-parent (turtle)))
+  ([turtle]
+   (-> @turtle :group (#(.getParent ^Group %)))))
+
+
+;; TODO: Consider these font-functions vs fx/new-font (which uses some keywords ...)
+
+(defn default-font
+  ([]
+   (default-font "Regular" 14))
+  ([size]
+   (default-font "Regular" size))
+  ([weight size]
+   (fx/new-font "Source Code Pro" weight size)))
+
+
+(defn to-font
+  ([font-or-family-or-size]
+   (assert (not (nil? font-or-family-or-size))
+           "'font' can not be set to 'nil'.")
+   (cond
+     (instance? Font font-or-family-or-size)  
+     font-or-family-or-size
+
+     (or (number? font-or-family-or-size) (string? font-or-family-or-size)) 
+     (fx/new-font font-or-family-or-size)))
+
+  ([family size]
+   (fx/new-font family size))
+  ([family weight size]
+   (Font/font
+     ^String family
+     (if (string? weight) (FontWeight/findByName weight) (FontWeight/findByWeight weight))
+     (double size))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;; TODO: use clojure.spec for assertions.
@@ -457,55 +880,47 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     ;; ehhh ...
     :default
     (throw (IllegalArgumentException. (str "Type of color is not acceptable. Got " color)))))
-
-(comment
-  (println (to-color :red))
-  (println (to-color "red"))
-  (println (to-color "#ff0000"))
-  (println (to-color [:red 1.0]))
-  (println (to-color ["red" 1.0]))
-  (println (to-color Color/RED))
-  (println (to-color ["#ff0000" 1.0]))
-  (println (to-color 0.5))  ;; gray
-  (println (to-color 127))  ;; gray
-  (println (to-color [0.5 1.0]))  ;; gray
-  (println (to-color [127 1.0]))  ;; gray
-  (println (to-color [1.0 0.0 0.0]))  ;; red
-  (println (to-color [1.0 0.0 0.0 1.0])) ;; red
-  (println (to-color [255 0 0]))  ;; red
-  (println (to-color [255 0 0 1.0])) ;; red
-  (println (to-color [255 0 0 1])) ;; red
-  ;; FAIL
-  (println (to-color [255 0.1 0 1.0])) ;; Fail: Mix of mumber types
-  (println (to-color [255 1 0 127]))) ;; Fail: Opacity is not [0.0 .. 1.0]
+;(println (to-color :red))
+;(println (to-color "red"))
+;(println (to-color "#ff0000"))
+;(println (to-color [:red 1.0]))
+;(println (to-color ["red" 1.0]))
+;(println (to-color Color/RED))
+;(println (to-color ["#ff0000" 1.0]))
+;(println (to-color 0.5))  ;; gray
+;(println (to-color 127))  ;; gray
+;(println (to-color [0.5 1.0]))  ;; gray
+;(println (to-color [127 1.0]))  ;; gray
+;(println (to-color [1.0 0.0 0.0]))  ;; red
+;(println (to-color [1.0 0.0 0.0 1.0])) ;; red
+;(println (to-color [255 0 0]))  ;; red
+;(println (to-color [255 0 0 1.0])) ;; red
+;(println (to-color [255 0 0 1])) ;; red
+;;; FAIL
+;(println (to-color [255 0.1 0 1.0])) ;; Fail: Mix of mumber types
+;(println (to-color [255 1 0 127])) ;; Fail: Opacity is not [0.0 .. 1.0]
 
 
-(defn ^Stage screen
-  "same as 'turtle', but with possibility to create different sized screen."
-    ([]
-     (apply screen DEFAULT_SCREEN_SIZE))
 
-    ([width height]
-     (:screen (get-or-create-screen-and-turtle width height))))
-
-
-(defn turtle
-    "Returns the turtle object.  
-     Creates and shows a screen with default size if one is not already created.
-
-*Example:*
-```
-(turtle)
-```"
-    []
-    (:turtle (get-or-create-screen-and-turtle)))
+(defn- hello [turtle]
+  (let [n (:name @turtle)]
+    (println (format "Hello.  My name is %s.  %s the Turtle." n n))
+    nil))
 
 
 (defn tom
   "Same as `(turtle)`, but Tom introduces himself."
   []
-  (doto (turtle)
-        (.sayHello)))
+  (reset)
+  (delete-all-turtles)
+  (doto (new-turtle :name "Tom")
+        (hello)))
+
+
+(defn- rotate [turtle ^double degrees]
+  (let [new-angle (+ ^double (get-heading turtle) degrees)]
+    (set-heading turtle new-angle)
+    nil))
 
 
 (defn left
@@ -517,16 +932,20 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (left 90)
 (left -90)  ;; Rotates to the right.
 ```"
-  [degrees]
-  (.left  (turtle) degrees)
-  nil)
+ ([degrees]
+  (left (turtle) degrees))
+ ([turtle degrees]
+  (rotate turtle degrees)
+  nil))
 
 
 (defn right
   "Similar to `left`, but in the opposite direction."
-  [degrees]
-  (.right  (turtle) degrees)
-  nil)
+  ([degrees]
+   (right (turtle) degrees))
+  ([turtle ^double degrees]
+   (rotate turtle (- degrees))
+   nil))
 
 
 (defn forward
@@ -538,9 +957,29 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (forward 50)
 (forward -50)
 ```"
-  [distance]
-  (.forward  (turtle) distance)
-  nil)
+ ([distance]
+  (forward (turtle) distance))
+ ([turtle distance]
+  (assert (number? distance) (format "'distance' must be a number. Got %s" distance))
+  (forward-impl turtle distance)
+  nil))
+
+
+(defn backward
+  "Moves the turtle backward `distance` in the direction the turtle is heading.  
+  A negative number is also possible. It will result in the turtle moving forward.  
+
+  *Example:* 
+```
+(backward 50)
+(backward -50)  ;; same as (forward 50)
+```"
+  ([distance]
+   (backward (turtle) distance))
+  ([turtle distance]
+   (assert (number? distance) (format "'distance' must be a number. Got %s" distance))
+   (forward-impl turtle (-  (double distance)))
+   nil))
 
 
 (defn set-heading
@@ -556,9 +995,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information.
 "
-  [degrees]
-  (.setHeading  (turtle) degrees)
-  nil)
+ ([angle] 
+  (set-heading (turtle) angle))
+ ([turtle ^double angle]
+  (.setRotate ^Group (:group @turtle) (- angle))
+  nil))
 
 
 (defn get-heading
@@ -572,9 +1013,12 @@ See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordin
 (heading)
 ```  
   See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information."
-  []
-  (.getHeading  (turtle))
-  nil)
+ ([]
+  (get-heading (turtle))) 
+ ([turtle]
+  (- ^double 
+     (rem (-> @turtle :group ^double (#(.getRotate ^Group %))) 
+          360.0))))
 
 
 (depr/defn heading
@@ -598,9 +1042,15 @@ See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordin
   (set-position [30 nil]) ;; only x is changed, not y
 ```
   See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information."
-  [[x y]]
-  (.setPosition  (turtle) [x y])
-  nil)
+ ([[x y]]
+  (set-position (turtle) [x y]))
+ ([turtle [^double x ^double y]]
+  (let [node ^Group (:group @turtle)]
+    (fx/synced-keyframe
+      250
+      (when x [(.translateXProperty node) x])
+      (when y [(.translateYProperty node) (- y)])))
+  nil))
 
 
 (defn get-position
@@ -617,8 +1067,11 @@ See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordin
 ```
 See [`set-position`](var:set-position) for more details.
 "
-  []
-  (.getPosition (turtle)))
+ ([]
+  (get-position (turtle)))
+ ([turtle]
+  (let [node ^Group (:group @turtle)]
+    [^double (.getTranslateX node) (- ^double (.getTranslateY node))])))
 
 
 (depr/defn position
@@ -629,32 +1082,88 @@ See [`set-position`](var:set-position) for more details.
            (get-position))
 
 
-(defn set-pen-down 
-  "Sets the pen in down up up position.  If 'down?' is `true`, then the pen will be set to down.  
-  The purpose of this is to allow you to explicitly toggle the pen in code.  
+(defn set-down 
+  "Sets the pen in down or up position.  If 'bool' is `true`, then the pen will be set to down.  
+  The purpose of this is to allow easier toggling in code.  
   
-  Any value that is \"truth-y\" in clojure is allowed.
+  Any value that is \"truth-y\" in Clojure is allowed.
   
   *examples:*
 ```
-(set-pen-down true)  ;; down
-(set-pen-down false) ;; up
-(set-pen-down nil)   ;;  up
-
+(set-down true)      ;; down
+(set-down false)     ;; up
+(set-down nil)       ;; up
+(set-down (is-down)) ;; the opposite of what it was
 ```"
-  [down?]
-  (.setPenDown  (turtle) (boolean down?)))
+ ([bool]
+  (set-down (turtle) (boolean bool)))
+ ([turtle bool]
+  (swap! turtle assoc :down (boolean bool))
+  nil))
 
 
-(defn is-pen-down
+(depr/defn set-pen-down
+           {:deprecated {:in "2018.2"
+                         :use-instead set-down
+                         :print-warning :always}}
+           [down?]
+           (set-down down?))
+
+
+
+(defn is-down
   "Returns `true` if the turtle's pen is \"down\", else `false`.
 
   *Example:* 
 ```
-(is-pen-down)
+(is-down)
 ```"
-  []
-  (.getPenDown (turtle)))
+ ([]
+  (is-down (turtle)))
+ ([turtle]
+  (:down @turtle)))
+
+
+(defn set-round
+  "Sets the pen's shape to a round or not round (square) shape.  
+  If 'bool' is `true`, then the pen will be set to round.  
+  
+  Any value that is \"truth-y\" in Clojure is allowed.
+  
+  *examples:*
+```
+(set-round true)  ;; round
+(set-round false) ;; square
+(set-round nil)   ;; square
+
+```"
+  ([bool]
+   (set-round (turtle) (boolean bool)))
+  ([turtle bool]
+   (swap! turtle assoc :round (boolean bool))
+   nil))
+
+(defn is-round
+  "Returns `true` if the turtle's pen is round, else `false`.
+  Default is `false` - i.e. the turtle always starts with a square pen.
+
+  *Example:* 
+```
+(is-round)
+```"
+  ([]
+   (is-round (turtle)))
+  ([turtle]
+   (:round @turtle)))
+
+
+(depr/defn is-pen-down
+           {:deprecated {:in "2018.2"
+                         :use-instead is-down
+                         :print-warning :always}}
+           []
+           (is-down))
+
 
 
 (defn pen-up
@@ -664,9 +1173,11 @@ See [`set-position`](var:set-position) for more details.
 ```
 (pen-up)
 ```"
-  []
-  (set-pen-down false)
-  nil)
+ ([]
+  (pen-up (turtle)))
+ ([turtle]
+  (set-down turtle false)
+  nil))
 
 
 (defn pen-down
@@ -676,19 +1187,19 @@ See [`set-position`](var:set-position) for more details.
 ```
 (pen-down)
 ```"
-  []
-  (set-pen-down true)
-  nil)
-
-
+ ([]
+  (pen-down (turtle)))
+ ([turtle]
+  (set-down turtle true)
+  nil))
 
 
 (depr/defn get-pen-down
            {:deprecated {:in "2018.1"}
-            :use-instead is-pen-down
+            :use-instead is-down
             :print-warning :always}
            []
-           (is-pen-down))
+           (is-down))
 
 
 (defn set-speed
@@ -713,9 +1224,14 @@ See [`set-position`](var:set-position) for more details.
 (set-speed 1/2)
 (set-speed nil)
 ```"
-  [number]
-  (.setSpeed (turtle) number)
-  nil)
+ ([number]
+  (set-speed (turtle) number))
+
+ ([turtle number]
+  (assert (nil-or-not-neg-number? number)
+          (format "set-speed requires a positive number or 'nil'. Got '%s'" number))
+  (swap! turtle assoc :speed number)
+  nil))
 
 
 (defn get-speed
@@ -728,8 +1244,10 @@ See [`set-position`](var:set-position) for more details.
 
   See [`set-speed`](var:set-speed) for more information.\n
 " 
-  []
-  (.getSpeed (turtle)))
+ ([]
+  (get-speed (turtle)))
+ ([turtle]
+  (:speed @turtle)))
 
 
 (depr/defn speed
@@ -751,10 +1269,12 @@ See [`set-position`](var:set-position) for more details.
 (set-color (Color/color 0 255 0)) ;; a green
 ```  
   See topic [Color](:Color) for more information."
-  [color]
-  (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize." 
-  (.setPenColor (turtle) color)
-  nil)
+ ([color]
+  (set-color (turtle) color))
+ ([turtle color]
+  (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize."
+  (swap! turtle assoc :color color)
+  nil))
 
 
 (depr/defn set-pen-color
@@ -775,8 +1295,10 @@ See [`set-position`](var:set-position) for more details.
 
   See topic [Color](:Color) for more information.
 "
-  []
-  (.getPenColor (turtle)))
+ ([]
+  (get-color (turtle)))
+ ([turtle]
+  (:color @turtle)))
 
 
 (depr/defn get-pen-color
@@ -800,10 +1322,13 @@ See [`set-position`](var:set-position) for more details.
 (set-width 20)
 (set-width nil)  ;; no line will be drawn.
 ```"
-  [width]
-  (assert (or (nil? width) (number? width) (not (neg? width)))
+ ([width]
+  (set-width (turtle) width))
+ ([turtle width]
+  (assert (nil-or-not-neg-number? width)
           "'width' must be a positive number or nil")
-  (.setPenWidth (turtle) width))
+  (swap! turtle assoc :width width)
+  nil))
 
 
 (defn get-width 
@@ -813,23 +1338,27 @@ See [`set-position`](var:set-position) for more details.
 ```
 (get-width)
 ```"
-  []
-  (.getPenWidth (turtle)))
+ ([]
+  (get-width (turtle)))
+ ([turtle]
+  (:width @turtle)))
 
 
 (defn set-visible
-  "Makes the turtle visible - or not.
-  Any value that is \"truth-y\" in clojure is allowed.
+  "Makes the turtle visible or not.
+  Any value that is \"truth-y\" in Clojure is allowed.
    
    *examples:*
 ```
-(set-visible true)  ;; showing
-(set-visible false) ;; hidden
-(set-visible nil)   ;; hidden
+(set-visible true)  ;; show
+(set-visible false) ;; hide
+(set-visible nil)   ;; hide
 ```"
-  [visible?]
-  (.setVisible (turtle) (boolean visible?))
-  nil)
+ ([bool]
+  (set-visible (turtle) bool))
+ ([turtle bool]
+  (.setVisible ^Group (:group @turtle) (boolean bool))
+  nil))
 
 
 (defn is-visible
@@ -839,8 +1368,10 @@ See [`set-position`](var:set-position) for more details.
 ```
 (is-visible)
 ```"
-  []
-  (.isVisible ^Group (turtle)))
+ ([]
+  (is-visible (turtle)))
+ ([turtle]
+  (-> @turtle :group (#(.isVisible ^Group %)))))
 
 
 (depr/defn is-showing
@@ -858,9 +1389,11 @@ See [`set-position`](var:set-position) for more details.
 ```
 (show)
 ```"
-  []
-  (set-visible true)
-  nil)
+ ([]
+  (show (turtle)))
+ ([turtle]
+  (set-visible turtle true)
+  nil))
 
 
 (defn hide
@@ -870,32 +1403,76 @@ See [`set-position`](var:set-position) for more details.
 ```
 (hide)
 ```"
-  []
-  (set-visible false))
+ ([]
+  (hide (turtle)))
+ ([turtle]
+  (set-visible turtle false)
+  nil))
 
 
 
+(defn set-name
+  "Sets the name of the turtle. The name can be any value or type you want. No type-checking is done.  
+  
+  *Example:* 
+```
+(set-name \"John\")
+(set-speed :Kate)
+(set-speed nil)  ;; You really hate him.  ;-)
+```"
+  ([name]
+   (set-name (turtle) name))
 
+  ([turtle name]
+   (swap! turtle assoc :name name)
+   nil))
+
+
+
+(defn get-name
+  "Returns whatever the turtles name is set to.  
+  
+  *Example:*
+```
+(get-name)
+```
+
+  See [`set-name`](var:set-name) and [`new-turtle`](var:new-turtle) for more information.
+"
+  ([]
+   (get-name (turtle)))
+  ([turtle]
+   (:name @turtle)))
+
+
+;;;;;;;;;;;;;;;
+
+
+;; TODO: Should this behave differently - not clear away turtles?
 (defn clear
   "Removes all graphics from screen.
+
+  **Warning:** This also clears away all but the last turtle!
 
   *Example:*
 ```
 (clear)
 ```"
   []
-  (let [sc (screen)
-
+  (let [scrn (screen)
+        stg ^Stage (singleton/get STAGE)
         ;; A hack to force the scene to re-render/refresh everything.
-        [^double w ^double h] (fx/WH sc)
-        _ (.setWidth sc (inc w))
-        _ (.setHeight sc (inc h))
-        _ (.setWidth sc  w)
-        _ (.setHeight sc h)
+        [^double w ^double h] (fx/WH stg)
+        _ (.setWidth stg (inc w))
+        _ (.setHeight stg (inc h))
+        _ (.setWidth stg  w)
+        _ (.setHeight stg h)
 
-        root (->  sc .getUserData :root)
-        t (turtle)
-        filtered (filter #(= % t) (fx/children root))]
+        root (get-root scrn)
+        trtl (turtle)
+        filtered (filter #(or (= % (:group @trtl)) 
+                              (= % (:axis @scrn))) 
+                         (fx/children root))]
 
       (fx/later
         (fx/children-set-all root filtered)))
@@ -910,35 +1487,36 @@ See [`set-position`](var:set-position) for more details.
 ```
 (home)
 ```"
-  []
-  (let [pen-down? (is-pen-down)]
-    (pen-up)
-    (set-heading 0)
-    (set-position [0 0])
-    (when pen-down? (pen-down))
-    nil))
+ ([]
+  (home (turtle)))
+ ([turtle]
+  (let [pen-down? (is-down turtle)]
+    (pen-up turtle)
+    (set-heading turtle 0)
+    (set-position turtle [0 0])
+    (when pen-down? (pen-down turtle)))
+  nil))
 
 
 (defn reset
   "A combined screen and turtle command.  
   Clears the screen, and center the current turtle, leaving only one turtle.
 
-  Same as calling   
-`(clear) (show) (set-speed 1) (set-color :black) (set-width 1= (pen-up) (home) (pen-down)`
-
+  Same as calling:   
+```
+(clear) (show) (set-speed 1) (pen-up) (home) (pen-down)
+(set-color :black) (set-width 1) (set-background :white) (set-round false) 
+```
+  **Warning:** `(clear)` also clears away all but the last turtle!
+  
   *Example:* 
 ```
 (reset)
 ```"
   []
-  (clear)
-  (show)
-  (set-speed 1)
-  (set-color :black)
-  (set-width 1)
-  (pen-up)
-  (home)
-  (pen-down)
+  (clear) (show) (set-speed 1) (pen-up) (home) (pen-down)
+  (set-color :black) (set-width 1) (set-background :white) (set-round false)
+
   nil)
 
 
@@ -951,8 +1529,8 @@ See [`set-position`](var:set-position) for more details.
 (sleep 2000)  ;; Sleeps for 2 seconds
 ```"
   [milliseconds]
-  (Thread/sleep milliseconds))
-
+  (Thread/sleep milliseconds)
+  nil)
 
 ;(defmacro rep [n & body]
 ;    `(dotimes [~'_ ~n]
@@ -993,14 +1571,6 @@ See topic [Clojure](:Clojure) for more information."
 ;(eval frm)
 
 
-(defn -main [& _]
-    (fx/later (turtle)))
-
-
-;;; DEV ;;;
-
-;(println "WARNING: Running george.turtle/-main" (-main))
-
 (defn run-sample
   "A simple test program which uses many of the available turtle commands."
   []
@@ -1040,160 +1610,8 @@ See topic [Clojure](:Clojure) for more information."
        (left 45)
        (pen-down))
 
-  (hide))
-
-
-;(set! *warn-on-reflection* false)
-
-
-(def SCREENSHOT_BASE_FILENAME "TG_screenshot")
-
-
-(defn- parse-int [s]
-  (if-let [number (re-find #"\d+" s)]
-    (Integer/parseInt number)
-    0))
-
-
-;(defn- get-filename [file]
-;  (.getName file))
-
-
-;(defn- get-file-num []
-;  (let [img-dir (cio/file "../images/")
-;
-;        filenames (into []
-;                        (map get-filename
-;                             (file-seq img-dir)))
-;
-;        biggest-number (apply max
-;                              (remove nil?
-;                                      (map parse-int filenames)))]
-;
-;    (+ biggest-number 1)))
-
-
-(defn- find-next-file-numbering [dir]
-  (->> (.listFiles
-         (cio/file dir)
-         (reify FilenameFilter
-           (accept [_ _ name]
-             (boolean (re-find (re-pattern SCREENSHOT_BASE_FILENAME) name)))))
-       (seq)
-       (map #(.getName %))
-       (map parse-int)
-       (remove nil?)
-       (#(if (empty? %) '(0) %))
-       ^long (apply max)
-       (inc)))
-
-
-
-(defn- write-image-to-file
-       "Writes image to file (as '.png')"
-       [image file]
-       (cio/make-parents file)
-       (ImageIO/write
-         (SwingFXUtils/fromFXImage image nil)
-         "png"
-         file))
-
-
-(def CB (fx/now (Clipboard/getSystemClipboard)))
-
-
-(defn- print-clipboard-content
-  "For dev/test purposes."
-  []
-  (println "  ## CB content types:" (fx/now (.getContentTypes CB)))
-  ;(fx/now (.getString CB)))
-  (fx/now (.getImage CB)))
-
-
-(defn- write-image-to-tempfile [image]
-  (let [file (File/createTempFile (str SCREENSHOT_BASE_FILENAME "_") ".png")]
-    (when (write-image-to-file image file)
-      file)))
-
-
-(defn- image->png-bytebuffer [^WritableImage im]
-  (let [baos (ByteArrayOutputStream.)
-        _ (ImageIO/write (SwingFXUtils/fromFXImage im nil) "png" baos)
-        res (ByteBuffer/wrap (.toByteArray (doto baos .flush)))]
-    (.close baos)
-    res))
-
-
-(defn- put-image-on-clipboard [image text-repr]
-  (let [png-mime "image/png"
-        png
-        (if-let [df (DataFormat/lookupMimeType png-mime)]
-          df (DataFormat. (fxj/vargs png-mime)))
-        tempfile
-        (write-image-to-tempfile image)
-        cc
-        (doto (ClipboardContent.)
-              (.putImage image)
-              ;(.put png (image->png-bytebuffer image))  ;; doesn't work for some reason!
-              (.putFiles [tempfile])
-              (.putFilesByPath [(str tempfile)])
-              (.putString text-repr))]
-    (fx/now (.setContent CB cc))))
-
-
-(defn- ^WritableImage snapshot
-  ""
-  [scene]
-  (let [[w h] (fx/WH scene)]
-    (.snapshot scene (WritableImage. w h))))
-
-
-(defn- ^WritableImage screenshot []
-  (fx/now (-> (screen) .getScene snapshot)))
-
-
-"A fileshooser-object is instanciated once pr session. It remembers the previous location.
-One might in future choose to save the 'initial directory' so as to return user to same directory across sessions."
-(defonce screenshot-filechooser
-  (apply fx/filechooser fx/FILESCHOOSER_FILTERS_PNG))
-
-
-(defn- build-filename-suggestion [dir]
-    (format "%s%s.png"
-            SCREENSHOT_BASE_FILENAME
-            (find-next-file-numbering dir)))
-
-
-(defn- ^File choose-target-file
-  "If user selects a location and a file-name, then a file object is returned. Else nil.
-  (A file hasn't been created yet. Only name and location chosen. The file is created when it is written to.)"
-  []
-  (let [initial-dir
-        (if-let [dir (.getInitialDirectory screenshot-filechooser)]
-                dir
-                (cio/file (System/getProperty "user.home")))
-
-        suggested-filename
-        (build-filename-suggestion initial-dir)]
-
-    (when-let [file (-> (doto screenshot-filechooser
-                          (.setTitle "Save sreenshot as ...")
-                          (.setInitialFileName suggested-filename))
-                        (.showSaveDialog nil))]
-
-      ;; If a different directory has been chosen, we want the filechooser to remember it:
-      (.setInitialDirectory screenshot-filechooser (.getParentFile file))
-        ;; Handling of potential overwrite of file is buildt into filechooser.
-      file)))
-
-
-(defn- save-screenshot-to-file []
-  (when-let [file (choose-target-file)]
-    (write-image-to-file (screenshot) file)))
-
-
-(defn- copy-screenshot-to-clipboard []
-  (put-image-on-clipboard (screenshot) (format "<%s>" SCREENSHOT_BASE_FILENAME)))
+  (hide)
+  nil)
 
 
 ;;;;;;;;; Documentation details
@@ -1268,10 +1686,31 @@ Clojure is buildt into the system, which means you can \"dip down\" and do prett
 See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of all available \"commands\" - aka functions, macros, and special forms.")
 
 
+(def topic-turtles "# Turtles (multiple)
+
+*You can have many turtles at once!*
+
+Standard behavior is for there to be minimum 1 turtle on screen.
+If you call any of the standard turtle-commands without a specific turtle as first argument, then `(turtle)` is called. 
+See [`turtle`](var:turtle) for more on how this command behaves.
+
+You can create more than one turtle.  It is up to you to \"hold on to\" turtles so you can reference them later.
+If you have a reference to a specific turtle, then you can use `with-turtle` to \"bind\" it as the turtle to be applied to turtle commands.  See [`with-turtle`](var:with-turtle).  Or you can pass it as the first argument to standard turtle commands.
+
+You can get a list containing all registered turtles with the command [``]
+
+
+...
+   But all turtle commands can also be applied to a specific turtle - either by \n
+
+")
+
+
 (def topics 
   {:Welcome              topic-welcome 
    :Color                topic-color
    :Clojure              topic-clojure
+   :Turtles              topic-turtles
    (keyword (str *ns*))  ((meta *ns*) :doc)}) ;(meta (find-ns (symbol (str *ns*))))
 
 
@@ -1294,6 +1733,7 @@ See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of 
 (def turtle-API-list
   ["Turtle"
    #'forward
+   #'backward
    #'left
    #'right
    #'home
@@ -1306,16 +1746,24 @@ See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of 
    "Pen"
    #'pen-up
    #'pen-down
-   #'set-pen-down
-   #'is-pen-down
+   #'set-down
+   #'is-down
    #'set-color
    #'get-color
    #'set-width
    #'get-width
+   #'set-round
+   #'is-round
    "Screen"
    #'clear
    #'reset
    #'screen
+   #'set-background
+   #'get-background
+   #'set-axis-visible
+   #'is-axis-visible
+   #'set-border-visible
+   #'is-border-visible
    "Utils"
    #'rep
    #'sleep
@@ -1324,10 +1772,23 @@ See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of 
    #'get-heading
    #'set-position
    #'get-position
+   #'set-name
+   #'get-name
+   #'get-state
    #'turtle
+   #'new-turtle
+   #'with-turtle
+   #'get-all-turtles
+   #'delete-turtle
+   #'delete-all-turtles
+   #'set-prop
+   #'get-prop
+   #'get-props
+   #'swap-prop
    #'to-color
    "Demos"
    #'run-sample
    "Topics"
    :Color
-   :Clojure])
+   :Clojure
+   :Turtles])
