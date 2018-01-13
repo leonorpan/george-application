@@ -4,6 +4,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns george.javafx
+  (:refer-clojure :exclude [set remove])
   (:require
     [clojure.java.io :as cio]
     [clojure
@@ -35,10 +36,10 @@
     [javafx.scene.layout
      BorderPane HBox Priority Region StackPane VBox
      Border
-     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill GridPane]
+     BorderStroke BorderStrokeStyle CornerRadii BorderWidths Background BackgroundFill GridPane Pane]
     [javafx.scene.paint Color Paint]
     [javafx.scene.text Font Text FontPosture FontWeight]
-    [javafx.scene.shape Line Rectangle Polygon]
+    [javafx.scene.shape Line Rectangle Polygon StrokeLineCap]
     [javafx.stage FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
     [javafx.util Duration]))
 
@@ -219,6 +220,27 @@ and the body is called on 'changed'"
     (.setTranslateY y)))
 
 
+(defn set-WH [x [w h]]
+  (doto x
+    (.setWidth w)
+    (.setHeight h)))
+
+
+(defn set-pref-WH [^Node n [w h]]
+  (doto n
+    (.setPrefWidth (double w))
+    (.setPrefHeight (double h))))
+
+
+(defn set-all-WH [^Node n [w h :as size]]
+  (doto n 
+    (set-pref-WH size)
+    (.setMinWidth (double w))
+    (.setMinHeight (double h))
+    (.setMaxWidth (double w))
+    (.setMaxHeight (double h))))
+
+
 (defn new-border
     ([color]
      (new-border color 1.))
@@ -232,6 +254,23 @@ and the body is called on 'changed'"
                                  (if (vector? width)
                                      (let [[t r b l] width] (BorderWidths. t r b l))
                                      (BorderWidths. width)))))))
+
+
+(defn get-userdata
+  [^Node n]
+  (.getUserData n))
+
+
+(defn set-userdata
+  [^Node n m]
+  (.setUserData n m)
+  m)
+
+
+(defn swap-userdata
+  [^Node n f & args]
+  (let [res (apply f (cons (get-userdata n) args))]
+    (set-userdata n res)))
 
 
 (import
@@ -434,13 +473,20 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 
 
+(defn add [parent & nodes]
+  (let [ cs  (.getChildren  parent)] 
+    (.addAll cs (into-array Node nodes))
+    parent))
 
-(defn add [^Parent p ^Node n]
-    (-> p .getChildren (.add n)))
+
+(defn set [parent & nodes]
+    (-> parent .getChildren (.setAll (into-array Node nodes)))
+    parent)
 
 
-(defn set! [^Parent p ^Node n]
-    (-> p .getChildren (.setAll (fxj/vargs n))))
+(defn remove [parent & nodes]
+  (-> parent .getChildren (.removeAll (into-array Node nodes)))
+  parent)
 
 
 (defn priority [kw]
@@ -461,41 +507,58 @@ It must return a string (which may be wrapped to fit the width of the list."
         (VBox/setVgrow (priority vgrow))))
 
 
-(defn radiobutton []
+(defn ^RadioButton radiobutton []
     (RadioButton.))
 
 
 
-(defn stackpane* [nodes]
+(defn ^StackPane stackpane* [nodes]
     (StackPane. (fxj/vargs-t* Node nodes)))
 
-(defn stackpane
+(defn ^StackPane stackpane
     ([& nodes]
      (stackpane* nodes)))
 
-(defn group* [nodes]
+(defn ^Group group* [nodes]
     (Group. (fxj/vargs-t* Node nodes)))
 
 
-(defn group
+(defn ^Group group
     ([& nodes]
      (group* nodes)))
 
 
-(defn line [& {:keys [x1 y1 x2 y2 color width smooth]
-               :or   { x1 0 y1 0
+(defn pane* [nodes]
+  (Pane. (fxj/vargs-t* Node nodes)))
+
+(defn pane
+  ([& nodes]
+   (pane* nodes)))
+
+
+(defn line [& {:keys [x1 y1 x2 y2 color width smooth round]
+               :or   {x1 0 y1 0
                       x2 x1 y2 y1
                       color Color/BLACK
                       width 1
-                      smooth true}}]
+                      smooth true
+                      round false}}]
 
     (doto (Line. x1 y1 x2 y2)
-        (.setStroke color)
-        (.setStrokeWidth width)
-        (.setSmooth smooth)))
+      (.setStroke color)
+      (.setStrokeWidth width)
+      (.setSmooth smooth)
+      (.setStrokeLineCap (if round StrokeLineCap/ROUND StrokeLineCap/SQUARE))))
 
 
-
+(defn set-stroke
+  ([shape stroke]
+   (doto shape
+     (.setStroke stroke)))
+  ([shape stroke width]
+   (doto shape
+     (.setStrokeWidth width)
+     (set-stroke stroke))))
 
 
 (defn polygon
@@ -512,14 +575,13 @@ It must return a string (which may be wrapped to fit the width of the list."
 
          (doto (Polygon. (fxj/vargs-t* Double/TYPE points))
              (.setFill (:fill kwargs))
-             (.setStroke (:stroke kwargs))
-             (.setStrokeWidth (:strokewidth kwargs)))))
+             (set-stroke (:stroke kwargs) (:strokewidth kwargs)))))
 
 
 (defn node? [item]
   (instance? Node item))
 
-(defn rectangle [& args]
+(defn ^Rectangle rectangle [& args]
     (let [default-kwargs
           {:location [0 0]
            :size [50 50]
@@ -897,6 +959,7 @@ It must return a string (which may be wrapped to fit the width of the list."
            :sizetoscene true
            :location nil ;[100 100]
            :size nil ;[200 200]
+           :centeronscreen nil
            :show true
            :alwaysontop false
            :tofront false
@@ -925,6 +988,9 @@ It must return a string (which may be wrapped to fit the width of the list."
           (when-let [[x y] (:location kwargs)]
               (doto stg (.setX x) (.setY y)))
 
+          (when-let [cos (:centeronscreen kwargs)]
+            (when cos  (.centerOnScreen stg)))
+          
           (when (:show kwargs) (.show stg))
           (when (:tofront kwargs) (.toFront stg))
 

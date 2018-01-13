@@ -72,7 +72,7 @@
         argls (:arglists m)
         arrity0f "(%s)"
         arrityXf "(%s %s)"]
-    (cs/join "  "
+    (cs/join "\n"
             (map #(if (empty? %)
                       (format arrity0f n)
                       (format arrityXf n (cs/join " " %)))
@@ -93,7 +93,7 @@
   (let [n (var->name vr)
         a (var->aritylisting vr)
         d (var->doc vr)
-        md (format "# %s  \n`%s`  \n***\n\n%s" n a d)]
+        md (format "# %s  \n```\n%s\n```  \n***\n\n%s" n a d)]
     (rendered-detail md detail-fn)))
 
 

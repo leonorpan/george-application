@@ -41,8 +41,10 @@
                  ;; https://github.com/yogthos/markdown-clj
                  [markdown-clj "1.0.2"]
                  ;; https://github.com/alexander-yakushev/defprecated
-                 [defprecated "0.1.3" :exclusions [org.clojure/clojure]]]
-
+                 [defprecated "0.1.3" :exclusions [org.clojure/clojure]]
+                 ;; https://github.com/amalloy/ordered
+                 [org.flatland/ordered "1.5.6"]]
+  
   :plugins [
             ;; https://github.com/weavejester/environ
             [lein-environ "1.1.0"]

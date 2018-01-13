@@ -14,7 +14,8 @@
      [repl :as repl]
      [output :refer [oprint oprintln output-showing?]]]
     [george.javafx :as fx]
-    [george.util.text :as ut])
+    [george.util.text :as ut]
+    [george.code.tokenizer :refer [indexing-pushback-stringreader]])
   (:import
     [javafx.scene.layout GridPane Priority]
     [javafx.scene.control Alert$AlertType Alert TextArea]
@@ -22,7 +23,7 @@
 
 
 ;(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *unchecked-math* :warn-on-boxed)
 ;(set! *unchecked-math* true)
 
 
@@ -222,7 +223,7 @@
   [^String code ^String ns-str eval-id ^String file-name update-ns-fn]
   (maybe-ensure-user-ns ns-str)
   (oprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
-  (let [rdr (george.code.tokenizer/indexing-pushback-stringreader code)]
+  (let [rdr (indexing-pushback-stringreader code)]
     (loop [[R C rd] (line-column-read file-name rdr)]
       (when rd
         (let [ok? (eval-one rd ns-str eval-id R C file-name update-ns-fn)]
