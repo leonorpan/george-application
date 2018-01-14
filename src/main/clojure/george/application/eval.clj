@@ -120,7 +120,8 @@
       ;; print to Output
       ;(pprint exception-data)
       (println stacktrace-str)
-      (println "\nAn error occurred")
+      (println "=================")
+      (println "An error occurred")
       (println "=================")
       (println (format "%s\n\n%s\n%s\n" exception-str caused-by-str location-str))
 
@@ -144,11 +145,11 @@
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (oprint :ns (ut/ensure-newline (str " ns> " ns)))
+      (oprint :ns (ut/ensure-newline ns))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (oprint :res (ut/ensure-newline (str " >>> " s))))
+      (oprint :res (ut/ensure-newline s)))
 
     (when-let [st (:status res)]
       (when-not (= st ["done"])
@@ -162,10 +163,6 @@
         (print o) (flush)))
 
     ns))
-
-
-(defn- indent-input-lines-rest [s]
-  (cs/replace s "\n" "\n ... "))
 
 
 (def whitespace #{\tab \space \newline})
@@ -222,7 +219,7 @@
   "returns nil"
   [^String code ^String ns-str eval-id ^String file-name update-ns-fn]
   (maybe-ensure-user-ns ns-str)
-  (oprint :in (ut/ensure-newline (str " <<< " (indent-input-lines-rest code))))
+  (oprint :in (ut/ensure-newline code))
   (let [rdr (indexing-pushback-stringreader code)]
     (loop [[R C rd] (line-column-read file-name rdr)]
       (when rd
