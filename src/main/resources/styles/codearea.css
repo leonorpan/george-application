@@ -78,14 +78,14 @@
 }
 
 .text.err {
-    -fx-fill: #cc0000;
+    -fx-fill: firebrick;
 }
 
 .text.in {
     -fx-fill: blue;
 }
 .text.ns {
-    -fx-fill: brown;
+    -fx-fill: sienna;
 }
 
 .text.system {

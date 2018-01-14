@@ -4,7 +4,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns george.util.java
-  (:import (java.util.function Function Consumer)))
+  (:import (java.util.function Function Consumer IntFunction)))
 
 
 (defn ^Function function
@@ -13,6 +13,14 @@
   (reify Function
     (apply [_ arg]
       (f arg))))
+
+
+(defn ^IntFunction intfunction
+  "takes a 1-arg function and wraps it in a java.function.Function"
+  [f]
+  (reify IntFunction
+    (apply [_ i]
+      (f i))))
 
 (defn ^Consumer consumer
   "takes a 1-arg function and wraps it in a java.function.Consumer"
