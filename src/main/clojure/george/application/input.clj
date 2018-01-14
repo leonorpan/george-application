@@ -37,7 +37,7 @@
     (catch NullPointerException e nil)))
 
 
-(defn do-eval [code-str ^Button run-button ^Button interrupt-button ns-fn update-ns-fn file-name focusable post-success-fn]
+(defn do-eval [code-str ^Button run-button ^Button interrupt-button ns-fn update-ns-fn file-name focusable post-success-fn & [load?]]
   (let [
         eval-id (gu/uuid)]
     (if(cs/blank? code-str)
@@ -56,7 +56,7 @@
         ;; do execution
         (fxj/daemon-thread
           (try
-            (eval/read-eval-print-in-ns code-str (ns-fn) eval-id file-name update-ns-fn)
+            (eval/read-eval-print-in-ns code-str (ns-fn) eval-id file-name update-ns-fn load?)
             (when post-success-fn (post-success-fn))
             ;; handle possible problems
             (catch SocketException e

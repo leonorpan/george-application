@@ -22,11 +22,13 @@
     [george.application.launcher :as appl]
     [george.application.file :as gaf]
     [clojure.java.io :as cio]
-    [clojure.string :as cs])
+    [clojure.string :as cs]
+    [george.util :as u])
 
   (:import
-    [javafx.scene.control Tab TabPane]
-    [javafx.scene.input KeyEvent]))
+    [javafx.scene.control Tab TabPane SplitMenuButton]
+    [javafx.scene.input KeyEvent]
+    [javafx.geometry Side]))
 
 
 ;(set! *warn-on-reflection* true)
@@ -298,9 +300,16 @@ swap-saved: %s")
 
         save-chan (save-to-swap-channel)
 
-        run-button
-        (input/run-button)
-
+        eval-button
+        (doto (SplitMenuButton.)
+              (.setText "Run")
+              (.setPrefWidth 130)
+              (.setAlignment fx/Pos_CENTER)
+              (.setPopupSide Side/TOP)
+              (fx/set-tooltip
+                (format "Run code.   %s-R                  
+Load code.  %s-L (Similar to \"Run\", but silent.)" u/SHORTCUT_KEY u/SHORTCUT_KEY)))
+        
         interrupt-button
         (input/interrupt-button)
 
@@ -325,17 +334,18 @@ swap-saved: %s")
              (.requestFocus focusable)))
 
         do-eval-fn
-        (fn []
+        (fn [load?]
           (save-to-swap-maybe editor file-info_)
           (input/do-eval
                 (ed/text editor)
-                run-button
+                eval-button
                 interrupt-button
                 #(.getText ns-label)
                 update-ns-fn
                 (if-let [f (:file @file-info_)] (.getName f) "<no file>")
                 focusable
-                nil))
+                nil
+                load?))
 
         oncloserequest-fn
         #(on-close editor file-info_ %)
@@ -372,7 +382,7 @@ swap-saved: %s")
           ns-label
           (fx/region :hgrow :always)
           interrupt-button
-          run-button)
+          eval-button)
 
         root
         (fx/borderpane
@@ -385,7 +395,9 @@ swap-saved: %s")
     (add-watch focused_ tab
                #(when (and %4 (= @selected_ tab))  (focus-on-editor)))
 
-    (fx/set-onaction run-button #(do-eval-fn))
+    (doto eval-button
+      (fx/set-onaction  #(do-eval-fn nil))
+      (-> .getItems (.addAll (fxj/vargs (layout/menu [:item "Load" #(do-eval-fn true)])))))
 
     (indicator tab file-info_)
 
@@ -394,8 +406,8 @@ swap-saved: %s")
                        (fx/key-pressed-handler {#{:O :SHORTCUT}        open-fn
                                                 #{:S :SHORTCUT}        save-fn
                                                 #{:S :SHORTCUT :SHIFT} save-as-fn
-                                                #{:E :SHORTCUT}        #(println "Eval ... NOT")
-                                                #{:ENTER :SHORTCUT}    #(.fire run-button)
+                                                #{:L :SHORTCUT}        #(do-eval-fn true)
+                                                #{:ENTER :SHORTCUT}    #(.fire eval-button)
                                                 #{:ESCAPE :SHORTCUT}   #(.fire interrupt-button)})))
 
     [root oncloserequest-fn onclosed-fn]))

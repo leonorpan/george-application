@@ -140,16 +140,18 @@
 
 (defn- process-response
   "Returns current-ns. Processes/prints results based on type."
-  [res current-ns update-ns-fn]
+  [res current-ns update-ns-fn silent?]
   ;(pprint res)
   (let [ns (if-let [a-ns (:ns res)] a-ns current-ns)]
 
     (when (not= ns current-ns)
-      (oprint :ns (ut/ensure-newline ns))
+      (when-not silent?
+        (oprint :ns (ut/ensure-newline ns)))
       (update-ns-fn ns))
 
     (when-let [s (:value res)]
-      (oprint :res (ut/ensure-newline s)))
+      (when-not silent?
+        (oprint :res (ut/ensure-newline s))))
 
     (when-let [st (:status res)]
       (when-not (= st ["done"])
@@ -183,10 +185,11 @@
     (try
       [R C (read rdr false nil)]
       (catch Throwable e
-        (process-error e F R C)))))
+        (process-error e F R C)
+        [R C :bad-read]))))
 
 
-(defn- eval-one [rd ns eval-id R C file-name update-ns-fn]
+(defn- eval-one [rd ns eval-id R C file-name update-ns-fn silent?]
   (repl/def-eval
     {:code (str rd)
      :ns ns
@@ -200,7 +203,7 @@
       (if-let [response (first responses)]
         (let [error? (= "eval-error" (-> response :status first))]
           (if-not error?
-            (let [new-ns (process-response response current-ns update-ns-fn)]
+            (let [new-ns (process-response response current-ns update-ns-fn silent?)]
               (recur (rest responses) new-ns))
             (do
               (repl/interrupt-eval (:session response) eval-id)
@@ -217,12 +220,24 @@
 
 (defn read-eval-print-in-ns
   "returns nil"
-  [^String code ^String ns-str eval-id ^String file-name update-ns-fn]
+  [^String code ^String ns-str eval-id ^String file-name update-ns-fn & [load?]] 
   (maybe-ensure-user-ns ns-str)
-  (oprint :in (ut/ensure-newline code))
-  (let [rdr (indexing-pushback-stringreader code)]
-    (loop [[R C rd] (line-column-read file-name rdr)]
-      (when rd
-        (let [ok? (eval-one rd ns-str eval-id R C file-name update-ns-fn)]
-          (when ok?
-            (recur (line-column-read file-name rdr))))))))
+  (if load?
+    (oprintln :system (format "Loading  %s ... " file-name))
+    (oprint :in (ut/ensure-newline code)))
+  
+  (let [end-res
+        (let [rdr (indexing-pushback-stringreader code)]
+          (loop [[R C rd] (line-column-read file-name rdr)]
+            (if (= rd :bad-read) 
+              :bad-read
+              (if rd
+                (let [ok? (eval-one rd ns-str eval-id R C file-name update-ns-fn load?)]
+                  (if ok?
+                    (recur (line-column-read file-name rdr))
+                    :bad-eval))
+                :ok))))]
+    (when (and load? (= end-res :ok)) 
+      (oprintln :system "Loaded"))))
+
+  
