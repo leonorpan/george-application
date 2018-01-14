@@ -132,17 +132,17 @@
 
 (defn- marking-for-typ [typ]
   (get 
-    {:err "!!!"
-     :ns "***"
-     :in "<<<"
-     :res ">>>"
-     :system "..."
-     :system-em ":::"} typ "   "))
+    {:err "!!"
+     :ns "ns"
+     :in "<<"
+     :res "=>"
+     :system "  "
+     :system-em "  "} typ "  "))
 
 
 (defn colors-for-typ [typ]
   (get {:err "firebrick"
-        :ns "sienna" 
+        :ns "sienna"
         :in  "blue" 
         :res "green" 
         :system "#aaa" 
