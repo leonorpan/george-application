@@ -29,8 +29,10 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [javafx.scene.paint Color Paint]
     [javafx.scene Group Node]
     [javafx.scene.shape Line Rectangle Polygon]
-    [javafx.scene.text Font FontWeight]
-    [javafx.stage Stage]))
+    [javafx.scene.text Font TextBoundsType Text]
+    [javafx.stage Stage]
+    [javafx.geometry VPos]
+    [javafx.scene.transform Rotate]))
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -110,8 +112,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(set! *unchecked-math* :warn-on-boxed)
 
 
-
-
 (declare
   get-color
   get-width
@@ -126,13 +126,14 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   get-position
   get-node
   get-parent
-  default-font
   reset
   to-color
   to-font
   screen
   turtle
-  register-turtle)
+  register-turtle
+  get-default
+  get-screen-default)
 
 
 ;; Empty records allow for easy typing of maps.
@@ -155,6 +156,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- set-now [parent node]
   (fx/now (fx/set parent node)))
+
+
+(defn- flip-Y
+  "Takes a position [x y] and inverts y - for mapping turtle-coordinates to JavaFX coordinates."
+  [[x ^double y]]
+  [x (- y)])
 
 
 (defn- get-root
@@ -240,24 +247,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
        :node     (get-node turtle)})))
 
 
-(defn- default-state []
-  {:parent nil ; (get-root (screen))
-   :name "<anonymous>"
-   :node (turtle-polygon)
-   :position [0 0]
-   :heading 0
-   :visible true
-   :speed 1
-   :color :black
-   :width 1
-   :round false
-   :fill :gray
-   :down true
-   :font (default-font)
-   :history-size 0
-   :props {}})
-
-
 ;; TODO: update this doc.
 
 (defn new-turtle
@@ -283,29 +272,26 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   
   'props' holds any keyed values the user wishes to set on the turtle - even allowing the user to use the turtle as a pure storage.
   
-  The group wraps a \"shape\", which is any JavaFX node.
+  The group wraps a \"node\" - any JavaFX Node.
   This and any other attribute of the turtle can be overridden on creation - and most manipulated any time later also.
-  
-  A `clone-turtle` function is coming soon.
-  "
-  ;; TODO: implements 'clone-turtle' ...
-
+    "
+  ;; TODO: Turtle should take its defaults in a short-and-sweet command
   [& {:keys [name parent node position heading visible speed color width round down fill font history-size props]
-      :or {parent (get-root (screen))
-           name "<anonymous>"
-           node (turtle-polygon)
-           position [0 0]
-           heading 0
-           visible true
-           speed 1
-           color :black
-           width 1
-           round false
-           fill :gray
-           down true
-           font (default-font)
-           history-size 0
-           props {}}
+      :or {parent (get-default :parent)
+           name (get-default :name)
+           node (get-default :node)
+           position (get-default :position)
+           heading (get-default :heading)
+           visible (get-default :visible)
+           speed (get-default :speed)
+           color (get-default :color)
+           width (get-default :width)
+           round (get-default :round)
+           fill (get-default :fill)
+           down (get-default :down)
+           font (get-default :font)
+           history-size (get-default :history-size)
+           props (get-default :props)}
       :as args}]
   ;(user/pprint ["  ## args:" args])
 
@@ -329,7 +315,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
              :fill fill
              :font font
              :history-size history-size
-             :history []
+             :history (get-default :history)
              :props props
              :group group}))]
     
@@ -523,10 +509,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(with-turtle (make-turtle) (forward 100))
 
 
-;;;;;;;;;;;;;
-
-
-(def ^:private DEFAULT_SCREEN_SIZE [600 450])
 (def ^:private SCREEN ::screen)
 (def ^:private STAGE ::stage)
 
@@ -542,7 +524,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   [size]
   (let [
         background 
-        :white
+        (get-screen-default :background)
         
         border
         (doto
@@ -575,25 +557,26 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn set-background 
-  "Sets screen background.
+  "Sets the screen background.
   
   See [Color](:Color) for more information."
   [color]
-  (let [c (to-color color)]
-    (-> (screen) deref :container (fx/set-background c))
-    (swap! (screen) assoc :background color)))
+  (let [c (if (#{:background :default} color)
+              (get-screen-default :background)
+              color)]  
+    (-> (screen) deref :container (fx/set-background (to-color c)))
+    (swap! (screen) assoc :background c)))
 
 
 (defn get-background
   "Returns the screens background color."
-  
   []
   (-> (screen) deref :background))
 
 
 (defn- get-or-create-screen
   ([]
-   (get-or-create-screen DEFAULT_SCREEN_SIZE))
+   (get-or-create-screen (get-screen-default :size)))
   ([size]
    (singleton/get-or-create SCREEN #(create-screen size))))
 
@@ -661,7 +644,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- get-new-size [scrn size]
   (if (nil? size)
-    (if scrn (:size @scrn) DEFAULT_SCREEN_SIZE)
+    (if scrn (:size @scrn) (get-screen-default :size))
     size))
 
 
@@ -764,7 +747,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn set-node
-  "Sets the \"shape\" for the turtle. 'shape' can be any JavaFX Node."
+  "Sets the \"node\" for the turtle. 'node' can be any JavaFX Node."
   ([shape]
    (set-node (turtle) shape))
   ([turtle shape]
@@ -779,41 +762,76 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn get-parent
+  "Advanced.  More info to come."
   ([]
    (get-parent (turtle)))
   ([turtle]
    (-> @turtle :group (#(.getParent ^Group %)))))
 
 
-;; TODO: Consider these font-functions vs fx/new-font (which uses some keywords ...)
+(defn get-defaults
+  "The complete turtle defaults.
+  May be used for re-setting a turtle or when creating a new turtle.
+  Implemented as a function because calling it touches screen, 
+  and so it has the side-effect of creating as screen if one hasn't already been created."
+  []
+  {:name "<anonymous>"
+   :parent (get-root (screen))
+   :node (turtle-polygon)
+   :heading 0
+   :position [0 0]
+   :visible true
+   :speed 1
+   :color :black
+   :width 1
+   :down true
+   :round false
+   :fill :dodgerblue
+   :font ["Source Code Pro" :normal 14]
+   :history-size 0
+   :history []
+   :props {}})
 
-(defn default-font
-  ([]
-   (default-font "Regular" 14))
-  ([size]
-   (default-font "Regular" size))
-  ([weight size]
-   (fx/new-font "Source Code Pro" weight size)))
+
+(defn get-default
+  "Looks up a single value from defaults-map."
+  [k]
+  ((get-defaults) k))
 
 
-(defn to-font
-  ([font-or-family-or-size]
-   (assert (not (nil? font-or-family-or-size))
-           "'font' can not be set to 'nil'.")
-   (cond
-     (instance? Font font-or-family-or-size)  
-     font-or-family-or-size
+(defn get-screen-defaults []
+  {:background :white
+   :size [600 450]
+   :axis-visible false  
+   :border-visible false})
 
-     (or (number? font-or-family-or-size) (string? font-or-family-or-size)) 
-     (fx/new-font font-or-family-or-size)))
 
-  ([family size]
-   (fx/new-font family size))
-  ([family weight size]
-   (Font/font
-     ^String family
-     (if (string? weight) (FontWeight/findByName weight) (FontWeight/findByWeight weight))
-     (double size))))
+(defn get-screen-default [k]
+  ((get-screen-defaults) k))
+
+
+(defn to-font [font]
+  (assert (not (nil? font))
+          "'font' can not be set to 'nil'.")
+  ;; Easy basic assertions.  But not good enough.  Will cause difficult bugs or errors.
+  (cond 
+        (instance? Font font) 
+        font
+        ;; TODO: check content of font vector better
+        (vector? font)       
+        (apply fx/new-font font)
+        :default
+        (fx/new-font font)))
+;(println (to-font "Arial"))
+;(println (to-font ["Arial"]))
+;(println (to-font 12))
+;(println (to-font [12]))
+;(println (to-font ["Arial" 12]))
+;(println (to-font ["Source Code Pro" 12]))
+;(println (to-font ["Arial" :normal 12]))
+;(println (to-font ["Geneva" :bold :italic 12]))
+;(println (to-font (fx/new-font 16)))
+;(to-font nil)  ;; fail
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -838,9 +856,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   However, you can use this to \"pre-validate\" a color if you want, such that you know that it will be acceptable, and so you can see the web-color it will result in.
   "
   [color]
+  (assert (not (nil? color))  
+          "'color' may not be `nil`.")
   (cond
-    (nil? color) nil
-
     (instance? Paint color) color
     (string? color) (Color/web color)
     (keyword? color) (Color/web (name color))
@@ -993,12 +1011,16 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 (set-heading 90)
 ```
-See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information.
+See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information.
 "
- ([angle] 
-  (set-heading (turtle) angle))
- ([turtle ^double angle]
-  (.setRotate ^Group (:group @turtle) (- angle))
+ ([heading] 
+  (set-heading (turtle) heading))
+ ([turtle heading]
+  (let [angle   
+        (if (#{:heading :default} heading)
+            (get-default :heading)
+            heading)]
+    (.setRotate ^Group (:group @turtle) (- ^double angle)))
   nil))
 
 
@@ -1044,8 +1066,13 @@ See [Cartesian coordinate sytem](https://en.wikipedia.org/wiki/Cartesian_coordin
   See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) for more information."
  ([[x y]]
   (set-position (turtle) [x y]))
- ([turtle [^double x ^double y]]
-  (let [node ^Group (:group @turtle)]
+ ([turtle [^double x ^double y :as position]]
+  (let [node ^Group 
+        (:group @turtle)
+        [x ^double y] 
+        (if (#{:position :default} position)
+            (get-default :position)
+            position)]
     (fx/synced-keyframe
       250
       (when x [(.translateXProperty node) x])
@@ -1096,9 +1123,13 @@ See [`set-position`](var:set-position) for more details.
 (set-down (is-down)) ;; the opposite of what it was
 ```"
  ([bool]
-  (set-down (turtle) (boolean bool)))
+  (set-down (turtle) bool))
  ([turtle bool]
-  (swap! turtle assoc :down (boolean bool))
+  (let [down? 
+        (if (#{:down :default} bool)
+            (get-default :down)
+            bool)]
+    (swap! turtle assoc :down (boolean down?)))
   nil))
 
 
@@ -1140,8 +1171,11 @@ See [`set-position`](var:set-position) for more details.
   ([bool]
    (set-round (turtle) (boolean bool)))
   ([turtle bool]
-   (swap! turtle assoc :round (boolean bool))
+   (if (#{:round :default} bool)
+       (swap! turtle assoc :round (get-default :round))
+       (swap! turtle assoc :round (boolean bool)))
    nil))
+
 
 (defn is-round
   "Returns `true` if the turtle's pen is round, else `false`.
@@ -1228,9 +1262,12 @@ See [`set-position`](var:set-position) for more details.
   (set-speed (turtle) number))
 
  ([turtle number]
-  (assert (nil-or-not-neg-number? number)
-          (format "set-speed requires a positive number or 'nil'. Got '%s'" number))
-  (swap! turtle assoc :speed number)
+  (if (#{:speed :default} number)
+    (swap! turtle assoc :speed (get-default :speed))
+    (do
+      (assert (nil-or-not-neg-number? number)
+              (format "set-speed requires a positive number or 'nil'. Got '%s'" number))
+      (swap! turtle assoc :speed number)))
   nil))
 
 
@@ -1272,8 +1309,11 @@ See [`set-position`](var:set-position) for more details.
  ([color]
   (set-color (turtle) color))
  ([turtle color]
-  (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize."
-  (swap! turtle assoc :color color)
+  (if (#{:color :default} color)
+    (swap! turtle assoc :color (get-default :color))
+    (do
+      (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize."
+      (swap! turtle assoc :color color)))
   nil))
 
 
@@ -1325,9 +1365,12 @@ See [`set-position`](var:set-position) for more details.
  ([width]
   (set-width (turtle) width))
  ([turtle width]
-  (assert (nil-or-not-neg-number? width)
+  (if (#{:width :default} width)
+    (swap! turtle assoc :width (get-default :width))
+    (do
+      (assert (nil-or-not-neg-number? width)
           "'width' must be a positive number or nil")
-  (swap! turtle assoc :width width)
+      (swap! turtle assoc :width width)))
   nil))
 
 
@@ -1357,7 +1400,9 @@ See [`set-position`](var:set-position) for more details.
  ([bool]
   (set-visible (turtle) bool))
  ([turtle bool]
-  (.setVisible ^Group (:group @turtle) (boolean bool))
+  (if (#{:visible :default} bool)
+    (.setVisible ^Group (:group @turtle) (get-default :visible))
+    (.setVisible ^Group (:group @turtle) (boolean bool)))
   nil))
 
 
@@ -1410,6 +1455,132 @@ See [`set-position`](var:set-position) for more details.
   nil))
 
 
+(defn set-fill
+  "Sets the turtles fill.
+  It will be used for filling figures.
+  "
+ ([color]
+  (set-fill (turtle) color))
+ ([turtle color]
+  (if (#{:fill :default} color) 
+    (swap! turtle assoc :fill (get-default :fill))
+    (do  
+      (to-color color)
+      (swap! turtle assoc :fill color)))
+  nil))
+
+
+(defn get-fill
+ ([]
+  (get-fill (turtle)))
+ ([turtle]
+  (:fill @turtle)))
+
+
+(defn set-font
+  "Sets the font. 
+  'font' may not be `nil`
+  
+  There are a number of optional ways to set font:
+  - family
+  - size
+  - [family]
+  - [size]
+  - [family size]
+  - [family weight size]
+  - [family weight posture size]
+  - an instance of JavaFX Font.
+  
+  'family' is a string naming the font-face or font-type.
+  'size' is any number
+  'weight' is one of `:normal` `:bold`
+  'posture' is one of `:regular` `:italic`
+
+  If a font is not available on your machine, then a system font will automatically be selected. 
+
+*Examples:*
+```
+(to-font \"Arial\")
+(to-font 12)
+(to-font [\"Arial\" 12])
+(to-font [\"Arial\" :bold 12])
+(to-font [\"Arial\" :normal :italic 12])
+```"
+  ([font]
+   (set-font (turtle) font))
+  ([turtle font]
+   (if (#{:font :default} font)
+     (swap! turtle assoc :font (get-default :font))
+     (do
+       (to-font font)
+       (swap! turtle assoc :font font)))
+   nil))
+
+(to-font (fx/new-font 14))
+
+
+(defn get-font
+  "Returns the font set on the turtle in the form that it was set."
+  ([]
+   (get-font (turtle)))
+  ([turtle]
+   (:font @turtle)))
+
+
+(defn write
+  "Tells the turtle to write 'text' on the screen.
+  'text' can be anything, including numbers, structures, or objects.
+  
+  The turtle uses the 'font' and 'color 'you have set on it.
+  See [`set-font`](var:set-font) and [`set-color`](var:set-color) for more about font and fill. 
+  
+  The text is written such that the top left corner of the text starts where the turtle is positioned, 
+  and is printed at whatever heading the turtle has; including upside-down if the turtle is facing left.
+  
+  If 'move?' is set to `true`, then the turtle will move to the end of the text.
+  Alternatively, it will stay at the beginning of the text.
+  
+  If 'text' is multi-line (contains one or more `\\n`), then the turtle will write it as multiple lines.
+  
+  *Examples:*
+```
+(write \"Hello World!\")
+(write \"How\\nare\\nyour?\") ;; Written over 3 lines.
+(write 42)                    ;; Writes the number.
+(write \"I am done!\" true)   ;; Writes, and then moves past the text.
+```"
+  
+ ([text]
+  (write text false))
+ ([text move?]
+  (write (turtle) text move?))
+ ([turtle text move?]
+  (let [{:keys [parent ^double heading position font color down]} (get-state turtle)  
+        txt ^Text
+        (fx/text (str text) 
+                 :font (to-font font))]
+    (doto txt
+      (.setTextOrigin VPos/TOP)
+      (.setBoundsType TextBoundsType/VISUAL)
+      (-> .getTransforms (.add (Rotate. (- heading) 0 0)))
+      (fx/set-translate-XY (flip-Y position)))
+    (when color (.setFill txt (to-color color)))
+    (add-now parent txt)
+    (when move?
+      (let [down? down]
+        (doto turtle 
+          (set-down false) 
+          (forward (-> txt .getBoundsInLocal .getWidth))
+          (set-down down?))))))) 
+
+;; TEST
+"
+(reset)\n(left 30)\n(forward 30)\n(write \"HelloW\" true)\n(set-font 30)\n(set-fill [255 0 0 0.5])\n(println (get-color))\n(write \"World!\\n ... not\" true)\n(forward 30)\n(set-color :green)\n(set-font [\"Geneva\" 36])\n(write \"Done!\")\n
+"
+;; TODO: Text location + dimensions are slightly off.  Can it be fixed?
+
+
+
 
 (defn set-name
   "Sets the name of the turtle. The name can be any value or type you want. No type-checking is done.  
@@ -1424,9 +1595,10 @@ See [`set-position`](var:set-position) for more details.
    (set-name (turtle) name))
 
   ([turtle name]
-   (swap! turtle assoc :name name)
+   (if (#{:name :default} name)
+     (swap! turtle assoc :name (get-default :name))
+     (swap! turtle assoc :name name))
    nil))
-
 
 
 (defn get-name
@@ -1448,7 +1620,7 @@ See [`set-position`](var:set-position) for more details.
 ;;;;;;;;;;;;;;;
 
 
-;; TODO: Should this behave differently - not clear away turtles?
+;; Should this behave differently - not clear away (all) turtles?
 (defn clear
   "Removes all graphics from screen.
 
@@ -1505,7 +1677,7 @@ See [`set-position`](var:set-position) for more details.
   Same as calling:   
 ```
 (clear) (show) (set-speed 1) (pen-up) (home) (pen-down)
-(set-color :black) (set-width 1) (set-background :white) (set-round false) 
+(set-color :black) (set-width 1) (set-fill :default) (set-background :white) (set-round false) 
 ```
   **Warning:** `(clear)` also clears away all but the last turtle!
   
@@ -1514,8 +1686,8 @@ See [`set-position`](var:set-position) for more details.
 (reset)
 ```"
   []
-  (clear) (show) (set-speed 1) (pen-up) (home) (pen-down)
-  (set-color :black) (set-width 1) (set-background :white) (set-round false)
+  (clear) (show) (set-speed :default) (pen-up) (home) (pen-down)
+  (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-background :default) (set-round :default)
 
   nil)
 
@@ -1743,6 +1915,7 @@ You can get a list containing all registered turtles with the command [``]
    #'is-visible
    #'set-speed
    #'get-speed
+   #'write
    "Pen"
    #'pen-up
    #'pen-down
@@ -1750,10 +1923,14 @@ You can get a list containing all registered turtles with the command [``]
    #'is-down
    #'set-color
    #'get-color
+   #'set-fill
+   #'get-fill
    #'set-width
    #'get-width
    #'set-round
    #'is-round
+   #'set-font
+   #'get-font
    "Screen"
    #'clear
    #'reset
@@ -1776,16 +1953,18 @@ You can get a list containing all registered turtles with the command [``]
    #'get-name
    #'get-state
    #'turtle
-   #'new-turtle
    #'with-turtle
-   #'get-all-turtles
+   #'new-turtle
+   #'clone-turtle
    #'delete-turtle
+   #'get-all-turtles
    #'delete-all-turtles
    #'set-prop
    #'get-prop
    #'get-props
    #'swap-prop
    #'to-color
+   #'to-font
    "Demos"
    #'run-sample
    "Topics"
