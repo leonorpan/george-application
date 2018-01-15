@@ -643,7 +643,8 @@ It must return a string (which may be wrapped to fit the width of the list."
 (def font-weights
   {:normal  FontWeight/NORMAL
    :medium FontWeight/MEDIUM
-   :semibold FontWeight/SEMI_BOLD})
+   :semibold FontWeight/SEMI_BOLD
+   :bold FontWeight/BOLD})
 
 
 (defn new-font
