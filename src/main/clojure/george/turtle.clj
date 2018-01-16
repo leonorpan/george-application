@@ -33,7 +33,9 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [javafx.scene.text Font TextBoundsType Text]
     [javafx.stage Stage]
     [javafx.geometry VPos]
-    [javafx.scene.transform Rotate]))
+    [javafx.scene.transform Rotate]
+    [javafx.animation Timeline]
+    [javafx.scene.layout Pane]))
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -191,13 +193,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         r (is-round turtle)
         turt ^Group (:group @turtle)
         parent ^Group (.getParent turt)
-        line ^Line
+        line 
         (when (and (is-down turtle) c w)
-              (fx/line :x1 x :y1  (- y) 
-                       :width w
-                       :color (to-color c)
-                       :round r))
-
+          (fx/line :x1 x :y1  (- y)
+                   :width w
+                   :color (to-color c)
+                   :round r))
+      
         duration
         (when-let [speed (get-speed turtle)]
           ;; 500 px per second is "default"
@@ -206,31 +208,38 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
              1000.))
 
         ;; A duration less than 1.0 may result in no rendering, so we set it to nil.
-        duration (if (and duration (< ^double duration 1.)) nil duration)]
+        duration (if (and duration (< ^double duration 1.)) nil duration)
+        
+        timeline-callback-promise (promise)]
 
+    
     (when line
-      (fx/now  
+      (fx/now
         (fx/add parent line)
         (.toFront turt)))
-
+      
     (if duration
-      (fx/synced-keyframe
-        duration
-        [(.translateXProperty turt) target-x]
-        [(.translateYProperty turt) target-y]
-        (when line [(.endXProperty line) target-x])
-        (when line [(.endYProperty line) target-y]))
       (do
+        (fx/later
+          (.play ^Timeline
+            (fx/simple-timeline
+              duration
+              #(deliver timeline-callback-promise :whatever)
+              [(.translateXProperty turt) target-x]
+              [(.translateYProperty turt) target-y]
+              (when line [(.endXProperty ^Line line) target-x])
+              (when line [(.endYProperty ^Line line) target-y]))))
+        (deref timeline-callback-promise))  ;; we wait here til the timeline is done
+      (fx/later
         (doto turt
           (.setTranslateX target-x)
           (.setTranslateY target-y))
         (when line
-          (doto line
+          (doto ^Line line
             (.setEndX target-x)
             (.setEndY target-y)))))
-    
-    ;(.requestLayout parent)
-    (log-position-maybe turtle [target-x (- target-y)]))) ;; Flip y. The flip it back again when needed.
+      
+    (log-position-maybe turtle [target-x (- target-y)])))
 
 
 (defn turtle-polygon []
@@ -377,13 +386,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
              :props props
              :group group}))]
 
-       (doto turtle
-         (-> deref :group (fx/set-translate-XY (flip-Y position)))
-         (set-heading heading)
-         (set-visible visible))
-
        (register-turtle turtle)
-       (when parent (add-now parent group))
+       (fx/now
+         (doto turtle
+           (-> deref :group (fx/set-translate-XY (flip-Y position)))
+           (set-heading heading)
+           (set-visible visible)
+           (when parent (add-now parent group))))
     
     turtle))
 
@@ -448,7 +457,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (unregister-turtle turtle)
   (when-let [p (get-parent turtle)]
     (fx/now
-      (fx/remove p (:group @turtle)))))
+      (fx/remove p (:group @turtle))))
+  nil)
 
 
 (defn delete-all-turtles 
@@ -462,8 +472,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (doseq [t turtles]
       (when-let [p (get-parent t)]
         (fx/later
-          (fx/remove p (:group @t)))))))
-        
+          (fx/remove p (:group @t))))))
+  nil)    
+
 
 (def ^:dynamic *turtle* nil)
 
@@ -521,28 +532,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 ;(pprint (macroexpand-1 '(with-turtle (make-turtle) (forward 100))))
 ;(with-turtle (make-turtle) (forward 100))
-
-
-(defn thread*
-  "Utility function for 'daemon-thread'."
-  [exp]
-  (screen) 
-  (doto (Thread. exp)
-    (.setDaemon true)
-    (.start)))
-
-
-(defmacro thread
-  "Run body on a separate thread.
-  The thread is started automatically (as a new daemon-thread).
-  
-  **WARNINGS:** 
-  Currently, when using threads, please start your program with a call to `screen` or `turtle` or `reset`.
-  
-  Also, interrupting your code execution does not currently work on threads.  If your thread never ends, you may have to restart George. 
-  "
-  [& body]
-  `(thread* (fn [] ~@body)))
 
 
 (def ^:private SCREEN ::screen)
@@ -627,7 +616,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- new-screen-scene [scrn]
-  (let [pane
+  (let [pane ^Pane
         (:pane @scrn)
         ;_ (println "pane's scene?:" (.getScene pane))
         _ (when-let [sc (.getScene pane)]
@@ -1066,7 +1055,8 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
         (if (#{:heading :default} heading)
             (get-default :heading)
             heading)]
-    (.setRotate ^Group (:group @turtle) (- ^double angle)))
+    (fx/now
+      (.setRotate ^Group (:group @turtle) (- ^double angle))))
   nil))
 
 
@@ -1215,7 +1205,7 @@ See [`set-position`](var:set-position) for more details.
 
 ```"
   ([bool]
-   (set-round (turtle) (boolean bool)))
+   (set-round (turtle) bool))
   ([turtle bool]
    (if (#{:round :default} bool)
        (swap! turtle assoc :round (get-default :round))
@@ -1669,8 +1659,6 @@ See [`set-position`](var:set-position) for more details.
   See [`filled-with-turtle`](var:filled-with-turtle)  for more information.
   
   "
-
-  
   [& body]
   `(let [t# (turtle)]
      (filled-with-turtle t# ~@body)))
@@ -2000,6 +1988,9 @@ You can get a list containing all registered turtles with the command [``]
    "# Topics\n\nIn-depth on certain topics of interest."})
 
 
+(load "turtle/samples")
+
+
 (def turtle-API-list
   ["Turtle"
    #'forward
@@ -2063,13 +2054,13 @@ You can get a list containing all registered turtles with the command [``]
    #'get-prop
    #'get-props
    #'swap-prop
-   #'thread
    "Demos"
-   #'run-sample
+   #'multi-tree
    "Special"
    #'to-color
    #'to-font
    "Topics"
    :Color
-   :Clojure
-   :Turtles])
+   :Turtles
+   "Clojure"
+   #'future])

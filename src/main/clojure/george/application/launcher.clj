@@ -252,6 +252,7 @@ Powered by open source software.")
                 (Thread/sleep 300)
                 (when-not repl?
                   (fx/now (Platform/exit))
+                  (shutdown-agents)  ;; For any lingering threads after using futures and such.
                   (System/exit 0)))))))
 
 
