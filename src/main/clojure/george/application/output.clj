@@ -241,14 +241,14 @@
           (oprintln  :system "" (when (= ses current-ses) " [default]")))))))
 
 
-(defn interrupt-sessions []
-  (oprintln :system "Interrupt sessions ...")
+(defn interrupt-all-sessions []
+  (oprintln :system "Interrupt all sessions ...")
   (if-not (server/serving?)
-    (oprintln :system-em "  No server started!")
+    (oprintln :system-em "No server started!")
     (let [sessions (client/sessions)]
       (doseq [ses sessions]
         (let [interupted? (client/interrupt ses)]
-          (oprint :system "  " ses "")
+          (oprint :system ses "")
           (if interupted?
             (oprintln :system-em "Interrupted!")
             (oprintln :system "Idle")))))))
@@ -262,7 +262,7 @@
       (let [id (client/session-create!)]
         (oprintln :system "New default session" id)))
     (do
-      (interrupt-sessions)
+      (interrupt-all-sessions)
       (when (client/session?)
         ;(client/interrupt)
         ;(Thread/sleep 300)
@@ -272,7 +272,7 @@
 
 
 (defn restart-server []
-  (interrupt-sessions)
+  (interrupt-all-sessions)
   (server/stop!)
   (server/serve! 0)
   (oprintln :system "New server on port" (server/port))
@@ -302,7 +302,7 @@
             [:button "nREPL" :bottom
              [
               [:item "Ping all sessions" ping-sessions]
-              [:item "Interrupt all sessions!" interrupt-sessions]
+              [:item "Interrupt all sessions!" interrupt-all-sessions]
               [:separator]
               [:item "Create new default session" recreate-session]
               [:separator]

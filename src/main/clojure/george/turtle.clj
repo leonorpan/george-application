@@ -24,7 +24,8 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [george.javafx.util :as fxu]
     [george.turtle.gui :as gui]
     [george.util.singleton :as singleton]
-    [george.application.ui.styled :as styled])
+    [george.application.ui.styled :as styled]
+    [george.application.output :as output])
   (:import
     [javafx.scene.paint Color Paint]
     [javafx.scene Group Node]
@@ -150,15 +151,16 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn- add-now [parent node]
   (fx/now (fx/add parent node)))
 
+
 (defn- add-later [parent node]
   (fx/later (fx/add parent node)))
 
 
 (defn- set-now [parent node]
-  (fx/now (fx/set parent node)))
+  (fx/now (fx/set-all parent node)))
 
 
-(defn- flip-Y
+(defn flip-Y
   "Takes a position [x y] and inverts y - for mapping turtle-coordinates to JavaFX coordinates."
   [[x ^double y]]
   [x (- y)])
@@ -170,12 +172,15 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (:root @screen))
 
 
-(defn- add-node [screen node]
-  (add-now (get-root screen) node))
+(defn- log-position-maybe
+  "If the turtle has a :positions vector, then the current location is appended to it.
+  This is used in conjunction with `filled`"
+  [turtle position]
+  (when-let [positions (:positions @turtle)]
+    (swap! turtle assoc :positions (conj positions  position))))
 
 
 (defn- forward-impl [turtle ^double dist]
-  ;(println "  ## do-forward*" dist)
   (let [ang (get-heading turtle)
         [^double x ^double y] (get-position turtle)
         [^double x-fac ^double y-fac] (fxu/degrees->xy-factor ang)
@@ -184,8 +189,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         c (get-color turtle)
         w (get-width turtle)
         r (is-round turtle)
-        node (:group @turtle)
-        line
+        turt ^Group (:group @turtle)
+        parent ^Group (.getParent turt)
+        line ^Line
         (when (and (is-down turtle) c w)
               (fx/line :x1 x :y1  (- y) 
                        :width w
@@ -203,24 +209,28 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         duration (if (and duration (< ^double duration 1.)) nil duration)]
 
     (when line
-        (add-node (screen) line)
-        (fx/later (.toFront ^Group node)))
+      (fx/now  
+        (fx/add parent line)
+        (.toFront turt)))
 
     (if duration
       (fx/synced-keyframe
         duration
-        [(.translateXProperty ^Group node) target-x]
-        [(.translateYProperty ^Group node) target-y]
-        (when line [(.endXProperty ^Line line) target-x])
-        (when line [(.endYProperty ^Line line) target-y]))
+        [(.translateXProperty turt) target-x]
+        [(.translateYProperty turt) target-y]
+        (when line [(.endXProperty line) target-x])
+        (when line [(.endYProperty line) target-y]))
       (do
-        (doto ^Group node
+        (doto turt
           (.setTranslateX target-x)
           (.setTranslateY target-y))
         (when line
-          (doto ^Line line
+          (doto line
             (.setEndX target-x)
-            (.setEndY target-y)))))))
+            (.setEndY target-y)))))
+    
+    ;(.requestLayout parent)
+    (log-position-maybe turtle [target-x (- target-y)]))) ;; Flip y. The flip it back again when needed.
 
 
 (defn turtle-polygon []
@@ -231,6 +241,54 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+(defn- transfer-node-values [^Node to-node ^Node from-node]
+  (doto to-node
+    (.setRotate (.getRotate from-node))
+    (.setTranslateX (.getTranslateX from-node))
+    (.setTranslateY (.getTranslateY from-node))
+    (.setVisible (.isVisible from-node))))
+
+
+;(ns-unmap *ns* 'clone)
+(defmulti clone
+          "Clones certain JavaFX Node sub-classes"
+          (fn [obj] (class obj)))
+
+;(defmethod clone String [obj]
+;  (println "Got a String:" obj)
+;  obj)
+
+;(defmethod clone Long [obj]
+;  (println "Got a Long:" obj)
+;  obj)
+
+(defmethod clone Polygon [^Polygon obj]
+  ;(println "Got a Polygon:" obj)
+  (doto
+    (apply fx/polygon
+           (concat
+             (vec (.getPoints obj))
+             [:fill (.getFill obj) :stroke (.getStroke obj) :strokewidth (.getStrokeWidth obj)]))
+    (transfer-node-values obj)))
+
+
+(defmethod clone Group [^Group obj]
+  ;(println "Got a Group!:" obj)
+  ;(println "clone:" (.getPoints obj) (.getFill obj) (.getStroke obj) (.getStrokeWidth obj) (userdata
+  (apply fx/group (map clone (.getChildren obj))))
+
+
+(defmethod clone :default [obj]
+  (throw (IllegalArgumentException. (format "Don't know how to clone object of type '%s'" (.getName (class obj))))))
+
+;(clone "Hello")
+;(clone 1)
+;(clone (int 2))
+;(println (clone (turtle-polygon)))
+
 
 
 (defn get-state 
@@ -279,7 +337,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   [& {:keys [name parent node position heading visible speed color width round down fill font history-size props]
       :or {parent (get-default :parent)
            name (get-default :name)
-           node (get-default :node)
+           node (clone (get-default :node))
            position (get-default :position)
            heading (get-default :heading)
            visible (get-default :visible)
@@ -318,63 +376,17 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
              :history (get-default :history)
              :props props
              :group group}))]
-    
+
        (doto turtle
-         (set-position position)
+         (-> deref :group (fx/set-translate-XY (flip-Y position)))
          (set-heading heading)
          (set-visible visible))
 
-    (register-turtle turtle)
-    (when parent (add-later parent group))
+       (register-turtle turtle)
+       (when parent (add-now parent group))
     
     turtle))
 
-
-(defn- transfer-node-values [^Node to-node ^Node from-node]
-  (doto to-node
-    (.setRotate (.getRotate from-node))
-    (.setTranslateX (.getTranslateX from-node))
-    (.setTranslateY (.getTranslateY from-node))
-    (.setVisible (.isVisible from-node))))
-
-
-;(ns-unmap *ns* 'clone)
-(defmulti clone
-          "Clones certain JavaFX Node sub-classes"
-          (fn [obj] (class obj)))
-
-;(defmethod clone String [obj]
-;  (println "Got a String:" obj)
-;  obj)
-
-;(defmethod clone Long [obj]
-;  (println "Got a Long:" obj)
-;  obj)
-
-(defmethod clone Polygon [^Polygon obj]
-  ;(println "Got a Polygon:" obj)
-  (doto
-    (apply fx/polygon
-           (concat
-             (vec (.getPoints obj))
-             [:fill (.getFill obj) :stroke (.getStroke obj) :strokewidth (.getStrokeWidth obj)]))
-    (transfer-node-values obj)))
-
-
-(defmethod clone Group [^Group obj]
-  ;(println "Got a Group!:" obj)
-  ;(println "clone:" (.getPoints obj) (.getFill obj) (.getStroke obj) (.getStrokeWidth obj) (userdata
-  (apply fx/group (map clone (.getChildren obj))))
-
-
-(defmethod clone :default [obj]
-  (throw (IllegalArgumentException. (format "Don't know how to clone object of type '%s'" (.getName (class obj))))))
-
-
-;(clone "Hello")
-;(clone 1)
-;(clone (int 2))
-;(println (clone (turtle-polygon)))
 
 
 (defn clone-turtle
@@ -435,7 +447,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   [turtle]
   (unregister-turtle turtle)
   (when-let [p (get-parent turtle)]
-    (fx/later
+    (fx/now
       (fx/remove p (:group @turtle)))))
 
 
@@ -490,6 +502,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
   See topic [Turtles](:Turtles) for mor information.
 
+  **WARNING!** `with-turtle` cannot be used within the body of `filled`. (Not sure why...)\n
+
   *Example:*
 ```
 (let [lars (new-turtle :name \"Lars\")
@@ -509,6 +523,28 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(with-turtle (make-turtle) (forward 100))
 
 
+(defn thread*
+  "Utility function for 'daemon-thread'."
+  [exp]
+  (screen) 
+  (doto (Thread. exp)
+    (.setDaemon true)
+    (.start)))
+
+
+(defmacro thread
+  "Run body on a separate thread.
+  The thread is started automatically (as a new daemon-thread).
+  
+  **WARNINGS:** 
+  Currently, when using threads, please start your program with a call to `screen` or `turtle` or `reset`.
+  
+  Also, interrupting your code execution does not currently work on threads.  If your thread never ends, you may have to restart George. 
+  "
+  [& body]
+  `(thread* (fn [] ~@body)))
+
+
 (def ^:private SCREEN ::screen)
 (def ^:private STAGE ::stage)
 
@@ -518,14 +554,15 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- create-screen 
-  "Returns an outer node which centers 'root' group.
+  "Returns map containing 'pane', 'root', and a few other elements.
   The root group is the actual parent for all items. 
-  The outer node, and is the root of a (stage) scene, or framed in a layout"
+  The pane is the root for a stage scene (or could be framed in a layout.)"
   [size]
   (let [
         background 
         (get-screen-default :background)
         
+        ;; TODO: Set the border directly on the pane in stead?
         border
         (doto
           (fx/rectangle :arc 4 :fill Color/TRANSPARENT)
@@ -543,12 +580,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         root
         (fx/group axis)
 
-        container 
+        pane 
         (doto
-          (fx/pane root border)
+          (fx/pane border root)
           (fx/set-background (to-color background)))]    
     (atom
-      {:container container  ;; This is the part that becomes root on scene.
+      {:pane pane  ;; This is the part that becomes root on scene.
        :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
        :axis axis
        :border border
@@ -564,7 +601,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (let [c (if (#{:background :default} color)
               (get-screen-default :background)
               color)]  
-    (-> (screen) deref :container (fx/set-background (to-color c)))
+    (-> (screen) deref :pane (fx/set-background (to-color c)))
     (swap! (screen) assoc :background c)))
 
 
@@ -590,9 +627,14 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- new-screen-scene [scrn]
-  (let [
+  (let [pane
+        (:pane @scrn)
+        ;_ (println "pane's scene?:" (.getScene pane))
+        _ (when-let [sc (.getScene pane)]
+            (.setRoot sc (fx/group)))  ;; release the pane from the scene by replacing it
+        
         scene
-        (fx/scene (:container @scrn) :size (:size @scrn) :fill fx/RED)]
+        (fx/scene pane :size (:size @scrn))]
 
     (doto ^Rectangle (:border @scrn)
       (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
@@ -627,14 +669,18 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             :sizetoscene true
             :tofront true
             :alwaysontop true
+            :oncloserequest
+            #(output/interrupt-all-sessions)
             :onhidden 
             #(do
                (delete-screen)
-               (singleton/remove SCREEN)
-               (singleton/remove STAGE)))]
+               (singleton/remove STAGE)
+               (singleton/remove SCREEN)))]
+               
       (doto stg
         (gui/set-cm-menu-on-stage)
         (styled/add-icon)))))
+
 
 (defn- ^Stage get-or-create-stage [scrn]
   (if-let [stg (get-stage)]
@@ -1581,6 +1627,54 @@ See [`set-position`](var:set-position) for more details.
 
 
 
+(defmacro filled-with-turtle 
+  "Given a turtle, will catch all movements of the turtle within the body, and then fill that area with whatever the turtle's 'fill' is at the end.
+  
+  If 'fill' is `nil`, then no fill is made.
+  See [`set-fill`](var:set-fill) for more information on 'fill' and 'color'.
+   
+  Use this if you want to be explicit about which turtle to use, otherwise simply use `filled`.
+  See [`with-turtle`](var:with-turtle) and topic [Turtles](:Turtles) for more on multiple turtles.   
+  "
+  [t & body]
+  ;; Make a not of the current layer of the turtle.
+  `(let [layer# (-> (get-parent ~t) .getChildren (.indexOf (-> ~t deref :group)))]
+     ;; This will cause forward-impl to "log" positions using `log-position-maybe`
+     (swap! ~t assoc :positions [(get-position ~t)])
+     ;; Execute the body using the passed-in turtle
+     (with-turtle ~t
+       ~@body)
+     ;; Collect the logged positions
+     (let [positions# (map flip-Y (-> ~t deref :positions))]
+       ;; Get the turtles fill.  (Setting fill to nil is a way of preventing fill)
+       (when-let [fill# (get-fill ~t)]
+         ;; Build a polygon
+         (let [p# (apply fx/polygon
+                         (flatten [positions# :fill (to-color fill#) :stroke nil]))]
+           
+           ;; We insert the polygon at the layer the turtle was at start.
+           (fx/now (fx/add-at (get-parent ~t) layer# p#))))
+       ;; Stop further logging of positions
+       (swap! ~t dissoc :positions))))
+
+
+(defmacro filled 
+  "A short form of `filled-with-turtle`.  
+  The current turtle is used, as opposed to an explicit turtle.
+
+  Use this if you are already running in a `with-turtle`, or just want to use the current turtle.
+  
+  **WARNING!** `filled` can be used within the body of `with-turtle`, but not the other way around. (Not sure why...)
+  
+  See [`filled-with-turtle`](var:filled-with-turtle)  for more information.
+  
+  "
+
+  
+  [& body]
+  `(let [t# (turtle)]
+     (filled-with-turtle t# ~@body)))
+
 
 (defn set-name
   "Sets the name of the turtle. The name can be any value or type you want. No type-checking is done.  
@@ -1707,6 +1801,7 @@ See [`set-position`](var:set-position) for more details.
 ;(defmacro rep [n & body]
 ;    `(dotimes [~'_ ~n]
 ;       ~@body))
+
 
 (defmacro rep
   "Macro.  
@@ -1899,8 +1994,11 @@ You can get a list containing all registered turtles with the command [``]
    "# Advanced\n\nMore advanced turtle commands."
    "Demos"
    "# Demos\n\nFun or interesting demonstrations of Turtle Geometry."
+   "Special"
+   "# Special\n\nCertain functions that might me interesting to know about."
    "Topics"
    "# Topics\n\nIn-depth on certain topics of interest."})
+
 
 (def turtle-API-list
   ["Turtle"
@@ -1916,6 +2014,7 @@ You can get a list containing all registered turtles with the command [``]
    #'set-speed
    #'get-speed
    #'write
+   #'filled
    "Pen"
    #'pen-up
    #'pen-down
@@ -1954,6 +2053,7 @@ You can get a list containing all registered turtles with the command [``]
    #'get-state
    #'turtle
    #'with-turtle
+   #'filled-with-turtle
    #'new-turtle
    #'clone-turtle
    #'delete-turtle
@@ -1963,10 +2063,12 @@ You can get a list containing all registered turtles with the command [``]
    #'get-prop
    #'get-props
    #'swap-prop
-   #'to-color
-   #'to-font
+   #'thread
    "Demos"
    #'run-sample
+   "Special"
+   #'to-color
+   #'to-font
    "Topics"
    :Color
    :Clojure
