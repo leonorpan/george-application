@@ -4,7 +4,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns george.javafx
-  (:refer-clojure :exclude [set remove])
+  (:refer-clojure :exclude [remove])
   (:require
     [clojure.java.io :as cio]
     [clojure
@@ -472,19 +472,37 @@ It must return a string (which may be wrapped to fit the width of the list."
    (multiline-listview str)))
 
 
-
-(defn add [parent & nodes]
-  (let [ cs  (.getChildren  parent)] 
-    (.addAll cs (into-array Node nodes))
-    parent))
+(defn add [parent node]
+  (-> parent .getChildren (.add node))
+  parent)
 
 
-(defn set [parent & nodes]
-    (-> parent .getChildren (.setAll (into-array Node nodes)))
-    parent)
+(defn add-all [parent & nodes]
+  (-> parent .getChildren (.addAll (into-array Node nodes)))
+  parent)
 
 
-(defn remove [parent & nodes]
+(defn add-at [parent index node]
+  (-> parent .getChildren (.add index node))
+  parent)
+
+
+(defn set-all [parent & nodes]
+  (-> parent .getChildren (.setAll (into-array Node nodes)))
+  parent)
+
+
+(defn set-at [parent index node]
+  (-> parent .getChildren (.set index node))
+  parent)
+
+
+(defn remove [parent node]
+  (-> parent .getChildren (.remove node))
+  parent)
+
+
+(defn remove-all [parent & nodes]
   (-> parent .getChildren (.removeAll (into-array Node nodes)))
   parent)
 
