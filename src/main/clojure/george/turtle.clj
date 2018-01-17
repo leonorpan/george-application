@@ -22,20 +22,16 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [flatland.ordered.map :refer [ordered-map]]
     [george.javafx :as fx]
     [george.javafx.util :as fxu]
-    [george.turtle.gui :as gui]
-    [george.util.singleton :as singleton]
-    [george.application.ui.styled :as styled]
     [george.application.output :as output])
   (:import
     [javafx.scene.paint Color Paint]
-    [javafx.scene Group Node]
+    [javafx.scene Group Node Scene]
     [javafx.scene.shape Line Rectangle Polygon]
     [javafx.scene.text Font TextBoundsType Text]
     [javafx.stage Stage]
     [javafx.geometry VPos]
     [javafx.scene.transform Rotate]
-    [javafx.animation Timeline]
-    [javafx.scene.layout Pane]))
+    [javafx.animation Timeline]))
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -136,12 +132,18 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   turtle
   register-turtle
   get-default
-  get-screen-default)
+  get-screen-default
+  delete-screen)
 
 
 ;; Empty records allow for easy typing of maps.
 (defrecord Turtle [])
 (defrecord Screen [])
+
+
+(defn pos-number? [^double x]
+  (and (number? x)
+       (pos? x)))
 
 
 (defn- nil-or-not-neg-number? [x]
@@ -171,7 +173,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn- get-root
   "Returns the top-level parent for all turtle rendering."
   [screen]
-  (:root @screen))
+  ;(println "/get-root" screen)
+  (:root screen))
 
 
 (defn- log-position-maybe
@@ -534,12 +537,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(with-turtle (make-turtle) (forward 100))
 
 
-(def ^:private SCREEN ::screen)
-(def ^:private STAGE ::stage)
-
-
-(defn- get-screen []
-  (singleton/get SCREEN))
+;;;;;;;;;;;;;;;;;
 
 
 (defn- create-screen 
@@ -572,85 +570,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         pane 
         (doto
           (fx/pane border root)
-          (fx/set-background (to-color background)))]    
-    (atom
-      {:pane pane  ;; This is the part that becomes root on scene.
-       :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
-       :axis axis
-       :border border
-       :size size
-       :background background})))    
-
-
-(defn set-background 
-  "Sets the screen background.
-  
-  See [Color](:Color) for more information."
-  [color]
-  (let [c (if (#{:background :default} color)
-              (get-screen-default :background)
-              color)]  
-    (-> (screen) deref :pane (fx/set-background (to-color c)))
-    (swap! (screen) assoc :background c)))
-
-
-(defn get-background
-  "Returns the screens background color."
-  []
-  (-> (screen) deref :background))
-
-
-(defn- get-or-create-screen
-  ([]
-   (get-or-create-screen (get-screen-default :size)))
-  ([size]
-   (singleton/get-or-create SCREEN #(create-screen size))))
-
-
-(defn- delete-screen
-  "This should be called when closing the turtle screen. It, in first calls delete-all-turtles."
-  []
-  (when (get-screen)
-    (delete-all-turtles)
-    (singleton/remove SCREEN)))
-
-
-(defn- new-screen-scene [scrn]
-  (let [pane ^Pane
-        (:pane @scrn)
-        ;_ (println "pane's scene?:" (.getScene pane))
-        _ (when-let [sc (.getScene pane)]
-            (.setRoot sc (fx/group)))  ;; release the pane from the scene by replacing it
+          (fx/set-background (to-color background)))
         
         scene
-        (fx/scene pane :size (:size @scrn))]
-
-    (doto ^Rectangle (:border @scrn)
-      (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
-      (-> .heightProperty (.bind (-> scene .heightProperty (.subtract 4)))))
-
-    (doto ^Group (:root @scrn)
-      (-> .layoutXProperty (.bind (-> scene .widthProperty (.divide 2))))
-      (-> .layoutYProperty (.bind (-> scene .heightProperty (.divide 2)))))
-
-    scene))
-
-
-(defn- get-stage []
-  (when-let [stg ^Stage (singleton/get STAGE)]
-    (when (.isIconified stg)
-      (fx/later
-        (doto stg
-          (.setIconified false)
-          (.toFront))))
-    stg))
-
-
-(defn- create-stage [scrn]
-  (fx/now
-    (let [scene
-          (new-screen-scene scrn)
-          stg
+        (fx/scene pane :size (or size (get-screen-default :size)))
+        
+        stage
+        (fx/now
           (fx/stage
             :scene scene
             :title "Turtle Screen"
@@ -659,56 +585,172 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             :tofront true
             :alwaysontop true
             :oncloserequest
-            #(output/interrupt-all-sessions)
-            :onhidden 
-            #(do
-               (delete-screen)
-               (singleton/remove STAGE)
-               (singleton/remove SCREEN)))]
-               
-      (doto stg
-        (gui/set-cm-menu-on-stage)
-        (styled/add-icon)))))
+            #(output/interrupt-all-sessions true)
+            :onhidden
+            #(delete-screen)))]
+
+    (doto ^Rectangle border
+      (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
+      (-> .heightProperty (.bind (-> scene .heightProperty (.subtract 4)))))
+
+    (doto ^Group root
+      (-> .layoutXProperty (.bind (-> scene .widthProperty (.divide 2))))
+      (-> .layoutYProperty (.bind (-> scene .heightProperty (.divide 2)))))
+
+    (map->Screen
+      {:stage stage
+       :scene scene
+       :pane pane  ;; This is the part that is root on scene.
+       :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
+       :axis axis
+       :border border
+       :size size
+       :background background})))    
 
 
-(defn- ^Stage get-or-create-stage [scrn]
-  (if-let [stg (get-stage)]
-    stg
-    (singleton/put STAGE (create-stage scrn))))
+(defn- de-iconify-maybe 
+  "If stage is new, it won't be iconfied.
+    If the stage is open, then the user is aware of it, and it doesn't need any focus either.
+    Only if the stage is iconified, should it be brought to the user's awarness."
+  [^Stage stage]
+  (when (.isIconified stage)
+    (fx/later
+      (doto stage
+        (.setIconified false)
+        (.toFront)))))
 
 
 (defn- get-new-size [scrn size]
   (if (nil? size)
-    (if scrn (:size @scrn) (get-screen-default :size))
+    (if scrn (:size scrn) (get-screen-default :size))
     size))
+
+
+(defn- resize [scrn size]
+  (let [size1 (get-new-size scrn size)
+        stage ^Stage (:stage scrn)
+        scene ^Scene (:scene scrn)
+        ;; figure out the diffs for the chrome
+        diff-w (- (.getWidth stage) (.getWidth scene))
+        diff-h (- (.getHeight stage) (.getHeight scene))
+        [^double w ^double h] size1]
+    (fx/set-WH stage [(+ w diff-w) (+ h diff-h)])
+    size1))
+
+
+(def screen-agent (agent {:screen nil}))
+
+
+(defn- create-screen-action [size {:keys [screen] :as curr}]
+  ;(println "/create-screen-action")
+  (let [scrn
+        (if screen
+            (do ;(println "CREATE: screen existed")
+              curr)
+            (do ;(println "CREATE: creating screen")
+                (let [scrn (create-screen size)]
+                  ;(println (str "scrn-: " scrn))
+                  {:screen scrn})))]
+    scrn))
+
+
+(defn- delete-screen-action [{:keys [screen] :as curr}]
+  (if screen
+    (do ;(println "DELETE: deleting screen")
+        (delete-all-turtles)
+        (fx/later (.close ^Stage (:stage screen)))
+        {:screen nil})
+    (do ;(println "DELETE: no screen found")
+        curr)))
+
+
+(defn get-screen [size]
+  (when-let [err ^Exception (agent-error screen-agent)]
+    (.printStackTrace err)
+    (println "Restarting agent ...")
+    (restart-agent screen-agent {:screen nil}))
+  (send screen-agent #(create-screen-action size %))
+  (await screen-agent)
+  (:screen @screen-agent))
 
 
 (defn screen
   "Returns a screen object, creating and showing one, and creating and adding a turtle on it.
   It (re-)sized to size.  If no size, then sizes to default, which is [600 450].
-  
-  Screen will not automatically create a turtle.  If you want a screen with a turtle on it, then call `turtle` or any other turtle command in stead.
-  "
+
+  Screen will not automatically create a turtle.  If you want a screen with a turtle on it, then call `turtle` or any other turtle command in stead."
+
  ([]
   (screen nil))
+ ([[x y :as size]]
+  (when (some? size)
+    (assert (and (pos-number? x) (pos-number? y))
+            "'x' and 'y' must both be positive numbers."))   
+  (let [scrn (get-screen size)]
+    ;(println (str "/screen: " scrn))
+    (de-iconify-maybe (:stage scrn))
+    (if (and (some? size) (not= size (:size scrn)))
+      (let [size1 (resize scrn size)]
+        (send screen-agent update-in [:screen :size] size1)
+        (assoc-in scrn [:screen :size] size1)) ;; don't wait for agent
+      scrn))))
 
- ([[w h :as size]]
-  (let [scrn (get-screen)
-        stg (get-stage)] 
-    (if (and (nil? size) stg scrn)
-        scrn ;; Don't resize.  
-        (let [size (get-new-size scrn size)
-              scrn (get-or-create-screen size)
-              stg  (get-or-create-stage scrn)
-              scene (.getScene stg)
-      
-              ;; figure out the diffs for the chrome
-              diff-w (- (.getWidth stg) (.getWidth scene))
-              diff-h (- (.getHeight stg) (.getHeight scene))
-              [^double w ^double h] size]
-          (fx/set-WH stg [(+ w diff-w) (+ h diff-h)])
-          (doto scrn
-            (swap! assoc :size size)))))))
+
+(defn delete-screen []
+  @(send screen-agent delete-screen-action)
+  nil)
+
+
+
+;;;;;;;;;;;;;;;;;
+
+
+;; Should this behave differently - not clear away (all) turtles?
+(defn clear
+  "Removes all graphics from screen.
+
+  **Warning:** This also clears away all but the last turtle!
+
+  *Example:*
+```
+(clear)
+```"
+  []
+  (let [scrn (screen)
+        stg ^Stage (:stage scrn)
+        ;; A hack to force the scene to re-render/refresh everything.
+        [^double w ^double h] (fx/WH stg)
+        _ (.setWidth stg (inc w))
+        _ (.setHeight stg (inc h))
+        _ (.setWidth stg  w)
+        _ (.setHeight stg h)
+
+        root (:root scrn)
+        trtl (turtle)
+        filtered (filter #(or (= % (:group @trtl))
+                              (= % (:axis scrn)))
+                         (fx/children root))]
+    (fx/later
+      (fx/children-set-all root filtered)))
+  nil)
+
+
+(defn set-background
+  "Sets the screen background.
+  
+  See [Color](:Color) for more information."
+  [color]
+  (let [c (if (#{:background :default} color)
+            (get-screen-default :background)
+            color)]
+    (-> (screen) :pane (fx/set-background (to-color c)))
+    (send screen-agent assoc-in [:screen :background] c)))
+
+
+(defn get-background
+  "Returns the screens background color."
+  []
+  (-> (screen) :background))
 
 
 (defn set-axis-visible 
@@ -720,13 +762,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 "
   [bool]
-  (-> (screen) deref :axis (#(.setVisible ^Group % bool))))
+  (-> (screen) :axis (#(.setVisible ^Group % bool))))
 
 
 (defn is-axis-visible 
   "Returns `true` if axis is visible, else `false`."
   []
-  (-> (screen) deref :axis (#(.isVisible ^Group %))))
+  (-> (screen) :axis (#(.isVisible ^Group %))))
 
 
 (defn set-border-visible 
@@ -738,13 +780,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 "  
   [bool]
-  (-> (screen) deref :border (#(.setVisible ^Rectangle % bool))))
+  (-> (screen) :border (#(.setVisible ^Rectangle % bool))))
 
 
 (defn is-border-visible
   "Returns `true` if border is visible, else `false`."
   []
-  (-> (screen) deref :border (#(.isVisible ^Rectangle %))))
+  (-> (screen) :border (#(.isVisible ^Rectangle %))))
 
 
 ;;;;;;;;;;;;;;;;;;;;
@@ -1701,36 +1743,6 @@ See [`set-position`](var:set-position) for more details.
 
 ;;;;;;;;;;;;;;;
 
-
-;; Should this behave differently - not clear away (all) turtles?
-(defn clear
-  "Removes all graphics from screen.
-
-  **Warning:** This also clears away all but the last turtle!
-
-  *Example:*
-```
-(clear)
-```"
-  []
-  (let [scrn (screen)
-        stg ^Stage (singleton/get STAGE)
-        ;; A hack to force the scene to re-render/refresh everything.
-        [^double w ^double h] (fx/WH stg)
-        _ (.setWidth stg (inc w))
-        _ (.setHeight stg (inc h))
-        _ (.setWidth stg  w)
-        _ (.setHeight stg h)
-
-        root (get-root scrn)
-        trtl (turtle)
-        filtered (filter #(or (= % (:group @trtl)) 
-                              (= % (:axis @scrn))) 
-                         (fx/children root))]
-
-      (fx/later
-        (fx/children-set-all root filtered)))
-  nil)
 
 
 (defn home

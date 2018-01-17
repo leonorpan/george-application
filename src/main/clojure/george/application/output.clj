@@ -241,17 +241,19 @@
           (oprintln  :system "" (when (= ses current-ses) " [default]")))))))
 
 
-(defn interrupt-all-sessions []
-  (oprintln :system "Interrupt all sessions ...")
+(defn interrupt-all-sessions [& [silent?]]
+  (when-not silent? 
+    (oprintln :system "Interrupt all sessions ..."))
+
   (if-not (server/serving?)
-    (oprintln :system-em "No server started!")
-    (let [sessions (client/sessions)]
-      (doseq [ses sessions]
-        (let [interupted? (client/interrupt ses)]
-          (oprint :system ses "")
-          (if interupted?
-            (oprintln :system-em "Interrupted!")
-            (oprintln :system "Idle")))))))
+    (when-not silent? 
+      (oprintln :system-em "No server started!"))
+
+    (doseq [ses (client/sessions)]
+      (when (client/interrupt ses)
+        (oprintln :system-em ses "Interrupted!")
+        (when-not silent? 
+          (oprintln :system ses "Idle"))))))
 
 
 (defn recreate-session []
