@@ -65,7 +65,8 @@
   [empty-label newbutton-tooltip tab-factory start-with-one?]
   (let [
         tpane
-        (TabPane.)
+        (doto (TabPane.)
+              (-> .getStyleClass (.add TabPane/STYLE_CLASS_FLOATING)))
 
         newbutton
         (doto (fx/button "+" :tooltip  newbutton-tooltip

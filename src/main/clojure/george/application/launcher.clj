@@ -63,8 +63,8 @@ Powered by open source software.")
             (format versionf
                (slurp (cio/resource "george-version.txt"))
                (clojure-version)
-               (env :java-version)
-               :font (fx/new-font "Roboto Mono"))))
+               (env :java-version))
+            :font (fx/new-font "Roboto Mono")))
 
         copyright-info
         (fx/new-label copyright)
