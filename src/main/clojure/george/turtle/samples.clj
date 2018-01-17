@@ -42,11 +42,13 @@
 
 (defn multi-tree 
   "*May a thousand turtles bloom*"
-  []
+  [& [len]]
   (screen [700 450])
   (reset)
   (left 90)
-  (pen-up) (forward -200) (pen-down)
+  (pen-up) 
+  (forward (- (* 2 (or len 50)))) 
+  (pen-down)
   (set-speed 1)
-  (tree (turtle) 100))
+  (tree (turtle) (or len 50)))
 

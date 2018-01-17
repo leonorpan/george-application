@@ -341,7 +341,7 @@ Powered by open source software.")
      root
      [0 0 1280 720])))
 
-
+ 
 (defn -main
   "Launches George (launcher) as a standalone application."
   [& args]
