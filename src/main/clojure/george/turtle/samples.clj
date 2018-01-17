@@ -47,7 +47,7 @@
   (reset)
   (left 90)
   (pen-up) 
-  (forward (- (* 2 (or len 50)))) 
+  (forward (- (* 2 (double (or len 50))))) 
   (pen-down)
   (set-speed 1)
   (tree (turtle) (or len 50)))
