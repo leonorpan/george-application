@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
+## [2018.2] - 2018-01-16
+
+### Added
+- 'Load' command in editor, similar to 'Run' but less chatty.
+
+### Changed
+- Output now has left margin which shows the chars and colors that used to be printed, making copying from output easier, and the output tidier. 
+- Rewrote a large part of the turtle API, and extended it considerably.
+
+### Turtle API
+- Pen shape control: 'set-round', 'is-round'
+- Working with multiple turtles: 'new-turtle', 'clone-turtle', 'with-turtle'
+- Filled figures: 'filled', 'filled-with-turtle', 'set-fill', 'get-fill'
+- Writing on-screen: 'write', 'set-font', 'get-font'
+- Running multiple turtles concurrently (in threads): Use 'future'
+
+
 ## [2018.1] - 2018-01-11
 
 ### Fixed
