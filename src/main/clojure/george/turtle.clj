@@ -1666,7 +1666,14 @@ See [`set-position`](var:set-position) for more details.
   See [`set-fill`](var:set-fill) for more information on 'fill' and 'color'.
    
   Use this if you want to be explicit about which turtle to use, otherwise simply use `filled`.
-  See [`with-turtle`](var:with-turtle) and topic [Turtles](:Turtles) for more on multiple turtles.   
+  See [`with-turtle`](var:with-turtle) and topic [Turtles](:Turtles) for more on multiple turtles.
+  
+  *Warning 1:* 
+  `filled` and `filled-with-turtle` can be used within the body of `with-turtle`, but not the other way around.
+   The reason is that the \"inner turtle\" will capture the tracking. 
+
+  *Warning 2* 
+  1. You will need to move the turtle at least 2 steps, so the fill can form a polygon of at least points.
   "
   [t & body]
   ;; Make a not of the current layer of the turtle.
@@ -1677,29 +1684,32 @@ See [`set-position`](var:set-position) for more details.
      (with-turtle ~t
        ~@body)
      ;; Collect the logged positions
-     (let [positions# (map flip-Y (-> ~t deref :positions))]
-       ;; Get the turtles fill.  (Setting fill to nil is a way of preventing fill)
-       (when-let [fill# (get-fill ~t)]
-         ;; Build a polygon
-         (let [p# (apply fx/polygon
-                         (flatten [positions# :fill (to-color fill#) :stroke nil]))]
-           
-           ;; We insert the polygon at the layer the turtle was at start.
-           (fx/now (fx/add-at (get-parent ~t) layer# p#))))
+     (let [positions# (map flip-Y (-> ~t deref :positions))
+           moves# (count positions#)]
+       (if (< moves# 3)
+         (binding [*out* *err*] 
+           (printf "WARNING! The turtle used for 'filled' needs to move at least twice. Got %s\n" (dec moves#)))
+         ;; Get the turtles fill.  (Setting fill to nil is a way of preventing fill)
+         (when-let [fill# (get-fill ~t)]
+           ;; Build a polygon
+           (let [p# (apply fx/polygon
+                           (flatten [positions# :fill (to-color fill#) :stroke nil]))]
+             
+             ;; We insert the polygon at the layer the turtle was at start.
+             (fx/now (fx/add-at (get-parent ~t) layer# p#)))))
        ;; Stop further logging of positions
-       (swap! ~t dissoc :positions))))
+       (swap! ~t dissoc :positions)
+       nil)))
 
 
 (defmacro filled 
   "A short form of `filled-with-turtle`.  
   The current turtle is used, as opposed to an explicit turtle.
 
-  Use this if you are already running in a `with-turtle`, or just want to use the current turtle.
+  Use `filled` if you are already running in a `with-turtle`, or just want to use the current turtle. 
+  Use `filled-with-turtle` if you want to specify a turtle.
   
-  **WARNING!** `filled` can be used within the body of `with-turtle`, but not the other way around. (Not sure why...)
-  
-  See [`filled-with-turtle`](var:filled-with-turtle)  for more information.
-  
+  See [`filled-with-turtle`](var:filled-with-turtle)  for more information and *warnings*.
   "
   [& body]
   `(let [t# (turtle)]
