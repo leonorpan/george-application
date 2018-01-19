@@ -22,7 +22,8 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [flatland.ordered.map :refer [ordered-map]]
     [george.javafx :as fx]
     [george.javafx.util :as fxu]
-    [george.application.output :as output])
+    [george.application.output :as output]
+    [george.util :as u])
   (:import
     [javafx.scene.paint Color Paint]
     [javafx.scene Group Node Scene]
@@ -31,7 +32,8 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [javafx.stage Stage]
     [javafx.geometry VPos]
     [javafx.scene.transform Rotate]
-    [javafx.animation Timeline]))
+    [javafx.animation Timeline]
+    [clojure.lang Atom]))
 
 "UCB Logo commands (to be) implemented:
 (ref: https://people.eecs.berkeley.edu/~bh/usermanual )
@@ -112,6 +114,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (declare
+  move
+  turn
+  to-color
+  to-font
+  get-default
+  turtle
   get-color
   get-width
   set-visible
@@ -123,33 +131,46 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   get-heading
   set-position
   get-position
+  heading-to
   get-node
   get-parent
-  reset
-  to-color
-  to-font
-  screen
-  turtle
   register-turtle
-  get-default
+  screen
   get-screen-default
-  delete-screen)
-
+  reset
+  delete-screen
+  get-size
+  get-fence
+  allowed-fence-values)
+  
 
 ;; Empty records allow for easy typing of maps.
 (defrecord Turtle [])
 (defrecord Screen [])
 
 
+(defn nil-or-number? [x]
+  (or (nil? x)
+      (number? x)))
+
 (defn pos-number? [^double x]
   (and (number? x)
        (pos? x)))
 
 
-(defn- nil-or-not-neg-number? [x]
+(defn nil-or-not-neg-number? [x]
   (or (nil? x)
       (and (number? x)
            (not (neg? (double x))))))
+
+
+(defn xy-vector?
+  "Returns true if 'item' is a vector containing 2 numbers."
+  [item]
+  (and (vector? item)
+       (= 2 (count item))
+       (number? (first item))
+       (number? (second item))))
 
 
 (defn- add-now [parent node]
@@ -177,49 +198,249 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (:root screen))
 
 
+
+
+(defn turtle?
+  "Returns true if the 'turtle' is a turtle."
+  [turtle]
+  (and (instance? Atom turtle) (instance? Turtle @turtle)))
+
+
+(defn distance-to
+ ([[x y :as target-pos]]
+  (distance-to (turtle) target-pos))
+  
+ ([turtle-or-xy-start-pos [^double x ^double y :as target-pos]]
+  (assert (or (turtle? turtle-or-xy-start-pos) (xy-vector? turtle-or-xy-start-pos))
+          (format "First argument must be a turtle or a position [x y]. Got %s" turtle-or-xy-start-pos))
+
+  (let [[^double start-x ^double start-y]
+        (if (turtle? turtle-or-xy-start-pos)
+          (get-position turtle-or-xy-start-pos)
+          turtle-or-xy-start-pos)
+        w (double (- x start-x))
+        h (double (- y start-y))]
+    (fxu/hypotenuse w h))))
+
+
+(defn turn-to
+ ([[x y :as target-pos]]
+  (turn-to (turtle) target-pos))
+
+ ([turtle [x y :as target-pos]]
+
+  (let [^double heading     (get-heading turtle)
+        ^double new-heading (heading-to turtle target-pos)]
+    (when (not= heading new-heading)
+          (turn turtle (- new-heading heading))))))
+
+
+(defn heading-to
+  "Calculates the absolute heading (angle in degrees, Cartesian system), that moving from point start-position to target-position would require. 
+  The start position can be derived from implicit or explicit turtle, or from an explicit position
+
+*Examples:*
+```
+(heading-to [100 200])
+(heading-to a-turtle [100 200])
+(heading-to [20 50] [100 200])
+```"
+  ([[x y :as target-pos]]
+   (heading-to (turtle) target-pos))
+
+  ([turtle-or-xy-start-pos [^double x ^double y :as target-pos]]
+   (assert (or (turtle? turtle-or-xy-start-pos) (xy-vector? turtle-or-xy-start-pos))
+           (format "First argument must be a turtle or a position [x y]. Got %s" turtle-or-xy-start-pos))
+
+   (let [[^double start-x ^double start-y]
+         (if (turtle? turtle-or-xy-start-pos)
+           (get-position turtle-or-xy-start-pos)
+           turtle-or-xy-start-pos)
+         w (double (- x start-x)) 
+         h (double (- y start-y))]
+     (mod (+ (Math/toDegrees (Math/atan2 h w))
+            360) 
+          360))))
+
+;(println (heading-to [0 0] [10 10]))
+;(println (heading-to [0 0] [-10 10]))
+;(println (heading-to [0 0] [-10 -10]))
+;(println (heading-to [0 0] [10 -10]))
+;(println (heading-to [10 10] [20 100]))
+;(println (heading-to [10 10] [-20 100]))
+;(println (heading-to [-100 10] [20 100]))
+;(println (heading-to [10 10] [-20 -100]))
+;(println (heading-to [-10 -10] [-20 -100]))
+
+
+(defn- fence-able?
+  "Returns `true` if the target-pos will need to be fenced.
+  This is important to know know in case fence is a function."
+  [[low-x low-y] [high-x high-y]  [target-x target-y]]
+  (let [clamp-x? (not (<= low-x target-x high-x))
+        clamp-y? (not (<= low-y target-y high-y))] 
+    (or clamp-x? clamp-y?)))
+
+
+(defn- calculate-fencing
+  "Takes the low and high bounds for the screen, the fence type, and the start and end positions.
+  
+  Returns either a 4-element vector:
+  - [false stop-position nil nil] if no fencing was applied
+  - [true stop-position nil nil] if :stop was applied
+  - [true stop-position continue-position new-target-position] if :wrap was applied"
+  
+  [[^double low-x ^double low-y :as low-pos] 
+   [^double high-x ^double high-y :as high-pos] 
+   fence 
+   [^double start-x ^double start-y :as start-pos] 
+   [^double target-x ^double target-y :as target-pos]]
+
+  (if-not (#{:stop :wrap} fence)
+    [false target-pos nil nil] ;; we don't do anything
+    (if-not (fence-able? low-pos high-pos target-pos)
+      [false target-pos nil nil] ;; we don't do anything
+      ;; else
+      (let [ ;; which direction are we moving in x/y?
+            direction-x-pos? (<= start-x target-x)
+            direction-y-pos? (<= start-y target-y)
+            ;_ (println "  ## direction-x/y-pos?" direction-x-pos? direction-y-pos?)
+       
+            ;; Did I stop at x or y first?
+            ;; If the actual y-to-edge is bigger than if we calculate it based on x-to-edge,
+            ;;  then that means we hit an x-edge first, and we should move to the opposite x-edge.
+  
+            ;; Get absolute heading
+            heading (heading-to start-pos target-pos)
+            x-to-edge-actual (if direction-x-pos? (- high-x start-x) (- low-x start-x))
+            y-to-edge-actual (if direction-y-pos? (- high-y start-y) (- low-y start-y))
+            y-to-edge-by-x  ( * x-to-edge-actual (Math/tan (Math/toRadians heading)))
+  
+            ;; A left/right edge was reached first, so shift x by +/- screen width
+            shift-x? (< (Math/abs (double y-to-edge-by-x)) (Math/abs (double y-to-edge-actual))) 
+            
+            ;; How much of the x/y dist did we consume
+            consumed-x (if shift-x?
+                         x-to-edge-actual
+                         (/ y-to-edge-actual (Math/tan (Math/toRadians heading))))
+            consumed-y  (if shift-x?
+                           y-to-edge-by-x
+                           y-to-edge-actual)
+            ;_ (println "  ## consumed-x/y" consumed-x consumed-y)
+            
+            ;; At what x/y should we stop (for now)
+            ;; consumed-x/y might be negative
+            stop-x (+ start-x consumed-x)
+            stop-y (+ start-y consumed-y)]
+            ;_ (println "  ## stop-x/y" stop-x stop-y)]
+  
+        (if (= fence :stop)
+          [true [stop-x stop-y] nil nil]  ;; we are done for :stop, or if no wrapping is needed
+          ;; else
+          (let [
+                ;; Where do we continue from after wrapping
+                continue-x
+                (if shift-x?
+                  (if (pos? stop-x) low-x high-x)
+                  stop-x)
+                continue-y
+                (if shift-x?
+                    stop-y
+                   (if (pos? stop-y) low-y high-y))
+                ;_ (println "  ## continue-x/y" continue-x continue-y)
+  
+                total-x  (- target-x start-x)
+                total-y  (- target-y start-y)
+                ;_ (println "  ## total-x/y" total-x total-y)
+  
+                ;; How much remains of the distance to target
+                remaining-x (- total-x consumed-x)
+                remaining-y (- total-y consumed-y)
+                ;_ (println "  ## remaining-x/y" remaining-x remaining-y)
+            
+                new-target-x   (+ continue-x remaining-x)
+                new-target-y   (+ continue-y remaining-y)]
+                ;_ (println "  ## new-target-x/y" new-target-x new-target-y)]
+            
+            [true [stop-x stop-y] [continue-x continue-y] [new-target-x new-target-y]]))))))
+
+
 (defn- log-position-maybe
-  "If the turtle has a :positions vector, then the current location is appended to it.
+  "If the turtle has a :positions vector, then the current position is appended to it.
   This is used in conjunction with `filled`"
   [turtle position]
   (when-let [positions (:positions @turtle)]
     (swap! turtle assoc :positions (conj positions  position))))
 
 
-(defn- forward-impl [turtle ^double dist]
-  (let [ang (get-heading turtle)
-        [^double x ^double y] (get-position turtle)
-        [^double x-fac ^double y-fac] (fxu/degrees->xy-factor ang)
-        target-x (+ x (* dist x-fac))
-        target-y (-  (+ y (* dist y-fac)))
+(defn move-to 
+
+ ([[x y]]
+  (move-to (turtle) [x y]))
+
+ ([turtle [x y]]
+  ;(println "/move-to" [x y]) 
+  (let [[^double start-x ^double start-y :as start-pos] (get-position turtle)
+        ;_ (println " .. from" start-pos)
+        target-pos [x y]
+        
+        [^double w ^double h] (get-size true)
+        w2 (/ w 2)
+        h2 (/ h 2)
+        low-pos  [(- w2) (- h2)] ;; bottom-left  
+        high-pos [w2 h2]         ;; top-right
+
+        ;; If fence is :stop, then stop at edge
+        ;; If fence is :wrap, then divide and recur from opposite edge
+        
+        ;; 'fence0' can be a keyword or a map.
+        ;; if a map, 'fence' can be a keyword or a function which takes turtle and returns a keyword
+        ;; if a map 'onfence' can nil or a function which takes a turtle and a keyword
+        {:keys [fence onfence] :as fence0} (get-fence)
+        fence1 (if fence 
+                   (if (fn? fence) 
+                       (fence turtle) 
+                       fence)
+                   fence0)
+         
+        [fenced? [^double stop-x ^double stop-y] continue-pos new-target-pos]
+        (calculate-fencing
+            low-pos high-pos
+            fence1 
+            start-pos target-pos)
+          
         c (get-color turtle)
         w (get-width turtle)
         r (is-round turtle)
-        turt ^Group (:group @turtle)
-        parent ^Group (.getParent turt)
+        node ^Group (:group @turtle)
+        parent ^Group (.getParent node)
         line 
         (when (and (is-down turtle) c w)
-          (fx/line :x1 x :y1  (- y)
+          (fx/line :x1 start-x :y1  (- start-y)
                    :width w
                    :color (to-color c)
                    :round r))
       
         duration
         (when-let [speed (get-speed turtle)]
-          ;; 500 px per second is "default"
-          (* (/ (Math/abs (double dist))
-                (* 500. (double speed)))
-             1000.))
+          (let [
+                diff-x (- stop-x start-x)
+                diff-y (- stop-y start-y)
+                dist (fxu/hypotenuse diff-x diff-y)]
+            ;; 500 px per second is "default"
+            (* (/ (Math/abs (double dist))
+                  (* 500. (double speed)))
+             1000.)))
 
         ;; A duration less than 1.0 may result in no rendering, so we set it to nil.
         duration (if (and duration (< ^double duration 1.)) nil duration)
         
-        timeline-callback-promise (promise)]
-
+        timeline-synchronizer (promise)]
     
     (when line
       (fx/now
         (fx/add parent line)
-        (.toFront turt)))
+        (.toFront node)))
       
     (if duration
       (do
@@ -227,22 +448,41 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
           (.play ^Timeline
             (fx/simple-timeline
               duration
-              #(deliver timeline-callback-promise :whatever)
-              [(.translateXProperty turt) target-x]
-              [(.translateYProperty turt) target-y]
-              (when line [(.endXProperty ^Line line) target-x])
-              (when line [(.endYProperty ^Line line) target-y]))))
-        (deref timeline-callback-promise))  ;; we wait here til the timeline is done
+              #(deliver timeline-synchronizer :done)
+              [(.translateXProperty node) stop-x]
+              [(.translateYProperty node) (-  stop-y)]
+              (when line [(.endXProperty ^Line line) stop-x])
+              (when line [(.endYProperty ^Line line) (- stop-y)]))))
+        @timeline-synchronizer)  ;; we wait here til the timeline is done
       (fx/later
-        (doto turt
-          (.setTranslateX target-x)
-          (.setTranslateY target-y))
+        (doto node
+          (.setTranslateX stop-x)
+          (.setTranslateY (- stop-y)))
         (when line
           (doto ^Line line
-            (.setEndX target-x)
-            (.setEndY target-y)))))
+            (.setEndX stop-x)
+            (.setEndY (- stop-y))))))
       
-    (log-position-maybe turtle [target-x (- target-y)])))
+    (log-position-maybe turtle [stop-x stop-y])
+
+    (when (and fenced? onfence) 
+          (onfence turtle fence1))
+    
+    (when continue-pos
+          (set-position turtle continue-pos)
+          (recur turtle new-target-pos)))))
+
+
+(defn- move [turtle ^double dist]
+  (let [heading (get-heading turtle)
+        ;_ (println "  ## forward heading:" heading)
+        [^double x ^double y :as pos] (get-position turtle)
+        ;_ (println "  ## forward pos:" pos)
+        [^double x-fac ^double y-fac] (fxu/degrees->xy-factor heading)]
+         
+    (move-to turtle 
+             [(+ x (* dist x-fac)) 
+              (+ y (* dist y-fac))])))
 
 
 (defn turtle-polygon []
@@ -545,7 +785,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   The root group is the actual parent for all items. 
   The pane is the root for a stage scene (or could be framed in a layout.)"
   [size]
-  (let [
+  (let [size1
+        (or size (get-screen-default :size))
+
         background 
         (get-screen-default :background)
         
@@ -573,7 +815,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
           (fx/set-background (to-color background)))
         
         scene
-        (fx/scene pane :size (or size (get-screen-default :size)))
+        (fx/scene pane :size size1)
         
         stage
         (fx/now
@@ -604,7 +846,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
        :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
        :axis axis
        :border border
-       :size size
+       :size size1
        :background background})))    
 
 
@@ -687,12 +929,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (assert (and (pos-number? x) (pos-number? y))
             "'x' and 'y' must both be positive numbers."))   
   (let [scrn (get-screen size)]
-    ;(println (str "/screen: " scrn))
     (de-iconify-maybe (:stage scrn))
     (if (and (some? size) (not= size (:size scrn)))
       (let [size1 (resize scrn size)]
         (send screen-agent update-in [:screen :size] size1)
-        (assoc-in scrn [:screen :size] size1)) ;; don't wait for agent
+        ;; Don't need to wait for agent. Just return an updated model.
+        ;; TODO: Maybe we should 'await' and return agent content?
+        (assoc-in scrn [:screen :size] size1)) 
       scrn))))
 
 
@@ -744,13 +987,84 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             (get-screen-default :background)
             color)]
     (-> (screen) :pane (fx/set-background (to-color c)))
-    (send screen-agent assoc-in [:screen :background] c)))
+    (send screen-agent assoc-in [:screen :background] c)
+    (await screen-agent)
+    nil))
 
 
 (defn get-background
-  "Returns the screens background color."
+  "Returns the screen's background color in the form it was set."
   []
   (-> (screen) :background))
+
+
+(defn get-size
+  "Returns the screen's size.
+  If 'actual?' is `true` then whatever the screen has been resized to.
+  Otherwise what it was set to programmatically. "
+  [& [actual?]]
+  (if actual?
+    (-> (screen) :scene fx/WH)
+    (-> (screen) :size)))
+
+
+(def allowed-fence-values #{:stop :wrap :none})
+
+
+(defn set-fence
+  "Sets the screen fence. The fence controls behavior for turtles at the edge of the screen. 
+  
+  'type' can be one of the following keywords:
+   - `:stop` - The turtle doesn't move any further.
+   - `:wrap` - The turtle continues its movement at the opposite edge of the screen.
+   - `:none` - No fence.  The turtle just keeps going unhindered.
+  
+  `:none` is default.
+  
+  *Alternatively, 'type' can be a map.*
+
+  The map must contain the key `:fence` with a value which is either one of the above keywords, 
+  or a 1-arg function which receives a turtle, and returns one of the above keywords.
+  This function should have no side-effects as it may be called repeatedly.
+  
+  The map may also contain a second key `:onfence` which must contain a function which receives a turtle and the keyword for the fence that was applied, if any fencing was applied.
+  This function will only be called when fencing is applied, and is good for side-effects.
+    
+  This is useful e.g. when making a game (such as Asteroids) and you want some turtles (shots) to stop, and you will delete them, while other turtles (rocks) should wrap.
+  
+  
+*Examples:*
+```
+(set-fence :wrap)
+
+(set-fence :none)
+
+(set-fence {:fence :wrap})
+
+(set-fence {:fence  (fn [turtle] (println turtle) :stop)})
+
+(set-fence {:fence   (fn [turtle] (println turtle) :stop)
+            :onfence (fn [turtle fence] (when (= fence :stop) (delete-turtle turtle)))})
+```"
+  
+  [type]
+  (assert (or (map? type) (#{:stop :wrap :none :default :fence} type))
+          "'type' must be a function or one of the specified keywords.")
+  ;; TODO: assert the return value when calling the function!
+  ;; TODO: also maybe ':slide' (continue sideways along the fence) , ':bounce' (like a ball), ':reverse' (do a 180 and continue).
+  
+  (send screen-agent assoc-in [:screen :fence] 
+                              (if (#{:default :fence} type) 
+                                  (get-screen-default :fence) 
+                                  type))
+  (await screen-agent)
+  nil)
+
+
+(defn get-fence
+  "Returns the screen's fence type."
+  []
+  (-> (screen) :fence))
 
 
 (defn set-axis-visible 
@@ -878,6 +1192,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn get-screen-defaults []
   {:background :white
+   :fence :none
    :size [600 450]
    :axis-visible false  
    :border-visible false})
@@ -1012,7 +1327,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (hello)))
 
 
-(defn- rotate [turtle ^double degrees]
+(defn- turn [turtle ^double degrees]
   (let [new-angle (+ ^double (get-heading turtle) degrees)]
     (set-heading turtle new-angle)
     nil))
@@ -1030,7 +1345,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
  ([degrees]
   (left (turtle) degrees))
  ([turtle degrees]
-  (rotate turtle degrees)
+  (turn turtle degrees)
   nil))
 
 
@@ -1039,7 +1354,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   ([degrees]
    (right (turtle) degrees))
   ([turtle ^double degrees]
-   (rotate turtle (- degrees))
+   (turn turtle (- degrees))
    nil))
 
 
@@ -1056,7 +1371,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (forward (turtle) distance))
  ([turtle distance]
   (assert (number? distance) (format "'distance' must be a number. Got %s" distance))
-  (forward-impl turtle distance)
+  (move turtle distance)
   nil))
 
 
@@ -1073,7 +1388,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
    (backward (turtle) distance))
   ([turtle distance]
    (assert (number? distance) (format "'distance' must be a number. Got %s" distance))
-   (forward-impl turtle (-  (double distance)))
+   (move turtle (-  (double distance)))
    nil))
 
 
@@ -1133,6 +1448,8 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
   "Moves the turtle to the given absolute position (coordinates) relative to \"origo\" (center of screen.)  
   'x' is right, 'y' is up.
 
+  The move is instant, and no lines are drawn.
+
   'position' is a 2-item vector [x y].  
   If 'x' or 'y' are \"falsy\" (i.e. `nil` or `false`), then that part is ignored.
 
@@ -1145,17 +1462,13 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
  ([[x y]]
   (set-position (turtle) [x y]))
  ([turtle [^double x ^double y :as position]]
-  (let [node ^Group 
-        (:group @turtle)
+  (let [node ^Group  (:group @turtle)
         [x ^double y] 
         (if (#{:position :default} position)
             (get-default :position)
             position)]
-    (fx/synced-keyframe
-      250
-      (when x [(.translateXProperty node) x])
-      (when y [(.translateYProperty node) (- y)])))
-  nil))
+       (fx/now (fx/set-translate-XY node (flip-Y position)))
+    nil)))
 
 
 (defn get-position
@@ -1375,6 +1688,7 @@ See [`set-position`](var:set-position) for more details.
 
 (defn set-color
   "Sets the turtle's (pen) color.
+  It is used when drawing lines, or as border for filled areas, or when writing.
   
   *Examples:*
 ```
@@ -1404,7 +1718,7 @@ See [`set-position`](var:set-position) for more details.
 
 
 (defn get-color
-  "Returns the turtle's (pen) color.
+  "Returns the turtle's (pen) color  in the form it was set.
   
   *Example:*
 ```
@@ -1534,8 +1848,10 @@ See [`set-position`](var:set-position) for more details.
 
 
 (defn set-fill
-  "Sets the turtles fill.
+  "Sets the turtle's fill.
   It will be used for filling figures.
+  
+  It is similar to `set-color`.
   "
  ([color]
   (set-fill (turtle) color))
@@ -1549,6 +1865,7 @@ See [`set-position`](var:set-position) for more details.
 
 
 (defn get-fill
+  "Returns the turtle's fill color in the form it was set"
  ([]
   (get-fill (turtle)))
  ([turtle]
@@ -1655,7 +1972,7 @@ See [`set-position`](var:set-position) for more details.
 "
 (reset)\n(left 30)\n(forward 30)\n(write \"HelloW\" true)\n(set-font 30)\n(set-fill [255 0 0 0.5])\n(println (get-color))\n(write \"World!\\n ... not\" true)\n(forward 30)\n(set-color :green)\n(set-font [\"Geneva\" 36])\n(write \"Done!\")\n
 "
-;; TODO: Text location + dimensions are slightly off.  Can it be fixed?
+;; TODO: Text position + dimensions are slightly off.  Can it be fixed?
 
 
 
@@ -1678,7 +1995,7 @@ See [`set-position`](var:set-position) for more details.
   [t & body]
   ;; Make a not of the current layer of the turtle.
   `(let [layer# (-> (get-parent ~t) .getChildren (.indexOf (-> ~t deref :group)))]
-     ;; This will cause forward-impl to "log" positions using `log-position-maybe`
+     ;; This will cause move to "log" positions using `log-position-maybe`
      (swap! ~t assoc :positions [(get-position ~t)])
      ;; Execute the body using the passed-in turtle
      (with-turtle ~t
