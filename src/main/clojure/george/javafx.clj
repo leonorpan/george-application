@@ -220,6 +220,10 @@ and the body is called on 'changed'"
     (.setTranslateY y)))
 
 
+(defn translate-XY [^Node n]
+    [(.getTranslateX n) (.getTranslateY n)])
+
+
 (defn set-WH [x [w h]]
   (doto x
     (.setWidth w)

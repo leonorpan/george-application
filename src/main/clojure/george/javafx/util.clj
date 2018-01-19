@@ -47,3 +47,6 @@ If default-kwargs is supplies, then keywords not present in default will throw I
 
 (defn degrees->xy-factor [deg]
     [(degrees->x-factor deg) (degrees->y-factor deg)])
+
+(defn hypotenuse [x y]
+  (Math/sqrt (+ (* x x) (* y y))))
