@@ -1876,20 +1876,20 @@ See [`set-position`](var:set-position) for more details.
   "Sets the font. 
   'font' may not be `nil`
   
-  There are a number of optional ways to set font:
-  - family
-  - size
-  - [family]
-  - [size]
-  - [family size]
-  - [family weight size]
-  - [family weight posture size]
-  - an instance of JavaFX Font.
+There are a number of optional ways to set font:
+- `family`
+- `size`
+- `[family]`
+- `[size]`
+- `[family size]`
+- `[family weight size]`
+- `[family weight posture size]`
+- an instance of JavaFX Font.
   
   'family' is a string naming the font-face or font-type.
   'size' is any number
-  'weight' is one of `:normal` `:bold`
-  'posture' is one of `:regular` `:italic`
+  'weight' is one of `:normal` `:bold`  
+  'posture' is one of `:regular` `:italic`  
 
   If a font is not available on your machine, then a system font will automatically be selected. 
 
@@ -2206,200 +2206,3 @@ See topic [Clojure](:Clojure) for more information."
 
   (hide)
   nil)
-
-
-;;;;;;;;; Documentation details
-
-
-(def topic-welcome "# Welcome
-
-Click on any command or topic in the list to to the left for more information.
-
-*Here is a super quick piece of code you can try:*
-```
-(reset)
-(set-color \"orange\")
-(rep 5
-  (forward 50)
-  (left 144))
-```
-*(Type it yourself, or copy-and-paste it into an Input or Editor and do 'Run'.)*
-
-**Enjoy!**")
-
-
-(def topic-color
-  "# Color
-
-George uses JavaFX for its graphics.  This gives you a lot of power to do whatever you want with colors.  
-There are both easy and more advanced things you can do.
-
-
-## Easy
-
-The easiest is to use named HTML color such as `\"red\"`, `\"orange\"`, `\"blue\"`.  
-You can find a good list online: [HTML Color Values](https://www.w3schools.com/colors/colors_hex.asp).
-
-Or, if you prefer, you can use the same colors defined in 'Color', such as `Color/CORNFLOWERBLUE`.  
-You can find the list online: [Color - Fields](https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html#field.summary) .
-
-
-## Medium
-
-You can mix your own color. To do so, use HTML colors, and specify Your mix of Red Green Blue with hexadecimal number.  
-A hex number is a number that goes from `0` to `f`.  So to make red, you can write`\"#f00\"` or `\"#ff0000\"`.  
-You can experiment with mixing HTML colors online: [Colors RGB](https://www.w3schools.com/colors/colors_rgb.asp) .
-
-
-## Special
-
-You can also control and mix colors any way you want by passing in a vector of values.  \nSee [`to-color`](var:to-color) for information on how to do this.
-
-
-## Advanced
-
-You can also use the JavaFX Color functions directly.  That will give you ultimate power - including making colors transparent, and doing number-calculations.  
-
-*Examples:*
-```
-(Color/color 0 0 1) ;; blue
-(Color/color 0.0 0.0 1.0) ;; the same blue
-(Color/color 0.0 0.0 0.0 0.5) ;; semi-transparent blue 
-(Color/rgb 0 0 255) ;; again blue
-```
-You can read the complete documentation online: [JavaFX Color](https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html)")
-
-
-(def topic-clojure
-  "# Clojure
-
-The underlying programming language for the Turtle API (and for all of George) is Clojure.
-
-Clojure is buildt into the system, which means you can \"dip down\" and do pretty much anything you want that you can do with Clojure.
-
-See [Clojure Cheatsheet](https://clojure.org/api/cheatsheet) for an overview of all available \"commands\" - aka functions, macros, and special forms.")
-
-
-(def topic-turtles "# Turtles (multiple)
-
-*You can have many turtles at once!*
-
-Standard behavior is for there to be minimum 1 turtle on screen.
-If you call any of the standard turtle-commands without a specific turtle as first argument, then `(turtle)` is called. 
-See [`turtle`](var:turtle) for more on how this command behaves.
-
-You can create more than one turtle.  It is up to you to \"hold on to\" turtles so you can reference them later.
-If you have a reference to a specific turtle, then you can use `with-turtle` to \"bind\" it as the turtle to be applied to turtle commands.  See [`with-turtle`](var:with-turtle).  Or you can pass it as the first argument to standard turtle commands.
-
-You can get a list containing all registered turtles with the command [``]
-
-
-...
-   But all turtle commands can also be applied to a specific turtle - either by \n
-
-")
-
-
-(def topics 
-  {:Welcome              topic-welcome 
-   :Color                topic-color
-   :Clojure              topic-clojure
-   :Turtles              topic-turtles
-   (keyword (str *ns*))  ((meta *ns*) :doc)}) ;(meta (find-ns (symbol (str *ns*))))
-
-
-(def headings 
-  {"Turtle" 
-   "# Turtle\n\nBasic commands for the turtle."
-   "Pen" 
-   "# Pen\n\nCommands related to the turtle's pen."
-   "Screen" 
-   "# Screen\n\nCommands related the screen itself."
-   "Utils" 
-   "# Utilities \n\nCustom utility Clojure commands in the turtle API.\n\nSee topic [Clojure](:Clojure) for more information.\n"
-   "Advanced" 
-   "# Advanced\n\nMore advanced turtle commands."
-   "Demos"
-   "# Demos\n\nFun or interesting demonstrations of Turtle Geometry."
-   "Special"
-   "# Special\n\nCertain functions that might me interesting to know about."
-   "Topics"
-   "# Topics\n\nIn-depth on certain topics of interest."})
-
-
-(load "turtle/samples")
-
-
-(def turtle-API-list
-  ["Turtle"
-   #'forward
-   #'backward
-   #'left
-   #'right
-   #'home
-   #'show
-   #'hide
-   #'set-visible
-   #'is-visible
-   #'set-speed
-   #'get-speed
-   #'write
-   #'filled
-   "Pen"
-   #'pen-up
-   #'pen-down
-   #'set-down
-   #'is-down
-   #'set-color
-   #'get-color
-   #'set-fill
-   #'get-fill
-   #'set-width
-   #'get-width
-   #'set-round
-   #'is-round
-   #'set-font
-   #'get-font
-   "Screen"
-   #'clear
-   #'reset
-   #'screen
-   #'set-background
-   #'get-background
-   #'set-axis-visible
-   #'is-axis-visible
-   #'set-border-visible
-   #'is-border-visible
-   "Utils"
-   #'rep
-   #'sleep
-   "Advanced"
-   #'set-heading
-   #'get-heading
-   #'set-position
-   #'get-position
-   #'set-name
-   #'get-name
-   #'get-state
-   #'turtle
-   #'with-turtle
-   #'filled-with-turtle
-   #'new-turtle
-   #'clone-turtle
-   #'delete-turtle
-   #'get-all-turtles
-   #'delete-all-turtles
-   #'set-prop
-   #'get-prop
-   #'get-props
-   #'swap-prop
-   "Demos"
-   #'multi-tree
-   "Special"
-   #'to-color
-   #'to-font
-   "Topics"
-   :Color
-   :Turtles
-   "Clojure"
-   #'future])
