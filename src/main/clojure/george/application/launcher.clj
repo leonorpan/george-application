@@ -12,6 +12,8 @@
 
     [environ.core :refer [env]]
 
+    [g]
+    
     [george
      [javafx-init] ;; Important!
      [javafx :as fx]
@@ -25,9 +27,8 @@
      [styled :as styled :refer [hr padding]]]
 
     [george.util.singleton :as singleton]
-    [george.application.repl-server :as repl-server]
+    [george.application.repl-server :as repl-server])
 
-    [g])
 
   (:import
     [javafx.geometry Rectangle2D]

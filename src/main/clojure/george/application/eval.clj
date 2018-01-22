@@ -27,26 +27,12 @@
 ;(set! *unchecked-math* true)
 
 
-(defn prep-ns-user-turtle []
-  (let [current-ns (:ns (meta #'prep-ns-user-turtle))]
-    (binding [*ns* nil]
-      ;; prep a user namespace
-      ;; TODO: this part works.  But the use of 'ns' seems incorrect. Fix.
-      (ns user.turtle
-        (:require [clojure.repl :refer :all])
-        (:require [clojure.pprint :refer [pprint]])
-        (:require [george.turtle :refer :all])
-        (:import [javafx.scene.paint Color]))
-      ;; switch back to this namespace
-      (ns current-ns))))
-
-
 (defn ensure-ns-user-turtle
-  "Returns true if it had to prep user.turtle namespace"
+  "Returns namespace 'user.turtle namespace was prepped, else nil"
   []
   (when-not (find-ns 'user.turtle)
-    (prep-ns-user-turtle)
-    true))
+    ;; We do a string evaluation to avoid having to require 'g' - which is problematic.
+    (eval (read-string "(g/create-turtle-ns 'user.turtle)"))))    
 
 
 (defn- exception-dialog [header message details]

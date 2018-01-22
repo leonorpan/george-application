@@ -15,6 +15,61 @@
 
 
 
+(defmacro turtle-ns
+  "Like Clojure's `ns`, but loads basic turtle stuff before loading any of your stuff.
+*Examples:*
+```
+(ns-turtle my.new.namespace
+  (:require [some.namespace :as x])
+  (:import [something.special Class1 Class2]))
+```"
+  [sym & body]
+  (concat
+    (list 'ns `~sym)
+    (concat
+      (list
+        (list :require 
+          ['george.turtle :refer :all] 
+          ['clojure.repl :refer :all] 
+          ['clojure.pprint :refer ['pprint]]
+          ['george.turtle.extras :as 'ext]
+          ['george.turtle.samples :as 'samples])) 
+      (list 
+        (list :import 
+              ['javafx.scene.paint 'Color])) 
+      
+      body)))
+
+;(user/pprint (macroexpand-1 '(ns-turtle hello.world (:require [user] [g]) (:use [a]) (:import [something Else]))))
+;(ns-turtle hello.world (:require [user]))
+
+
+(defn create-turtle-ns 
+  "Similar to Clojure's 'create-ns', but it also set up the namespace as a basic turtle environment.
+  The difference from between this function and the 'turtle-ns' macro, is that this function takes a namespace-symbol, and returns the namespace without shifting you into it. Also, while the macro lets you add additional requires and imports, this does not.  
+  
+  This function is therefore mainly intended for use in other code, for preparing specific namespaces for turtle code, while the macro is intended used at the repl or at the head of turtle code directly.
+ 
+ *Example:*
+```
+(create-turtle-ns 'my.turtle.namespace)
+``` 
+  "
+  [sym]
+  (let [this-ns *ns*] ;; hold on to the current namespace
+    (binding [*ns* nil]  ;; allow for switching namespace
+      (in-ns sym)
+      (refer 'clojure.core)
+      (require '[george.turtle :refer :all])
+      (require '[clojure.repl :refer :all])
+      (require '[clojure.pprint :refer [pprint]])
+      (require '[george.turtle.extras :as ext])
+      (require '[george.turtle.samples :as samples])
+      (import '[javafx.scene.paint Color])
+      (in-ns (ns-name this-ns)))  ;; return to the current namespace
+    (find-ns sym)))  ;; test and return the newly created namespace
+
+
 (defn hi []
   (println "Hello, yourself."))
 
