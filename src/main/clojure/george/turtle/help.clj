@@ -171,6 +171,8 @@ You can get a list containing all registered turtles with the command [``]
    #'get-speed
    #'write
    #'filled
+   #'arc-left
+   #'arc-right
    "Pen"
    #'pen-up
    #'pen-down
@@ -389,4 +391,4 @@ You can get a list containing all registered turtles with the command [``]
 ;;;;; 
 
 
-(when (env :repl?) (fx/later (turtle-API-stage)))
+;(when (env :repl?) (fx/later (turtle-API-stage)))

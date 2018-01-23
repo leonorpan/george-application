@@ -109,8 +109,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 "
 
 
-;(set! *warn-on-reflection* true)
-;(set! *unchecked-math* :warn-on-boxed)
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 
 (declare
@@ -126,7 +126,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   is-visible
   is-down
   is-round
+  set-round
   get-speed
+  set-speed
   set-heading
   get-heading
   set-position
@@ -932,7 +934,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (de-iconify-maybe (:stage scrn))
     (if (and (some? size) (not= size (:size scrn)))
       (let [size1 (resize scrn size)]
-        (send screen-agent update-in [:screen :size] size1)
+        (send screen-agent assoc-in [:screen :size] size1)
         ;; Don't need to wait for agent. Just return an updated model.
         ;; TODO: Maybe we should 'await' and return agent content?
         (assoc-in scrn [:screen :size] size1)) 
@@ -1331,6 +1333,84 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (let [new-angle (+ ^double (get-heading turtle) degrees)]
     (set-heading turtle new-angle)
     nil))
+
+
+(defn- arc 
+  [turtle ^double radius ^double degrees]
+  (let [orig-heading (get-heading turtle)
+        orig-pos (get-position turtle)]
+
+    (if (< radius 1.5) ;; if the radius is to small, then simply turn on the spot
+      (turn turtle degrees)
+      (let [step-len (min 1.5 (max (/ radius 5.) 15.))  ;; a 5th of radius is pretty good, min 1, max 5
+            circumference (* 2 radius Math/PI)  ;; if 360 degrees
+            travel (* circumference (/ (Math/abs degrees) 360.)) ;; how much of the circ. we will travel
+            step-cnt (/ travel step-len) ;; break travel into tiny (hardly visible steps).
+            step-turn (/ degrees step-cnt) ;; turn per step
+            round? (is-round turtle)
+            speed (get-speed)]
+        (set-round turtle true)
+        (when speed (set-speed turtle (* 5. ^double speed))) ;; lets move faster through the turn
+        (turn turtle (/ step-turn 2.))  ;; get the tilt right by starting with a half-turn
+        (dotimes [_ step-cnt]
+          (move turtle step-len)
+          (turn turtle step-turn))
+        (turn turtle (- (/ step-turn 2.))) ;; then subtract a final half-turn
+        ;; return 'round' and 'speed' to their original
+        (set-round turtle round?)
+        (when speed (set-speed turtle speed))
+    
+    ;; now make final accurate adjustment - to offset and drifts in heading or position.
+        ;; heading - only needed if we did an arc
+        (set-heading turtle (+ ^double orig-heading degrees))))
+
+    ;; position - maybe needed also if we "cheated"
+    
+    ;; https://math.stackexchange.com/questions/332743/calculating-the-coordinates-of-a-point-on-a-circles-circumference-from-the-radiu#432155
+    ; xP2 = xP1 + r sin θ
+    ; yP2 = yP1 − r (1− cos θ)
+    ;; TODO: Do some math! Help!!
+    ;; (move-to turtle [? ?])
+    nil))
+
+
+(defn arc-left
+  "Draws and arc (a bow) curving clockwise from current position.
+  
+  'radius' is the distance to an imagined center of a circle - to the left of the turtle. The bigger the radius, the softer the curve. 'radius' should be a positive number or zero.
+  
+  'degrees' is how far around the theoretical circle the turtle will go:  
+  `360` will make a complete circle. `90` will make a quarter circle, etc.
+  'degrees' may be negative, causing the arc to go the other way, as if `arc-right`.
+
+*Examples:*
+```
+(arc-left 50 360)  ;; A full circle with diameter 100.
+
+(rep 4 
+  (forward 60) 
+  (arc-left 20 90))  ;; A square with rounded corners - sized 100x100.
+
+```
+  
+  "
+  
+  
+ ([radius degrees]
+  (arc-left (turtle) radius degrees))
+ ([turtle radius degrees]
+  (arc turtle radius degrees)))
+
+
+(defn arc-right
+  "Same as `arc-left`, but counter-clockwise.
+
+See [`arc-left`](var:arc-left) for more information."
+  ([radius degrees]
+   (arc-right (turtle) radius degrees))
+  ([turtle radius  degrees]
+   (arc turtle radius (- ^double degrees))))
+
 
 
 (defn left
