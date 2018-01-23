@@ -6,6 +6,7 @@
 (ns george.turtle.help
   (:require
     [clojure.string :as cs]
+    [clojure.java.io :as cio]
     [environ.core :refer [env]]
     [george.turtle :refer :all :as tr]
     [george.turtle.samples :as samples]
@@ -17,7 +18,9 @@
   (:import
     [javafx.stage Stage]
     [javafx.scene Node]
-    (javafx.scene.paint Color)))
+    [javafx.scene.paint Color]
+    [javafx.scene.layout VBox]
+    [javafx.scene.control ScrollPane]))
 
 ;(set! *warn-on-reflection* true)
 ;(set! *unchecked-math* :warn-on-boxed)
@@ -111,12 +114,39 @@ You can get a list containing all registered turtles with the command [``]
 ...
    But all turtle commands can also be applied to a specific turtle - either by \n
 
-")
+")  ;; TODO: Write more here ...
+
+
+(defn- hex->color [hex & [doubles?]]
+  (apply format (if doubles? "[%.2f&nbsp;&nbsp;%.2f&nbsp;&nbsp;%.2f]" "[%s&nbsp;%s&nbsp;%s]")
+    (mapv #(let [n (Integer/parseInt (apply str %) 16)] 
+             (if doubles? (/ n 255.) n)) 
+          (partition 2 (subs hex 1)))))
+        
+
+(defn color-palette []
+  (let [
+        pairs 
+        (map #(vec (cs/split (cs/trim %) #" "))  
+              (cs/split-lines (slurp (cio/resource "styles/webcolors.txt"))))
+        
+        sorted-pairs 
+        (sort-by second pairs) 
+        
+        rows 
+        (mapv (fn [[n v]] (format  "| <div style=\"background-color:%s; width:100px; height:33px;\" ></div> | :%s | :%s | %s | %s |"  v v n (hex->color v) (hex->color v true)))
+              sorted-pairs)
+        
+        table 
+        (format "|  | &nbsp;:hex | &nbsp;:name | &nbsp;RGB |&nbsp;RGB |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n%s\n" (cs/join "\n" rows))]
+        
+    (str "# Color palette\n140 CSS colors \n***\n" table "\n***\n[source](https://upload.wikimedia.org/wikipedia/commons/2/2b/SVG_Recognized_color_keyword_names.svg)")))
 
 
 (def topics
   {:Welcome              topic-welcome
    :Color                topic-color
+   :color-palette        (color-palette)
    :Clojure              topic-clojure
    :Turtles              topic-turtles})
    ;(keyword (str *ns*))  ((meta *ns*) :doc)}) ;(meta (find-ns (symbol (str *ns*))))
@@ -155,6 +185,7 @@ You can get a list containing all registered turtles with the command [``]
   ["Welcome"
    ;"Topics"
    :Color
+   (->Labeled "Color palette" :color-palette)
    :Turtles
    :Clojure
    "Turtle"
@@ -319,11 +350,12 @@ You can get a list containing all registered turtles with the command [``]
 
 
 (defn kw-label [kw detail-fn]
-  (fx/new-label (str "     " (name kw))
+  (fx/new-label (str "     " (if (labeled? kw) (:label kw) (name kw)))
                 :font (fx/new-font "Open Sans" :normal 16)
                 :color Color/CORNFLOWERBLUE
-                :tooltip (format "%s" (name kw))
-                :mouseclicked #(detail-fn (rendered-kw-detail kw detail-fn))))
+                :tooltip (format "%s" (if (labeled? kw) (:label kw) (name kw)))
+                :mouseclicked #(detail-fn (rendered-kw-detail (if (labeled? kw) (:value kw) kw) 
+                                                              detail-fn))))
 
 
 (defn heading-label [^String heading detail-fn]
@@ -341,13 +373,17 @@ You can get a list containing all registered turtles with the command [``]
                         (var? vr) (var-label vr d-set)
                         (keyword? vr) (kw-label vr d-set)
                         (string? vr) (heading-label vr d-set)
-                        (labeled? vr) (var-label vr d-set)
+
+                        (labeled? vr) 
+                        (if (keyword? (:value vr)) (kw-label vr d-set) (var-label vr d-set))
+                          
                         :default (fx/new-label (str "UNKOWN: " vr))))
                     commands)]
     (m-set
       (doto
+        ^ScrollPane
         (fx/scrollpane
-          (doto (apply fx/vbox (concat (fxj/vargs-t* Node labels) [:padding 10 :spacing 2]))
+          (doto ^VBox (apply fx/vbox (concat (fxj/vargs-t* Node labels) [:padding 10 :spacing 2]))
             (.setFocusTraversable false)))
         (.setFocusTraversable false)
         (.setMinWidth 180)))
