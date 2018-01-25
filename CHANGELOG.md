@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
+## [2018.3] - 2018-01-25
+
+### Added
+- Better handling of prep-ing of default turtle-namespace, using macros.
+- 2 special macros: `g/turtle-ns` and `g/create-turtle-ns` which behave pretty much like their counterparts in clojure.core. 
+
+### Changed
+- Reorganized some namespaces.
+
+### Turtle API
+- `screen` is now thread-safe.
+- Improvements to `filled` and `filled-with-turtle`
+- Implemented "fencing" of screen - with :wrap/:stop/:none/functions
+- Implemented 'move', 'move-to', 'turn', 'turn-to', 'distance-to', 'heading-to'
+- Implemented 'arc-left', 'arc-right'
+- Added a color palette to the help-window
+
+
 ## [2018.2] - 2018-01-16
 
 ### Added
