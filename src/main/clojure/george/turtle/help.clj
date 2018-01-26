@@ -117,6 +117,30 @@ You can get a list containing all registered turtles with the command [``]
 ")  ;; TODO: Write more here ...
 
 
+(def topic-properties
+  "# Properties
+  A turtle has a build-in map which is initially empty, but which can contain anything.
+  
+  You can use properties for anything you like - i.e. setting the step of individual turtles in a ticker-based animation or game.
+
+  That means you could also use one or more turtles as pure data-stores, making them invisible and keeping a reference to them using e.g. `def` or `let` or passing them about as function arguments.
+   
+  Or you could combine this other actions so you would have a turtle that that would keep track of a game score, and write it on-screen using combinations of `write` and `undo'.
+     
+  You can set and get an individual property (\"prop\"), or view them all, using the functions:
+   [`set-prop`](var:set-prop), [`get-prop`](var:get-prop), [`swap-prop`](var:swap-prop), and [`get-props`](var:get-props).
+   
+  `swap-prop` allows you to apply a function to the existing property to return a new property.
+       
+*Examples:*
+```
+(set-prop :step 1) ;; sets the :step value on a specific turtle to 1
+(get-prop :step)   ;; returns the value you set, i.e. 1
+(swap-prop :step (fn [v] (+ 2 v)))  ;; the passed-in value is 1, so the new value of ':step' will now be 3
+(get-props)  ;; returns a map with all properties: {:step 3}
+```  ")
+
+
 (defn- hex->color [hex & [doubles?]]
   (apply format (if doubles? "[%.2f&nbsp;&nbsp;%.2f&nbsp;&nbsp;%.2f]" "[%s&nbsp;%s&nbsp;%s]")
     (mapv #(let [n (Integer/parseInt (apply str %) 16)] 
@@ -148,29 +172,40 @@ You can get a list containing all registered turtles with the command [``]
    :Color                topic-color
    :color-palette        (color-palette)
    :Clojure              topic-clojure
-   :Turtles              topic-turtles})
+   :Turtles              topic-turtles
+   :Properties           topic-properties})
    ;(keyword (str *ns*))  ((meta *ns*) :doc)}) ;(meta (find-ns (symbol (str *ns*))))
 
 
 (def headings
   {"Welcome"
    (:Welcome topics)   
-   "Turtle"
-   "# Turtle\n\nBasic commands for the turtle."
-   "Pen"
-   "# Pen\n\nCommands related to the turtle's pen."
-   "Screen"
-   "# Screen\n\nCommands related the screen itself."
-   "Utils"
+   "Turtle (basic)"
+   "# Turtle\n\nBasic commands for controlling the turtle."
+   "Pen (basic)"
+   "# Pen\n\nBasic commands for controlling the turtle's pen."
+   "Screen (basic)"
+   "# Screen\n\nBasic commands for controlling the screen."
+
+   "Turtle (more)"
+   "# Turtle\n\nMore commands for controlling the turtle."
+   "Pen (more)"
+   "# Pen\n\nMore commands for controlling the turtle's pen."
+   "Screen (more)"
+   "# Screen\n\nMore commands for controlling the screen."
+
+   "Turtle (advanced)"
+   "# Turtle\n\nA collection of advanced commands for controlling turtles."
+   
+   "Utilities"
    "# Utilities \n\nCustom utility Clojure commands in the turtle API.\n\nSee topic [Clojure](:Clojure) for more information.\n"
-   "Advanced"
-   "# Advanced\n\nMore advanced turtle commands."
-   "Demos"
-   "# Demos\n\nFun or interesting demonstrations of Turtle Geometry."
-   "Special"
-   "# Special\n\nCertain functions that might me interesting to know about."
-   "Topics"
-   "# Topics\n\nIn-depth on certain topics of interest."
+
+   "Samples"
+   "# Samples \n\nFun or interesting demonstrations of George's Turtle Geometry."
+   
+   "Other"
+   "# Other\n\nCertain underlying functions that might me interesting to know about or use."
+
    "clojure.core"
    "# clojure.core\n\nA few of the most used basic Clojure functions. See [Clojure](:Clojure) for more information."})
 
@@ -187,41 +222,45 @@ You can get a list containing all registered turtles with the command [``]
    :Color
    (->Labeled "Color palette" :color-palette)
    :Turtles
+   :Properties
    :Clojure
-   "Turtle"
-   #'tr/forward
+   "Turtle (basic)"
+   #'forward
    #'backward
    #'left
    #'right
-   #'home
    #'show
    #'hide
-   #'set-visible
-   #'is-visible
-   #'set-speed
-   #'get-speed
-   #'write
-   #'filled
-   #'arc-left
-   #'arc-right
-   "Pen"
+   #'home
+   "Pen (basic)"
    #'pen-up
    #'pen-down
-   #'set-down
-   #'is-down
+   #'write
+   "Screen (basic)"
+   #'clear
+   #'reset
+   "Turtle (more)"
+   #'set-speed
+   #'get-speed
+   #'arc-left
+   #'arc-right
+   #'set-visible
+   #'is-visible
+   "Pen (more)"
    #'set-color
    #'get-color
-   #'set-fill
-   #'get-fill
    #'set-width
    #'get-width
    #'set-round
    #'is-round
+   #'set-down
+   #'is-down
+   #'set-fill
+   #'get-fill
+   #'filled
    #'set-font
    #'get-font
-   "Screen"
-   #'clear
-   #'reset
+   "Screen (more)"
    #'screen
    #'set-background
    #'get-background
@@ -229,17 +268,16 @@ You can get a list containing all registered turtles with the command [``]
    #'is-axis-visible
    #'set-border-visible
    #'is-border-visible
-   "Utils"
-   #'rep
-   #'sleep
-   "Advanced"
+   "Turtle (advanced)"
    #'set-heading
    #'get-heading
    #'set-position
    #'get-position
+   #'set-undo
+   #'get-undo
+   #'undo
    #'set-name
    #'get-name
-   #'get-state
    #'turtle
    #'with-turtle
    #'filled-with-turtle
@@ -248,15 +286,24 @@ You can get a list containing all registered turtles with the command [``]
    #'delete-turtle
    #'get-all-turtles
    #'delete-all-turtles
+   #'get-state
    #'set-prop
    #'get-prop
    #'get-props
    #'swap-prop
+   #'move-to
+   #'turn-to
+   "Utilities"
+   #'rep
+   #'sleep
+   #'distance-to
+   #'heading-to
    "Samples"
    (->Labeled "samples/multi-tree" #'samples/multi-tree)
-   "Special"
+   "Other"
    #'to-color
    #'to-font])
+   
    ;"clojure.core"
    ;#'defn
    ;#'when
