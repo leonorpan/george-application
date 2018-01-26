@@ -70,6 +70,12 @@
     (find-ns sym)))  ;; test and return the newly created namespace
 
 
+(defn fullscreen 
+  "Do `(g/fullscreen)` to make George fullscreen."
+  [& [fullscreen?]]
+  (eval (read-string (format "(george.javafx/later (.setFullScreen (george.application.launcher/current-application-stage)  %s))" (if (nil? fullscreen?) true fullscreen?)))))  
+
+
 (defn hi []
   (println "Hello, yourself."))
 

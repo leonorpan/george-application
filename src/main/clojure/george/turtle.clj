@@ -109,8 +109,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 "
 
 
-(set! *warn-on-reflection* true)
-(set! *unchecked-math* :warn-on-boxed)
+;(set! *warn-on-reflection* true)
+;(set! *unchecked-math* :warn-on-boxed)
 
 
 (declare
@@ -122,6 +122,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   turtle
   get-color
   get-width
+  set-visible_
   set-visible
   is-visible
   is-down
@@ -129,13 +130,21 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   set-round
   get-speed
   set-speed
+  set-heading_
   set-heading
   get-heading
+  set-position_
   set-position
   get-position
   heading-to
+  get-state
+  get-undo
+  set-node_
   get-node
+  un-parent_
+  set-parent_
   get-parent
+  set-state
   register-turtle
   screen
   get-screen-default
@@ -144,7 +153,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   get-size
   get-fence
   allowed-fence-values)
-  
+
 
 ;; Empty records allow for easy typing of maps.
 (defrecord Turtle [])
@@ -200,57 +209,180 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (:root screen))
 
 
-
-
 (defn turtle?
   "Returns true if the 'turtle' is a turtle."
   [turtle]
   (and (instance? Atom turtle) (instance? Turtle @turtle)))
 
 
-(defn distance-to
- ([[x y :as target-pos]]
-  (distance-to (turtle) target-pos))
+(defn set-undo
+  "Set the undo-buffers size.
+   'size' must be `0` or a positive integer.
+   Smaller is better - i.e. make it only as big as you think you will need, especially when dealing with lots of turtles, as each action will grow the buffer by a complete state-map.
+   `0` is default.
+*Examples:*
+```
+(set-undo 1)  ;; will allow for 1 undo - often enough for certain uses
+(set-undo 0)  ;; no undo
+```"
+  ([size]
+   (set-undo (turtle) size))
+  ([turtle size]
+    ;; TODO: assert data input.  Strip buffer.  Support :default
+   (swap! turtle assoc :undo size)
+   nil))
+
+
+(defn get-undo 
+  "Returns the size limit of the undo-buffer - `0` or a positive integer."
+ ([]
+  (get-undo (turtle)))
+ ([turtle]
+  (:undo @turtle)))
+
+
+(defn- append-and-trim [vec obj ^long lim]
+  (let [new-vec (conj vec obj)
+        l (count new-vec)]
+    (if (> l lim)
+      (subvec new-vec (- l lim))
+      new-vec)))
+
+
+;; If set to `(atom [])`, then append-undo-maybe will simply append new-nodes to the atom, and not append to the turtles undo, knowing it will be handled later from some other spot, like from `arc`.
+(def ^:dynamic *undo-nodes* nil)
+
+
+(defn append-undo-maybe [turtle prev-state & [new-nodes]]
+  ;(println "  ## *undo-nodes*" *undo-nodes* new-nodes)
+  (if-let [nodes_  *undo-nodes*]
+    (swap! nodes_ #(vec ( concat % (or new-nodes []))))
+    (let [size (get-undo turtle)]
+      (when-not (zero? ^int size)
+        ;; append
+        (swap! turtle update :undo-buffer
+               (fn [buf]
+                   (append-and-trim 
+                       buf
+                       [(dissoc prev-state :undo-buffer)  ;; we don't want buffers in buffers! 
+                        new-nodes]
+                       (get-undo turtle))))))))
+
+
+(defn- undo-peek [turtle]
+  (-> @turtle :undo-buffer peek))
+
+
+(defn- undo-pop
+  "Returns the popped item, or 'nil' if history was empty."
+  [turtle]
+  (let [popped (undo-peek turtle)]
+    (when popped
+      (swap! turtle update :undo-buffer pop))
+    popped))
+
+
+(defn undo
+  "sets the turtle to it's previous state, then removes that item from the history buffer.
+  This action can not be undone.
   
- ([turtle-or-xy-start-pos [^double x ^double y :as target-pos]]
-  (assert (or (turtle? turtle-or-xy-start-pos) (xy-vector? turtle-or-xy-start-pos))
-          (format "First argument must be a turtle or a position [x y]. Got %s" turtle-or-xy-start-pos))
+  Returns `1` if an undo happened, else `0`.
+
+  History does not care about 'props' set on turtle, only \"internal\" states.
+  
+  `undo` does not animate its movements. It is instantaneous.
+  
+  `undo` is currently only implemented for movements (including `write`), but not for all state-changing commands.
+  (Should it be?)  
+  See documentation for each command to see if it implements `undo`.
+  
+*Examples:*
+```
+(undo) 
+(rep 4 (undo))  ;; do multiple undos
+(loop [res (undo)] (when (= 1 res) (recur (undo)))  ;; loop until all possible undos are done
+```"
+  ([]
+   (undo (turtle)))
+  
+  ([turtle]
+   (if-let [popped (undo-pop turtle)]
+     (let [[prev-state nodes] popped]
+       (set-state turtle prev-state)
+       (doseq [^Node n nodes]
+         (fx/later (fx/remove (.getParent n) n)))
+       1)
+     0)))
+
+
+(defn distance-to
+  "Not a turtle command. It does not effect the turtle.
+  
+  Calculates and returns the distance to the [x y] target position.
+  The start position can be derived from implicit or explicit turtle, or from an explicit [x y] start-position.
+
+*Examples:*
+```
+(distance-to [100 100])          ;; distance from current turtle to [100 100]
+(distance-to a-turtle [100 100]) ;; distance from 'a-turtle' to [100 100]
+(distance-to [30 50] [100 100])  ;; distance from [30 50] to [100 100] - in this case `86.0`
+```"
+ ([[x y]]
+  (distance-to (turtle) [x y]))
+  
+ ([turtle-or-xy-start-position [^double x ^double y]]
+  (assert (or (turtle? turtle-or-xy-start-position) (xy-vector? turtle-or-xy-start-position))
+          (format "First argument must be a turtle or a position [x y]. Got %s" turtle-or-xy-start-position))
 
   (let [[^double start-x ^double start-y]
-        (if (turtle? turtle-or-xy-start-pos)
-          (get-position turtle-or-xy-start-pos)
-          turtle-or-xy-start-pos)
+        (if (turtle? turtle-or-xy-start-position)
+          (get-position turtle-or-xy-start-position)
+          turtle-or-xy-start-position)
         w (double (- x start-x))
         h (double (- y start-y))]
     (fxu/hypotenuse w h))))
 
 
 (defn turn-to
- ([[x y :as target-pos]]
-  (turn-to (turtle) target-pos))
+  "Rotates the turtle towards the provided position.
+  This is the underlying command for `left` and `right`.
 
- ([turtle [x y :as target-pos]]
+  Implements [`undo`](var:undo).
 
-  (let [^double heading     (get-heading turtle)
-        ^double new-heading (heading-to turtle target-pos)]
+  *Example:*
+```
+(turn-to [100 100])
+```"
+ ([[x y]]
+  (turn-to (turtle) [x y]))
+
+ ([turtle [x y]]
+
+  (let [prev-state (get-state turtle)
+        ^double heading     (get-heading turtle)
+        ^double new-heading (heading-to turtle [x y])]
     (when (not= heading new-heading)
-          (turn turtle (- new-heading heading))))))
+          (turn turtle (- new-heading heading)))
+
+    (append-undo-maybe turtle prev-state))))
 
 
 (defn heading-to
-  "Calculates the absolute heading (angle in degrees, Cartesian system), that moving from point start-position to target-position would require. 
-  The start position can be derived from implicit or explicit turtle, or from an explicit position
+  "Not a turtle command. It does not effect the turtle.
+  
+  Calculates and returns the absolute heading (angle in degrees, Cartesian system) to the [x y] target position.
+  The start position can be derived from implicit or explicit turtle, or from an explicit [x y] start-position.
 
 *Examples:*
 ```
 (heading-to [100 200])
 (heading-to a-turtle [100 200])
-(heading-to [20 50] [100 200])
+(heading-to [20 50] [100 200])   ;; angle from [20 50] to [100 200] - in this case `61.93` degrees
 ```"
-  ([[x y :as target-pos]]
-   (heading-to (turtle) target-pos))
+  ([[x y]]
+   (heading-to (turtle) [x y]))
 
-  ([turtle-or-xy-start-pos [^double x ^double y :as target-pos]]
+  ([turtle-or-xy-start-pos [^double x ^double y]]
    (assert (or (turtle? turtle-or-xy-start-pos) (xy-vector? turtle-or-xy-start-pos))
            (format "First argument must be a turtle or a position [x y]. Got %s" turtle-or-xy-start-pos))
 
@@ -375,14 +507,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (swap! turtle assoc :positions (conj positions  position))))
 
 
-(defn move-to 
-
- ([[x y]]
-  (move-to (turtle) [x y]))
-
- ([turtle [x y]]
-  ;(println "/move-to" [x y]) 
-  (let [[^double start-x ^double start-y :as start-pos] (get-position turtle)
+(defn- move-to-impl 
+  "Implements move-to.  Also avoids revealing the optional parameters to the user in dicumentation."
+ ([turtle [x y] & [prev-state res-nodes]]
+  ;(println "/move-to-impl" [x y]) 
+  (let [prev-state (or prev-state (get-state turtle))
+        res-nodes (or res-nodes [])
+        [^double start-x ^double start-y :as start-pos] (get-position turtle)
         ;_ (println " .. from" start-pos)
         target-pos [x y]
         
@@ -422,6 +553,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
                    :width w
                    :color (to-color c)
                    :round r))
+
+        res-nodes1 (if line (conj res-nodes line) res-nodes)
       
         duration
         (when-let [speed (get-speed turtle)]
@@ -438,7 +571,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         duration (if (and duration (< ^double duration 1.)) nil duration)
         
         timeline-synchronizer (promise)]
-    
+
     (when line
       (fx/now
         (fx/add parent line)
@@ -466,22 +599,43 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             (.setEndY (- stop-y))))))
       
     (log-position-maybe turtle [stop-x stop-y])
-
+    
     (when (and fenced? onfence) 
           (onfence turtle fence1))
     
-    (when continue-pos
+    (if continue-pos
+        (do
           (set-position turtle continue-pos)
-          (recur turtle new-target-pos)))))
+          (recur turtle new-target-pos [prev-state res-nodes1]))
+        (append-undo-maybe turtle prev-state res-nodes1)))))
+
+
+(defn move-to
+  "Moves the turtle to the provided position.  
+  Does not rotate the turtle towards the position.  If you want it to rotate, do `turn-to` first.
+  Does draw line, if pen is down.  
+  This is the underlying command for `forward` and `backward`.
+  
+  Implements [`undo`](var:undo). 
+
+*Example:*
+```
+(move-to [100 100])
+```"
+  ([[x y]]
+   (move-to (turtle) [x y]))
+
+  ([turtle [x y]]
+   (move-to-impl turtle [x y])))
 
 
 (defn- move [turtle ^double dist]
   (let [heading (get-heading turtle)
         ;_ (println "  ## forward heading:" heading)
-        [^double x ^double y :as pos] (get-position turtle)
+        [^double x ^double y] (get-position turtle)
         ;_ (println "  ## forward pos:" pos)
         [^double x-fac ^double y-fac] (fxu/degrees->xy-factor heading)]
-         
+    
     (move-to turtle 
              [(+ x (* dist x-fac)) 
               (+ y (* dist y-fac))])))
@@ -495,7 +649,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 
 (defn- transfer-node-values [^Node to-node ^Node from-node]
@@ -544,7 +697,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(println (clone (turtle-polygon)))
 
 
-
 (defn get-state 
   "Returns all attributes of the turtle as a map.
   
@@ -559,8 +711,36 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
        :node     (get-node turtle)})))
 
 
-;; TODO: update this doc.
+;(def member-keys #{:position :heading :visible :node :parent})
+(def attribute-keys #{:name :speed :color :width :down :round :fill :font :props :undo})
 
+
+(defn set-state 
+  "Applies the passed-in state-map to the turtle. 
+  Whichever attributes are present will be applied, including 
+  position, heading, visible, etc. Only the undo-buffer is not set.
+
+  Intended used as part of `undo`.
+
+  **Warning!**  
+  This will replace any and all attributes in passed-in turtle.
+  
+  **Warning!**  
+  The node will not be cloned. If you are using this function \"off-label\", then make sure to clone the node yourself if it is already on screen/used by another turtle."
+  [turtle state]
+  ;(println "/set-state")
+  ;(user/pprint state)
+  (let [turt @turtle
+        turt (reduce (fn [t k] 
+                       (if-let [v (k state)] (assoc t k v) t)) turt attribute-keys)]
+    (when-let [v (:position state)] (set-position_ turt v))
+    (when-let [v (:heading state)]  (set-heading_ turt v))
+    (when-let [v (:visible state)]  (set-visible_ turt v))
+    (when-let [v (:node state)]     (set-node_ turt v))
+    (when-let [v (:parent state)]   (set-parent_ turt v))))
+
+
+;; TODO: update this doc.
 (defn new-turtle
   "Creates and returns a new turtle.
   You can choose to \"hold on to it\" for later access. 
@@ -588,13 +768,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   This and any other attribute of the turtle can be overridden on creation - and most manipulated any time later also.
     "
   ;; TODO: Turtle should take its defaults in a short-and-sweet command
-  [& {:keys [name parent node position heading visible speed color width round down fill font history-size props]
-      :or {parent (get-default :parent)
-           name (get-default :name)
-           node (clone (get-default :node))
-           position (get-default :position)
+  [& {:keys [position heading visible node parent name speed color width round down fill font undo props]
+      :or {position (get-default :position)
            heading (get-default :heading)
            visible (get-default :visible)
+           node (clone (get-default :node))
+           parent (get-default :parent)
+           name (get-default :name)
            speed (get-default :speed)
            color (get-default :color)
            width (get-default :width)
@@ -602,7 +782,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
            fill (get-default :fill)
            down (get-default :down)
            font (get-default :font)
-           history-size (get-default :history-size)
+           undo (get-default :undo)
            props (get-default :props)}
       :as args}]
   ;(user/pprint ["  ## args:" args])
@@ -612,10 +792,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (to-color fill)
   (to-font font)
 
-  (let [group 
-        (fx/group node)         
-
-        turtle
+  (let [turtle
         (atom
           (map->Turtle
             {:name name
@@ -626,22 +803,21 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
              :down down
              :fill fill
              :font font
-             :history-size history-size
-             :history (get-default :history)
+             :undo undo
+             :undo-buffer (get-default :undo-buffer)
              :props props
-             :group group}))]
+             :group (fx/group node)}))]
 
        (register-turtle turtle)
        (fx/now
-         (doto turtle
-           (-> deref :group (fx/set-translate-XY (flip-Y position)))
-           (set-heading heading)
-           (set-visible visible)
-           (when parent (add-now parent group))))
+         (doto @turtle
+           (set-position_ position)
+           (set-heading_ heading)
+           (set-visible_ visible))
+         (when parent (set-parent_ @turtle parent)))
     
     turtle))
-
-
+ 
 
 (defn clone-turtle
   "Allows you to clone a turtle, and override chosen attributes in one easy command.
@@ -700,9 +876,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   "
   [turtle]
   (unregister-turtle turtle)
-  (when-let [p (get-parent turtle)]
-    (fx/now
-      (fx/remove p (:group @turtle))))
+  (un-parent_ @turtle)
   nil)
 
 
@@ -908,7 +1082,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         curr)))
 
 
-(defn get-screen [size]
+(defn- get-screen [size]
   (when-let [err ^Exception (agent-error screen-agent)]
     (.printStackTrace err)
     (println "Restarting agent ...")
@@ -1109,7 +1283,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn swap-prop
-  "'function' is a 1-arg function which takes the old value, and returns whatever new value should be set."
+  "'function' is a 1-arg function which takes the old value, and returns whatever new value should be set.
+
+  See [Properties](:Properties) for more information."
   ([key function]
    (swap-prop (turtle) key function))
   ([turtle key function]
@@ -1117,6 +1293,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn set-prop
+  "Sets a property on an turtle.
+  
+  See [Properties](:Properties) for more information."
   ([key value]
    (set-prop (turtle) key value))
   ([turtle key value]
@@ -1124,7 +1303,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn get-props
-  "Returns a map of all props set on turtle."
+  "Returns a map of all props set on a turtle.
+
+  See [Properties](:Properties) for more information."
   ([]
    (get-props (turtle)))
   ([turtle]
@@ -1132,19 +1313,27 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn get-prop
-  "Returns the prop value of the turtle for the given 'key'."
+  "Returns the prop value of the turtle for the given 'key'.
+
+  See [Properties](:Properties) for more information."
   ([key]
    (get-prop (turtle) key))
   ([turtle key]
    (-> turtle get-props key)))
 
 
+(defn- set-node_
+  "Applied to deref-ed turtle."
+  [turt node]
+  (set-now (:group turt) node))
+
+
 (defn set-node
   "Sets the \"node\" for the turtle. 'node' can be any JavaFX Node."
-  ([shape]
-   (set-node (turtle) shape))
-  ([turtle shape]
-   (set-now (:group @turtle) shape)))
+  ([node]
+   (set-node (turtle) node))
+  ([turtle node]
+   (set-node_ @turtle node)))
 
 
 (defn get-node
@@ -1154,12 +1343,39 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
    (-> @turtle :group (#(.getChildren ^Group %)) first)))
 
 
+(defn- get-parent_ 
+  "Applied to deref-ed turtle."
+  [turt]
+  (-> turt :group (#(.getParent ^Group %))))
+
+
+(defn- un-parent_
+  "Applied to deref-ed turtle.  
+  Removes the turtle's group from the parent."
+  [turt]
+  (when-let [p (get-parent_ turt)]
+    (fx/now
+      (fx/remove p (:group turt)))))
+
+
+(defn- set-parent_
+  "Applied to deref-ed turtle. Set's the parent if it is not already set to that parent."
+  [turt parent]
+  (if-let [p (get-parent_ turt)]
+    (when (not= p parent)
+      (un-parent_ turt)
+      (add-now parent (:group turt)))
+    (add-now parent (:group turt)))
+  nil)
+
+
 (defn get-parent
   "Advanced.  More info to come."
   ([]
    (get-parent (turtle)))
   ([turtle]
-   (-> @turtle :group (#(.getParent ^Group %)))))
+   ;(-> @turtle :group (#(.getParent ^Group %)))))
+   (get-parent_ @turtle)))
 
 
 (defn get-defaults
@@ -1168,12 +1384,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   Implemented as a function because calling it touches screen, 
   and so it has the side-effect of creating as screen if one hasn't already been created."
   []
-  {:name "<anonymous>"
+  {:position [0 0]
+   :heading 0
+   :visible true
    :parent (get-root (screen))
    :node (turtle-polygon)
-   :heading 0
-   :position [0 0]
-   :visible true
+
+   :name "<John Doe>"
    :speed 1
    :color :black
    :width 1
@@ -1181,9 +1398,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
    :round false
    :fill :dodgerblue
    :font ["Source Code Pro" :normal 14]
-   :history-size 0
-   :history []
-   :props {}})
+   :props {}
+   :undo 0
+   
+   :undo-buffer []})
 
 
 (defn get-default
@@ -1337,7 +1555,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- arc 
   [turtle ^double radius ^double degrees]
-  (let [orig-heading (get-heading turtle)
+  (let [prev-state 
+        (get-state turtle)
+        undo-nodes_ (atom [])
+        
+        orig-heading (get-heading turtle)
         orig-pos (get-position turtle)]
 
     (if (< radius 1.5) ;; if the radius is to small, then simply turn on the spot
@@ -1351,26 +1573,31 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             speed (get-speed)]
         (set-round turtle true)
         (when speed (set-speed turtle (* 5. ^double speed))) ;; lets move faster through the turn
-        (turn turtle (/ step-turn 2.))  ;; get the tilt right by starting with a half-turn
-        (dotimes [_ step-cnt]
-          (move turtle step-len)
-          (turn turtle step-turn))
-        (turn turtle (- (/ step-turn 2.))) ;; then subtract a final half-turn
-        ;; return 'round' and 'speed' to their original
-        (set-round turtle round?)
-        (when speed (set-speed turtle speed))
-    
-    ;; now make final accurate adjustment - to offset and drifts in heading or position.
-        ;; heading - only needed if we did an arc
-        (set-heading turtle (+ ^double orig-heading degrees))))
+        (binding [*undo-nodes* undo-nodes_]
+          (turn turtle (/ step-turn 2.))  ;; get the tilt right by starting with a half-turn
+          (dotimes [_ step-cnt]
+            (move turtle step-len)
+            (turn turtle step-turn))
+          (turn turtle (- (/ step-turn 2.))) ;; then subtract a final half-turn
+          ;; return 'round' and 'speed' to their original
+          (set-round turtle round?)
+          (when speed (set-speed turtle speed))
+      
+          ;; now make final accurate adjustment - to offset and drifts in heading or position.
+          ;; heading - only needed if we did an arc
+          (set-heading turtle (+ ^double orig-heading degrees)))
+  
+          ;; position - maybe needed also if we "cheated"
+      
+          ;; https://math.stackexchange.com/questions/332743/calculating-the-coordinates-of-a-point-on-a-circles-circumference-from-the-radiu#432155
+          ; xP2 = xP1 + r sin θ
+          ; yP2 = yP1 − r (1− cos θ)
+          ;; TODO: Do some math! Help!!
+          ;; (move-to turtle [? ?])
 
-    ;; position - maybe needed also if we "cheated"
-    
-    ;; https://math.stackexchange.com/questions/332743/calculating-the-coordinates-of-a-point-on-a-circles-circumference-from-the-radiu#432155
-    ; xP2 = xP1 + r sin θ
-    ; yP2 = yP1 − r (1− cos θ)
-    ;; TODO: Do some math! Help!!
-    ;; (move-to turtle [? ?])
+        ;; Do this outside the binding, so that it will actually be appended.
+        (append-undo-maybe turtle prev-state @undo-nodes_)))
+
     nil))
 
 
@@ -1383,6 +1610,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   `360` will make a complete circle. `90` will make a quarter circle, etc.
   'degrees' may be negative, causing the arc to go the other way, as if `arc-right`.
 
+  The arc is speeded up such that in most cases it is instantaneous. If you want to see it animate, then you will need to set the turtle's speed to something like `0.5` or less before doing an arc.
+  
+  Implements [`undo`](var:undo).
+    
 *Examples:*
 ```
 (arc-left 50 360)  ;; A full circle with diameter 100.
@@ -1392,10 +1623,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (arc-left 20 90))  ;; A square with rounded corners - sized 100x100.
 
 ```
-  
   "
-  
-  
  ([radius degrees]
   (arc-left (turtle) radius degrees))
  ([turtle radius degrees]
@@ -1412,10 +1640,11 @@ See [`arc-left`](var:arc-left) for more information."
    (arc turtle radius (- ^double degrees))))
 
 
-
 (defn left
   "Rotates the turtle counter-clockwise.  
   A negative number will result in a clockwise rotation.
+
+  Implements [`undo`](var:undo).
 
   *Example:*
 ```
@@ -1442,6 +1671,8 @@ See [`arc-left`](var:arc-left) for more information."
   "Moves the turtle forward `distance` in the direction the turtle is heading.  
   A negative number is also possible. It will result in the turtle moving backward.  
 
+  Implements [`undo`](var:undo).
+  
   *Example:* 
 ```
 (forward 50)
@@ -1472,6 +1703,12 @@ See [`arc-left`](var:arc-left) for more information."
    nil))
 
 
+(defn- set-heading_
+  "Applied to deref-ed turtle."
+  [turt angle]
+  (fx/now (.setRotate ^Group (:group turt) (- ^double angle))))
+
+
 (defn set-heading
   "Rotates the turtle to the given heading:  
   `0` is facing right.  
@@ -1479,6 +1716,8 @@ See [`arc-left`](var:arc-left) for more information."
   `180` is facing left.  
    etc.  
 
+  Implements [`undo`](var:undo).
+  
   *Example:* 
 ```
 (set-heading 90)
@@ -1488,12 +1727,13 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
  ([heading] 
   (set-heading (turtle) heading))
  ([turtle heading]
-  (let [angle   
+  (let [prev-state (get-state turtle)
+        angle   
         (if (#{:heading :default} heading)
             (get-default :heading)
             heading)]
-    (fx/now
-      (.setRotate ^Group (:group @turtle) (- ^double angle))))
+    (set-heading_ @turtle angle)
+    (append-undo-maybe turtle prev-state))
   nil))
 
 
@@ -1524,6 +1764,12 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
   (get-heading))
 
 
+(defn- set-position_ 
+  "Applied to deref-ed turtle."
+  [turt pos]
+  (fx/now (fx/set-translate-XY (:group turt) (flip-Y pos))))
+
+
 (defn set-position
   "Moves the turtle to the given absolute position (coordinates) relative to \"origo\" (center of screen.)  
   'x' is right, 'y' is up.
@@ -1533,6 +1779,8 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
   'position' is a 2-item vector [x y].  
   If 'x' or 'y' are \"falsy\" (i.e. `nil` or `false`), then that part is ignored.
 
+  Implements [`undo`](var:undo).
+  
   *Examples:*
 ```
   (set-position [30 40])
@@ -1542,12 +1790,13 @@ See [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordi
  ([[x y]]
   (set-position (turtle) [x y]))
  ([turtle [^double x ^double y :as position]]
-  (let [node ^Group  (:group @turtle)
+  (let [prev-state (get-state turtle)
         [x ^double y] 
         (if (#{:position :default} position)
             (get-default :position)
             position)]
-       (fx/now (fx/set-translate-XY node (flip-Y position)))
+       (set-position_ @turtle [x y])
+       (append-undo-maybe turtle prev-state)
     nil)))
 
 
@@ -1859,6 +2108,12 @@ See [`set-position`](var:set-position) for more details.
   (:width @turtle)))
 
 
+(defn- set-visible_
+  "Applied to deref-ed turtle."
+  [turt bool]
+  (fx/now (.setVisible ^Group (:group turt) bool)))
+
+
 (defn set-visible
   "Makes the turtle visible or not.
   Any value that is \"truth-y\" in Clojure is allowed.
@@ -1872,9 +2127,7 @@ See [`set-position`](var:set-position) for more details.
  ([bool]
   (set-visible (turtle) bool))
  ([turtle bool]
-  (if (#{:visible :default} bool)
-    (.setVisible ^Group (:group @turtle) (get-default :visible))
-    (.setVisible ^Group (:group @turtle) (boolean bool)))
+  (set-visible_  @turtle (if (#{:visible :default} bool) (get-default :visible) (boolean bool)))
   nil))
 
 
@@ -2017,6 +2270,8 @@ There are a number of optional ways to set font:
   
   If 'text' is multi-line (contains one or more `\\n`), then the turtle will write it as multiple lines.
   
+  Implements [`undo`](var:undo).
+  
   *Examples:*
 ```
 (write \"Hello World!\")
@@ -2030,7 +2285,7 @@ There are a number of optional ways to set font:
  ([text move?]
   (write (turtle) text move?))
  ([turtle text move?]
-  (let [{:keys [parent ^double heading position font color down]} (get-state turtle)  
+  (let [{:keys [parent ^double heading position font color down :as prev-state]} (get-state turtle)  
         txt ^Text
         (fx/text (str text) 
                  :font (to-font font))]
@@ -2046,14 +2301,13 @@ There are a number of optional ways to set font:
         (doto turtle 
           (set-down false) 
           (forward (-> txt .getBoundsInLocal .getWidth))
-          (set-down down?))))))) 
-
+          (set-down down?))))
+    (append-undo-maybe turtle prev-state [txt]))))
 ;; TEST
 "
 (reset)\n(left 30)\n(forward 30)\n(write \"HelloW\" true)\n(set-font 30)\n(set-fill [255 0 0 0.5])\n(println (get-color))\n(write \"World!\\n ... not\" true)\n(forward 30)\n(set-color :green)\n(set-font [\"Geneva\" 36])\n(write \"Done!\")\n
 "
 ;; TODO: Text position + dimensions are slightly off.  Can it be fixed?
-
 
 
 (defmacro filled-with-turtle 
@@ -2065,6 +2319,9 @@ There are a number of optional ways to set font:
   Use this if you want to be explicit about which turtle to use, otherwise simply use `filled`.
   See [`with-turtle`](var:with-turtle) and topic [Turtles](:Turtles) for more on multiple turtles.
   
+  Implements [`undo`](var:undo).
+    Important! Filling is a discrete (separate) step after the movements are done, and so calling `undo` once after a fill will only remove the fill, not reverse any of the movements.\n  Also, if doing an undo during the movements, in a fill, will not remove the point in the \"log\", and the point will still be part of the fill shape.
+    
   *Warning 1:* 
   `filled` and `filled-with-turtle` can be used within the body of `with-turtle`, but not the other way around.
    The reason is that the \"inner turtle\" will capture the tracking. 
@@ -2091,7 +2348,7 @@ There are a number of optional ways to set font:
            ;; Build a polygon
            (let [p# (apply fx/polygon
                            (flatten [positions# :fill (to-color fill#) :stroke nil]))]
-             
+             (append-undo-maybe ~t (get-state ~t) [p#])
              ;; We insert the polygon at the layer the turtle was at start.
              (fx/now (fx/add-at (get-parent ~t) layer# p#)))))
        ;; Stop further logging of positions
@@ -2105,6 +2362,8 @@ There are a number of optional ways to set font:
 
   Use `filled` if you are already running in a `with-turtle`, or just want to use the current turtle. 
   Use `filled-with-turtle` if you want to specify a turtle.
+  
+  Implements [`undo`](var:undo).
   
   See [`filled-with-turtle`](var:filled-with-turtle)  for more information and *warnings*.
   "
@@ -2188,7 +2447,7 @@ There are a number of optional ways to set font:
 ```"
   []
   (clear) (show) (set-speed :default) (pen-up) (home) (pen-down)
-  (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-background :default) (set-round :default)
+  (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-background :default) (set-round :default) (set-undo 0)
 
   nil)
 
