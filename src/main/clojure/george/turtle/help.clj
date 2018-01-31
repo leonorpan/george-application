@@ -8,8 +8,10 @@
     [clojure.string :as cs]
     [clojure.java.io :as cio]
     [environ.core :refer [env]]
-    [george.turtle :refer :all :as tr]
-    [george.turtle.samples :as samples]
+    [george.turtle :refer :all]
+    [george.turtle
+     [samples :as samples]
+     [aux :as aux]]
     [george.util.singleton :as singleton]
     [george.application.ui.styled :as styled]
     [george.javafx :as fx]
@@ -196,9 +198,15 @@ You can get a list containing all registered turtles with the command [``]
 
    "Turtle (advanced)"
    "# Turtle\n\nA collection of advanced commands for controlling turtles."
+   "Screen (advanced)"
+   "# Screen\n\nA collection of advanced commands for controlling the screen."
    
+
    "Utilities"
    "# Utilities \n\nCustom utility Clojure commands in the turtle API.\n\nSee topic [Clojure](:Clojure) for more information.\n"
+
+   "Auxiliary"
+   "# Auxiliary \n\nExtra functions which are available (and used) in the turtle API.\n"
 
    "Samples"
    "# Samples \n\nFun or interesting demonstrations of George's Turtle Geometry."
@@ -286,6 +294,8 @@ You can get a list containing all registered turtles with the command [``]
    #'delete-turtle
    #'get-all-turtles
    #'delete-all-turtles
+   #'is-overlap
+   #'get-overlappers
    #'get-state
    #'set-prop
    #'get-prop
@@ -293,6 +303,17 @@ You can get a list containing all registered turtles with the command [``]
    #'swap-prop
    #'move-to
    #'turn-to
+   "Screen (advanced)"
+   #'set-ticker
+   #'start-ticker
+   #'stop-ticker
+   #'is-ticker-started
+   #'assoc-onkey
+   #'dissoc-onkey
+   #'get-onkey
+   #'get-all-onkey
+   #'reset-onkey
+   #'to-front
    "Utilities"
    #'rep
    #'sleep
@@ -300,11 +321,14 @@ You can get a list containing all registered turtles with the command [``]
    #'heading-to
    "Samples"
    (->Labeled "samples/multi-tree" #'samples/multi-tree)
-   "Other"
-   #'to-color
-   #'to-font])
-   
-   ;"clojure.core"
+   (->Labeled "samples/asteroids" #'samples/asteroids)
+   "Auxiliary"
+   (->Labeled "aux/to-color" #'aux/to-color)
+   (->Labeled "aux/to-font" #'aux/to-font)
+   (->Labeled "aux/new-rectangle" #'aux/new-rectangle)
+   (->Labeled "aux/new-polygon" #'aux/new-polygon)])
+  
+;"clojure.core"
    ;#'defn
    ;#'when
    ;#'if
