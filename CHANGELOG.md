@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
+## [2018.4] - 2018-01-31
+
+### Turtle API
+- Added support for animation, and for keyboard-input.
+- Implemented a long list of new commands:
+is-overlap, get-overlappers, set-/get-/reset-/start-/stop-ticker/is-ticker-started, assoc-/dissoc-/get-/get-all/reset-onkey, to-front
+- And a new demo: samples/asteroids
+
 ## [2018.3] - 2018-01-25
 
 ### Added
