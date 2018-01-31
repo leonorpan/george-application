@@ -17,11 +17,16 @@
 
 (defmacro turtle-ns
   "Like Clojure's `ns`, but loads basic turtle stuff before loading any of your stuff.
+  Intended for use in any code which will be run in/by George.
+
 *Examples:*
 ```
 (ns-turtle my.new.namespace
   (:require [some.namespace :as x])
   (:import [something.special Class1 Class2]))
+
+**Warning!** Cannot be used stead of `ns` in George itself as during AOT compilation `g` is not loaded.
+(Also, IDEs may not recognize or parse this construct, and thereby report problems in correct code.)
 ```"
   [sym & body]
   (concat
@@ -32,7 +37,7 @@
           ['george.turtle :refer :all] 
           ['clojure.repl :refer :all] 
           ['clojure.pprint :refer ['pprint]]
-          ['george.turtle.extras :as 'ext]
+          ['george.turtle.aux :as 'aux]
           ['george.turtle.samples :as 'samples])) 
       (list 
         (list :import 
@@ -63,7 +68,7 @@
       (require '[george.turtle :refer :all])
       (require '[clojure.repl :refer :all])
       (require '[clojure.pprint :refer [pprint]])
-      (require '[george.turtle.extras :as ext])
+      (require '[george.turtle.aux :as aux])
       (require '[george.turtle.samples :as samples])
       (import '[javafx.scene.paint Color])
       (in-ns (ns-name this-ns)))  ;; return to the current namespace

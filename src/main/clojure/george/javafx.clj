@@ -41,7 +41,9 @@
     [javafx.scene.text Font Text FontPosture FontWeight]
     [javafx.scene.shape Line Rectangle Polygon StrokeLineCap]
     [javafx.stage FileChooser FileChooser$ExtensionFilter Screen Stage StageStyle]
-    [javafx.util Duration]))
+    [javafx.util Duration]
+    [java.util Collection]
+    [clojure.lang Atom]))
 
 
 ;(set! *warn-on-reflection* true)
@@ -160,7 +162,7 @@ and the the body is called on 'handle' "
 
 
 (defmacro event-handler-2
-    "Returns an instance of javafx.event.EventHander,
+ "Returns an instance of javafx.event.EventHander,
 where args-vec is a vector of 2 elements  - naming the bindings for 'this' and 'event',
 and the body is called on 'handle'"
     [args-vec & body]
@@ -335,32 +337,48 @@ Ensure that the passed-in stylesheet only contains font-info. Nothing else."
     [duration keyvalues]
     (KeyFrame.
         (Duration. duration)
-        (fxj/vargs*
+        (fxj/vargs-t* KeyValue
             (map (fn [[p v]](KeyValue. p v))
                  (filter some? keyvalues)))))
 
 
-(defn keyframe
-    "creates an instance of Keyframe with duration (millis) and KeyValue-s from vectors of format [property value]"
-    [duration & keyvalues]
-    (keyframe* duration keyvalues))
+(defn new-keyframe*
+  [duration onfinished keyvalues]
+  (let [d (Duration. duration)
+        ah (when onfinished (event-handler (onfinished)))
+        kvs (mapv (fn [[p v]] (KeyValue. p v)) (filter some? keyvalues))]
+    (if ah
+      (KeyFrame. d "NN" ^EventHandler ah ^Collection kvs)
+      (KeyFrame. d (fxj/vargs-t* KeyValue kvs)))))
 
 
-(defn timeline
+;(defn keyframe
+;    "creates an instance of Keyframe with duration (millis) and KeyValue-s from vectors of format [property value]"
+;    [duration & keyvalues]
+;    (keyframe* duration keyvalues))
+
+
+(defn new-keyframe
+  "creates an instance of Keyframe with duration (millis) and KeyValue-s from vectors of format [property value]"
+  [duration onfinish & keyvalues]
+  (new-keyframe* duration onfinish keyvalues))
+
+
+(defn ^Timeline timeline
     "creates a timeline of instances of KeyFrame"
     [onfinished-fn & KeyFrames]
     (let [t (Timeline. (fxj/vargs* KeyFrames))]
-        (if onfinished-fn
+      (when onfinished-fn
             (.setOnFinished t  (event-handler (onfinished-fn))))
-        t))
+      t))
 
 
 (defn simple-timeline
     "creates a timeline containing a single keyframe with duration (in millis),
-    onfinished-fn (or nil),
+    onfinished (or nil),
     and keyvalues as vectors as per function 'keyframe'"
-    [duration onfinished-fn & keyvalues]
-    (timeline onfinished-fn (keyframe* duration keyvalues)))
+    [duration onfinished & keyvalues]
+    (timeline onfinished (new-keyframe* duration nil keyvalues)))
 
 
 (def NANO_PR_SEC
@@ -606,6 +624,7 @@ It must return a string (which may be wrapped to fit the width of the list."
 (defn ^Rectangle rectangle [& args]
     (let [default-kwargs
           {:location [0 0]
+           :rotation 0
            :size [50 50]
            :fill Color/BLACK
            :arc 0}
@@ -623,7 +642,8 @@ It must return a string (which may be wrapped to fit the width of the list."
                 (second size))
           (.setFill (:fill kwargs))
           (.setArcWidth arc)
-          (.setArcHeight arc))))
+          (.setArcHeight arc)
+          (.setRotate (:rotation kwargs)))))
 
 
 (defn set-tooltip [control s]
@@ -1083,12 +1103,16 @@ Example of codes-map:
               ev-typ (.getEventType event)
               combo (ufx/code-modifier-set event)
               ;_ (println "combo:" (str combo))
+              
               do-handle
               #(if (instance? EventHandler %)
                    (.handle % event)
-                   (do (%) (.consume event)))]
+                   (do (%) (.consume event)))
+              
+              codes-map1 
+              (if (instance? Atom codes-map) @codes-map codes-map)]
 
-            (when-let [f (codes-map combo)]
+          (when-let [f (codes-map1 combo)]
               ;(println "  ## f:" f)
               (if handle-type
                 (if (= handle-type ev-typ)
@@ -1118,8 +1142,9 @@ Example of codes-map:
 
     (event-handler-2
         [inst event]
-        (let [ch-str (.getCharacter event)]
-            (when-let [v (chars-map ch-str)]
+        (let [ch-str (.getCharacter event)
+              chars-map1 (if (instance? Atom chars-map) @chars-map chars-map)]
+          (when-let [v  (chars-map1 ch-str)]
                 (if (instance? EventHandler v)
                     (.handle v event)
                     (v))))))

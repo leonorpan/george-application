@@ -4,18 +4,29 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns george.turtle
-
-    "George Turtle Geometry implements only the basic (procedural) single-turtle  functions of the original UCB Logo TG, not (for now) the object-oriented multi-turtle environment of Python.
-
-Furthermore, certain changes have been made to some of the function-names to make them more consistent, readable, an 'clojure-y' - mainly inserting hyphens in multi-word function names.
-
-We use 'standard' mode for TG as this is most in line with underlying standard math:
-1. Turtle home is origo.
-2. Origo is center of screen.
-3. X increases to the right, Y increases upwards.
-4. Degrees are counterclockwise. 0 degrees is facing right.
-
-    "
+  ^{:author "Terje Dahl"
+    :doc "George Turtle Geometry implements a hybrid API.
+    It is initially based concepts and functions from the original UCB Logo TG, but it also incorporating ideas from MicroWorld, as well as Python's TG.
+    Also, we add some additional functionality, such as threading support and animation support, which now is easily handled by the underlying Clojure/Java/JavaFX technology.
+     
+    Also, we strive for consistency in function naming and arguments patterns, and while this is Clojure, we choose not to use all Clojure-specific naming conventions:
+    - We don't end predicates with '?' or conversion functions starting with '->'.  
+    - We do, however use lower-case and hyphens, rather than camel-case.
+     
+    - We use 'set-', 'get-' and 'is-' where we are working with Turtle, Pen, or Screen properties directly. 
+    - In imperative commands, we start directly with the verb - e.g. 'forward'.
+     
+    - We try to avoid duplicate functions, but have some for the purpose of keeping some of the traditional commands - .e.g 'set-visible' does the same as 'show'/'hide'.
+    
+  In general we want easy, everyday words that also non-english speaking children can learn.
+  And we want the naming standard to be relatively general, so it is a bit closer to other common main-stream languages, such as Java.
+    
+  The geometry is \"standard mode\" for TG:  
+  This way, anything about positions and angles is easily transferred to/from standard school math - aka Cartesian geometry:
+  - Turtle home is origo - i.e. center of screen.
+  - X increases to the right, Y increases upwards.
+  - Degrees are counterclockwise. 0 degrees is facing right.
+"}
 
   (:require
     [defprecated.core :as depr]
@@ -23,16 +34,17 @@ We use 'standard' mode for TG as this is most in line with underlying standard m
     [george.javafx :as fx]
     [george.javafx.util :as fxu]
     [george.application.output :as output]
-    [george.util :as u])
+    [clojure.string :as cs]
+    [george.turtle.aux :as aux])
   (:import
-    [javafx.scene.paint Color Paint]
+    [javafx.scene.paint Color]
     [javafx.scene Group Node Scene]
     [javafx.scene.shape Line Rectangle Polygon]
-    [javafx.scene.text Font TextBoundsType Text]
+    [javafx.scene.text TextBoundsType Text]
     [javafx.stage Stage]
     [javafx.geometry VPos]
     [javafx.scene.transform Rotate]
-    [javafx.animation Timeline]
+    [javafx.animation Timeline Animation Animation$Status]
     [clojure.lang Atom]))
 
 "UCB Logo commands (to be) implemented:
@@ -116,8 +128,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (declare
   move
   turn
-  to-color
-  to-font
   get-default
   turtle
   get-color
@@ -146,16 +156,20 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   get-parent
   set-state
   register-turtle
+  get-all-turtles
   screen
   get-screen-default
   reset
   delete-screen
   get-size
   get-fence
-  allowed-fence-values)
+  allowed-fence-values
+  stop-ticker
+  is-overlapping
+  reset-onkey
+  set-onkey-handlers)
 
-
-;; Empty records allow for easy typing of maps.
+;; An empty record is an easy way to type a map.
 (defrecord Turtle [])
 (defrecord Screen [])
 
@@ -202,11 +216,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   [x (- y)])
 
 
-(defn- get-root
+(defn get-root
   "Returns the top-level parent for all turtle rendering."
-  [screen]
+  []
   ;(println "/get-root" screen)
-  (:root screen))
+  (:root (screen)))
 
 
 (defn turtle?
@@ -407,6 +421,27 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(println (heading-to [-10 -10] [-20 -100]))
 
 
+(defn is-overlap
+  "returns 'true' if the nodes of two turtles touch/overlap (intersect)."
+  [turtle1 turtle2]
+  (.intersects (.getBoundsInParent ^Group (:group @turtle1))
+               (.getBoundsInParent ^Group (:group @turtle2))))
+
+
+(defn get-overlappers
+  "Returns a seq of turtles (or Nodes) that intersect with the implicit current turtle or explicit turtle.
+   Candidate turtles are implicitly selected from `(all-turtles)`, optionally from a passed-in seq of turtles (or Nodes).
+   It does not check against itself.
+   "
+  ([]
+   (get-overlappers (turtle)))
+  ([turtle]
+   (get-overlappers turtle (get-all-turtles)))
+  ([turtle turtles]
+   (filter #(and (not= turtle %) (is-overlap turtle %))  
+           turtles)))
+
+
 (defn- fence-able?
   "Returns `true` if the target-pos will need to be fenced.
   This is important to know know in case fence is a function."
@@ -551,7 +586,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         (when (and (is-down turtle) c w)
           (fx/line :x1 start-x :y1  (- start-y)
                    :width w
-                   :color (to-color c)
+                   :color (aux/to-color c)
                    :round r))
 
         res-nodes1 (if line (conj res-nodes line) res-nodes)
@@ -642,10 +677,11 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn turtle-polygon []
-  (fx/polygon 6 0  -6 6  -3 0  -6 -6  
-              :fill fx/ANTHRECITE 
-              :stroke (to-color [:white 0.7]) 
-              :strokewidth 0.5))
+  (aux/new-polygon 
+    [[6 0]  [-6 6]  [-3 0]  [-6 -6]]  
+    :color [:white 0.7]
+    :fill fx/ANTHRECITE
+    :width 0.5))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -788,9 +824,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   ;(user/pprint ["  ## args:" args])
 
   ;; validate color, fill, font
-  (to-color color)
-  (to-color fill)
-  (to-font font)
+  (aux/to-color color)
+  (aux/to-color fill)
+  (aux/to-font font)
 
   (let [turtle
         (atom
@@ -829,11 +865,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (let [state 
         (get-state turtle) 
         new-state 
-        (assoc (conj state args)
-               ;; Important to replace the node with a clone.
-               :node (clone (:node state)))]
-        
-    (apply new-turtle (reduce concat (seq new-state)))))
+        (conj state args)
+        new-state1 
+        (if (.getParent ^Node (:node new-state))
+            (update new-state :node clone)  ;; Important to replace the node with a clone.
+            new-state)]
+    (apply new-turtle (reduce concat (seq new-state1)))))
 
 
 ;;;;;;;
@@ -882,17 +919,31 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn delete-all-turtles 
   "Removes all turtles from the screen, and empties the global list of turtles.
-
+  The optional argument indicates whether or not to leave a single turtle on the screen. 'true' is default.
+  
   **Warning:** Deleting a turtle while it is still being moved has unknown consequences.
   "
-  []
-  (let [turtles (get-all-turtles)]
-    (reset! turtles_ (ordered-map))
-    (doseq [t turtles]
-      (when-let [p (get-parent t)]
-        (fx/later
-          (fx/remove p (:group @t))))))
-  nil)    
+ ([]
+  (delete-all-turtles true))
+
+ ([keep-1-turtle?]
+  (let [
+        all-turtles 
+        (get-all-turtles)
+        
+        one-turtle 
+        (when keep-1-turtle? 
+              (turtle))  ;; call once in stead of for every filter application
+        
+        turtles 
+        (if keep-1-turtle? 
+            (filter #(not= % one-turtle) 
+                    all-turtles)
+            all-turtles)]
+    
+    (doseq [turtle turtles]
+      (delete-turtle turtle)))
+  nil))    
 
 
 (def ^:dynamic *turtle* nil)
@@ -988,10 +1039,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         pane 
         (doto
           (fx/pane border root)
-          (fx/set-background (to-color background)))
+          (fx/set-background (aux/to-color background)))
         
         scene
-        (fx/scene pane :size size1)
+        (doto
+          (fx/scene pane :size size1)
+          (set-onkey-handlers))
         
         stage
         (fx/now
@@ -1003,7 +1056,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             :tofront true
             :alwaysontop true
             :oncloserequest
-            #(output/interrupt-all-sessions true)
+            #(do
+               (stop-ticker)
+               (output/interrupt-all-sessions true)
+               (delete-all-turtles false))
             :onhidden
             #(delete-screen)))]
 
@@ -1056,6 +1112,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     size1))
 
 
+(defn to-front
+  "Has the turtle window move to the front - e.g. ensures that the turtle window gets \"focus\".
+   Useful so it can receive onkey-events immediately."
+  []
+  (fx/later (.toFront ^Stage (:stage (screen)))))
+
+
 (def screen-agent (agent {:screen nil}))
 
 
@@ -1084,8 +1147,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn- get-screen [size]
   (when-let [err ^Exception (agent-error screen-agent)]
-    (.printStackTrace err)
-    (println "Restarting agent ...")
+    ;(.printStackTrace err)
+    (output/oprintln :system-em (.getMessage err))
+    (output/oprintln :system "Restarting agent ...")
     (restart-agent screen-agent {:screen nil}))
   (send screen-agent #(create-screen-action size %))
   (await screen-agent)
@@ -1127,14 +1191,19 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;; Should this behave differently - not clear away (all) turtles?
 (defn clear
   "Removes all graphics from screen.
-
-  **Warning:** This also clears away all but the last turtle!
+  The optional argument indicates whether or not to leave a single turtle on the screen. 'true' is default.
+  
+  
+  **Warning:** This also clears away all but the last turtle (or all the turtles)!
 
   *Example:*
 ```
-(clear)
+(clear)       ;; leaves the last turtle in place
+(clear false) ;; clears away all the turtles
 ```"
-  []
+ ([]
+  (clear true))
+ ([keep-1-turtle?]
   (let [scrn (screen)
         stg ^Stage (:stage scrn)
         ;; A hack to force the scene to re-render/refresh everything.
@@ -1145,13 +1214,21 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
         _ (.setHeight stg h)
 
         root (:root scrn)
-        trtl (turtle)
-        filtered (filter #(or (= % (:group @trtl))
-                              (= % (:axis scrn)))
-                         (fx/children root))]
+        
+        nodes-to-keep-pred  
+        (if keep-1-turtle?
+            ;; a set *is* a predicate function
+            #{(:group @(turtle)) (:axis scrn)} 
+            #{(:axis scrn)})]
+
+    (stop-ticker)  ;; important to do before clearing any nodes - as the ticker may continue to effect something.
+
+    (delete-all-turtles keep-1-turtle?)
     (fx/later
-      (fx/children-set-all root filtered)))
-  nil)
+      (fx/children-set-all 
+        root 
+        (filter nodes-to-keep-pred (fx/children root)))))
+  nil))
 
 
 (defn set-background
@@ -1162,7 +1239,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (let [c (if (#{:background :default} color)
             (get-screen-default :background)
             color)]
-    (-> (screen) :pane (fx/set-background (to-color c)))
+    (-> (screen) :pane (fx/set-background (aux/to-color c)))
     (send screen-agent assoc-in [:screen :background] c)
     (await screen-agent)
     nil))
@@ -1387,7 +1464,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   {:position [0 0]
    :heading 0
    :visible true
-   :parent (get-root (screen))
+   :parent (get-root)
    :node (turtle-polygon)
 
    :name "<John Doe>"
@@ -1422,113 +1499,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   ((get-screen-defaults) k))
 
 
-(defn to-font [font]
-  (assert (not (nil? font))
-          "'font' can not be set to 'nil'.")
-  ;; Easy basic assertions.  But not good enough.  Will cause difficult bugs or errors.
-  (cond 
-        (instance? Font font) 
-        font
-        ;; TODO: check content of font vector better
-        (vector? font)       
-        (apply fx/new-font font)
-        :default
-        (fx/new-font font)))
-;(println (to-font "Arial"))
-;(println (to-font ["Arial"]))
-;(println (to-font 12))
-;(println (to-font [12]))
-;(println (to-font ["Arial" 12]))
-;(println (to-font ["Source Code Pro" 12]))
-;(println (to-font ["Arial" :normal 12]))
-;(println (to-font ["Geneva" :bold :italic 12]))
-;(println (to-font (fx/new-font 16)))
-;(to-font nil)  ;; fail
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-;; TODO: use clojure.spec for assertions.
-(defn to-color 
-  "Returns an instance of javafx.scene.paint.Paint, usually Color.
-  'color' may be one of:  
-
-- instance of sublcass of javafx.scene.paint.Paint, usually Color - i.e. `Color/GREEN`  
-- str, a web-color - named or hex  - i.e. `\"green\"` or `\"#00ff00\"`  
-- keyword, a named web-color - i.e. `:green`  
-- a single number for gray, integer 0-255 or 0.0-1.0, ranging from black to white
-- `[gray opacity]`, 'gray' as above, and alpha 0.0-1.0
-- `[red green blue]`, either all all doubles 0.0-1.0 or all integers - i.e. [0.0 1.0 0.0] or [0 255 0]
-- `[red green blue opacity]`, as above, but with 'opacity'; a double 0.0-1.0 where 0 is transparent and 1 is opaque - i.e.  [0 255 0 1.0]
-- `nil`, returns `nil`.
-
-  This function is  normally *not* used by the developer, but always called by `set-color`, and agian by `forward` when pen is down.
-  
-  However, you can use this to \"pre-validate\" a color if you want, such that you know that it will be acceptable, and so you can see the web-color it will result in.
-  "
-  [color]
-  (assert (not (nil? color))  
-          "'color' may not be `nil`.")
-  (cond
-    (instance? Paint color) color
-    (string? color) (Color/web color)
-    (keyword? color) (Color/web (name color))
-    (number? color) (if (float? color) (Color/gray color) (Color/grayRgb color))
-
-    ;; web-color or gray + opacity
-    (and (vector? color) (= 2 (count color)))
-    (let [[g o] color]
-      (when o 
-        (assert (<= 0.0 o 1.0) (format "[_ opacity] must be a number between 0.0 and 1.0. Got '%s'" o)))
-      (cond
-        (string? g)  (Color/web g o)
-        (keyword? g) (Color/web (name g) o)
-        (float? g)   (Color/gray g o)
-        :default (Color/grayRgb g o)))
-    
-    ;; RGB + opacity
-    (vector? color)
-    (let [cnt (count color)
-          _ (assert (<= 3 cnt 4)
-                    "'color' must be '[red green blue]' or '[red green blue opacity]'")
-          rgb (subvec color 0 3)
-          ints? (every? integer? rgb)
-          floats? (every? float? rgb)
-          _ (assert (or ints? floats?)
-                    (format "'[red green blue _]'  must be all integers or all floats or doubles. Got '%s'" rgb))
-
-          [r g b o] color]
-
-      (when o 
-        (assert (<= 0.0 o 1.0) (format "'[_ _ _ opacity]' must be a float or double. Got '%s'" o)))
-
-      (if o
-        (if ints? (Color/rgb r g b o) (Color/color r g b o))
-        (if ints? (Color/rgb r g b) (Color/color r g b))))
-
-    ;; ehhh ...
-    :default
-    (throw (IllegalArgumentException. (str "Type of color is not acceptable. Got " color)))))
-;(println (to-color :red))
-;(println (to-color "red"))
-;(println (to-color "#ff0000"))
-;(println (to-color [:red 1.0]))
-;(println (to-color ["red" 1.0]))
-;(println (to-color Color/RED))
-;(println (to-color ["#ff0000" 1.0]))
-;(println (to-color 0.5))  ;; gray
-;(println (to-color 127))  ;; gray
-;(println (to-color [0.5 1.0]))  ;; gray
-;(println (to-color [127 1.0]))  ;; gray
-;(println (to-color [1.0 0.0 0.0]))  ;; red
-;(println (to-color [1.0 0.0 0.0 1.0])) ;; red
-;(println (to-color [255 0 0]))  ;; red
-;(println (to-color [255 0 0 1.0])) ;; red
-;(println (to-color [255 0 0 1])) ;; red
-;;; FAIL
-;(println (to-color [255 0.1 0 1.0])) ;; Fail: Mix of mumber types
-;(println (to-color [255 1 0 127])) ;; Fail: Opacity is not [0.0 .. 1.0]
 
 
 
@@ -2033,7 +2005,7 @@ See [`set-position`](var:set-position) for more details.
   (if (#{:color :default} color)
     (swap! turtle assoc :color (get-default :color))
     (do
-      (to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize."
+      (aux/to-color color)  ;; Easiest way to assert color early. Probably not necessary to "memoize."
       (swap! turtle assoc :color color)))
   nil))
 
@@ -2192,7 +2164,7 @@ See [`set-position`](var:set-position) for more details.
   (if (#{:fill :default} color) 
     (swap! turtle assoc :fill (get-default :fill))
     (do  
-      (to-color color)
+      (aux/to-color color)  ;; assert color
       (swap! turtle assoc :fill color)))
   nil))
 
@@ -2228,11 +2200,11 @@ There are a number of optional ways to set font:
 
 *Examples:*
 ```
-(to-font \"Arial\")
-(to-font 12)
-(to-font [\"Arial\" 12])
-(to-font [\"Arial\" :bold 12])
-(to-font [\"Arial\" :normal :italic 12])
+(set-font \"Arial\")
+(set-font 12)
+(set-font [\"Arial\" 12])
+(set-font [\"Arial\" :bold 12])
+(set-font [\"Arial\" :normal :italic 12])
 ```"
   ([font]
    (set-font (turtle) font))
@@ -2240,11 +2212,11 @@ There are a number of optional ways to set font:
    (if (#{:font :default} font)
      (swap! turtle assoc :font (get-default :font))
      (do
-       (to-font font)
+       (aux/to-font font)
        (swap! turtle assoc :font font)))
    nil))
 
-(to-font (fx/new-font 14))
+(aux/to-font (fx/new-font 14))
 
 
 (defn get-font
@@ -2288,13 +2260,13 @@ There are a number of optional ways to set font:
   (let [{:keys [parent ^double heading position font color down :as prev-state]} (get-state turtle)  
         txt ^Text
         (fx/text (str text) 
-                 :font (to-font font))]
+                 :font (aux/to-font font))]
     (doto txt
       (.setTextOrigin VPos/TOP)
       (.setBoundsType TextBoundsType/VISUAL)
       (-> .getTransforms (.add (Rotate. (- heading) 0 0)))
       (fx/set-translate-XY (flip-Y position)))
-    (when color (.setFill txt (to-color color)))
+    (when color (.setFill txt (aux/to-color color)))
     (add-now parent txt)
     (when move?
       (let [down? down]
@@ -2347,7 +2319,7 @@ There are a number of optional ways to set font:
          (when-let [fill# (get-fill ~t)]
            ;; Build a polygon
            (let [p# (apply fx/polygon
-                           (flatten [positions# :fill (to-color fill#) :stroke nil]))]
+                           (flatten [positions# :fill (aux/to-color fill#) :stroke nil]))]
              (append-undo-maybe ~t (get-state ~t) [p#])
              ;; We insert the polygon at the layer the turtle was at start.
              (fx/now (fx/add-at (get-parent ~t) layer# p#)))))
@@ -2433,23 +2405,32 @@ There are a number of optional ways to set font:
 (defn reset
   "A combined screen and turtle command.  
   Clears the screen, and center the current turtle, leaving only one turtle.
+  The optional argument indicates whether or not to leave a single turtle on the screen. 'true' is default. 
 
   Same as calling:   
 ```
-(clear) (show) (set-speed 1) (pen-up) (home) (pen-down)
-(set-color :black) (set-width 1) (set-fill :default) (set-background :white) (set-round false) 
+(clear) (show) (set-speed :default) (pen-up) (home) (pen-down)
+(set-color :default) (set-width :default) (set-fill :default) (set-background :default) (set-round :default) 
+(set-undo 0) (clear-onkey)
 ```
-  **Warning:** `(clear)` also clears away all but the last turtle!
+  **Warning:** `(clear)` also clears away all but the last turtle (or all if optional argument is false-y).
   
   *Example:* 
 ```
-(reset)
+(reset)        ;; leaves one turtle on the screen.
+(reset false)  ;; leaves the screen blank
 ```"
-  []
-  (clear) (show) (set-speed :default) (pen-up) (home) (pen-down)
-  (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-background :default) (set-round :default) (set-undo 0)
+ ([]
+  (reset true))
+ ([keep-1-turtle?]
+  (clear keep-1-turtle?) 
+  (when keep-1-turtle?
+        (show) (set-speed :default) (pen-up) (home) (pen-down)
+        (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-round :default) (set-undo 0)) 
+  
+  (set-background :default)  (reset-onkey)
 
-  nil)
+  nil))
 
 
 (defn sleep
@@ -2545,3 +2526,171 @@ See topic [Clojure](:Clojure) for more information."
 
   (hide)
   nil)
+
+  
+;;;;;;;;;
+
+
+(defn- new-ticker
+  ([f]
+   (new-ticker (/ 1000. 30) f))
+  ([millis f]
+   (doto 
+     (fx/timeline nil (fx/new-keyframe millis f))
+     (.setCycleCount Animation/INDEFINITE))))
+
+
+(defonce ^:private ticker_ (atom nil))
+
+
+(defn ^Timeline get-ticker
+  "returns the current ticker, if one has been set"
+  []
+  @ticker_)
+
+
+(defn set-ticker
+  "A single ticker set on the screen. It takes a no-args function and an optional time (in milliseconds).
+  This is useful in games and in animations.
+  'f' is the no-args function that will be called at every tick.
+  'millis' is the time between each tick. Default is 30 ticks per second.
+
+  The ticker is not automatically started or stopped, but is stopped if the Turtle window is closed, or if a new function is set on st-ticker.  
+  
+  **Warning!** Preferable set the turtles 'speed' to nil, to avoid running lots of animations at every tick, unless perhaps the ticks are very slow.
+  Combining ticks and animations in turtles is unpredictable!
+"  
+  ([f]
+   (set-ticker (/ 1000. 30) f))
+  ([millis f]
+   (when-let [t (get-ticker)]
+     (.stop t))  ;; to avoid memory leak!
+   (let [t (new-ticker millis f)]
+     (reset! ticker_ t)
+     nil)))
+
+
+(defn start-ticker 
+  "Starts the ticker. 
+  See [`set-ticker`](var:set-ticker) for more."
+  []
+  (when-let [t (get-ticker)]
+    (.play t)))
+
+
+(defn stop-ticker
+  "Stops the ticker. 
+  See [`set-ticker`](var:set-ticker) for more."
+  []
+  (when-let [t (get-ticker)]
+    (.stop t)))
+
+
+(defn is-ticker-started
+  "Returns true/false if a ticker has been set, else nil"
+  []
+  (when-let [t (get-ticker)]
+    (= (.getStatus t) Animation$Status/RUNNING)))
+
+;(let [t (new-ticker #(println "ticker1"))]
+;  (.play t)
+;  (sleep 500)
+;  (.stop t))
+
+;(set-ticker #(println "tick"))
+;(start-ticker)
+;(sleep 500)
+;(stop-ticker)
+;(sleep 500)
+;(start-ticker)
+;(sleep 500)
+;(stop-ticker)
+
+
+;;;;;
+
+
+(def ^{:private true 
+       :doc "Holds all onkey mappings - both for keypressed and keytyped.
+       Is dynamically queried at every key-event"}
+      onkey_ (atom {}))
+
+
+(defn get-all-onkey
+  "Returns a map of all onkey function pair set on the screen."
+  []
+  @onkey_)
+
+
+(defn reset-onkey 
+  "Removes all onkey handlers from the screen."
+  []
+  (reset! onkey_ {}))
+
+
+(defn- set-onkey-handlers 
+  "Is called on screen load to set onkey-handlers on stage"  
+  [^Scene scene]
+  (doto  scene
+    (.setOnKeyTyped (fx/char-typed-handler onkey_))
+    (.setOnKeyPressed (fx/key-pressed-handler onkey_))))
+
+
+(defn- assert-onkey-key [k]
+  (assert (or (and (vector? k) (> (count k) 0) (every? keyword? k))
+              (and (string? k) (= (count k) 1)))
+          (format "Key for assoc/dissoc/get-onkey must be one of vector-of-keywords or 1-char string. Got  %s" k)))
+
+
+(defn- uppercase-and-makeset-keywords [v]
+  (if (vector? v)
+    (set 
+      (map #(keyword (cs/upper-case (name %))) 
+           v))
+    v))
+
+
+(defn assoc-onkey
+  "Adds/replaces an onkey function.
+
+  'key-combo-or-char-str' is either a vector of one or more keywords form of a KeyCode - representing a pressed combination - or a string with a single character, matching a keystroke (or combination) as returned by the operating system.
+    
+  'function' is a no-arg function that will be called every time the specified character is typed or key-kombo pressed.
+  
+  See [JavaFX KeyCode](https://docs.oracle.com/javase/8/javafx/api/index.html?javafx/scene/input/KeyCode.html) for an overview of all available keykodes.
+ 
+*Examples:*
+```
+(assoc-onkey [:UP] #(println \"Got UP\")
+(assoc-onkey [:UP :SHORTCUT] #(println \"Got CTRL-UP or CMD-UP\")
+(assoc-onkey \"a\" #(println \"Got a lower-case a\")
+(assoc-onkey \"Å\" #(println \"Got an upper-case Å\")
+``  
+"
+  [key-combo-or-char-str function]
+  (assert-onkey-key key-combo-or-char-str)
+  (assert (fn? function)
+          (format "'function' passed to assoc-onkey must be a function. Got  %s" function))
+  (swap! onkey_ assoc (uppercase-and-makeset-keywords key-combo-or-char-str) function)
+  nil)
+
+
+(defn dissoc-onkey
+  "Removes the specified function from the onkey-map.
+  See [`assoc-onkey`](var:assoc-onkey) for more."
+  [key-combo-or-char-str]
+  (assert-onkey-key key-combo-or-char-str)
+  (swap! onkey_ dissoc (uppercase-and-makeset-keywords key-combo-or-char-str))
+  nil)
+
+
+(defn get-onkey
+  "Returns the specified function from the onkey-map.
+  See [`assoc-onkey`](var:assoc-onkey) for more."
+  [key-combo-or-char-str]
+  (assert-onkey-key key-combo-or-char-str)
+  (@onkey_ (uppercase-and-makeset-keywords key-combo-or-char-str)))
+
+;(assoc-onkey [:up] #(println "UP!"))
+;(user/pprint (get-all-onkey))
+;((get-onkey [:up]))
