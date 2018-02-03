@@ -102,7 +102,6 @@
     (new-turtle
       :name :rock
       :down false 
-      :speed nil 
       :node (rock-shape size)
       :position loc
       :heading (if three?
@@ -235,15 +234,15 @@
 
 
 (defn- set-keys [physics spaceship]
-  (assoc-onkey [:UP]           #(thrust physics spaceship))
-  (assoc-onkey [:DOWN]         #(break physics))
-  (assoc-onkey [:LEFT]         #(turn spaceship 10))
-  (assoc-onkey [:RIGHT]        #(turn spaceship -10))
+  (set-onkey [:UP]           #(thrust physics spaceship))
+  (set-onkey [:DOWN]         #(break physics))
+  (set-onkey [:LEFT]         #(turn spaceship 10))
+  (set-onkey [:RIGHT]        #(turn spaceship -10))
   ;; When shooting, the other key-downs are disabled.  
   ;; Hard to fix while maintaining a simple interface.
   ;; Would require some sort of custom EventHandler to pass to the javafx keyevent-functions.
-  (assoc-onkey [:SPACE] #(shoot physics spaceship))
-  (assoc-onkey [:P]     #(if (is-ticker-started) (stop-ticker) (start-ticker))))
+  (set-onkey [:SPACE] #(shoot physics spaceship))
+  (set-onkey [:P]     #(if (is-ticker-running) (stop-ticker) (start-ticker))))
 
 
 (defn blink-in [spaceship]
@@ -322,7 +321,6 @@
   (let [spaceship
         (new-turtle
           :name :spaceship
-          :speed nil
           :down false
           :node (spaceship-shape)
           :heading 90
@@ -331,7 +329,6 @@
         physics
         (new-turtle
           :name :physics
-          :speed nil   
           :down false
           :visible false
           :props {:step 0})

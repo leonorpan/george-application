@@ -167,6 +167,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   stop-ticker
   is-overlapping
   reset-onkey
+  is-ticker-running
   set-onkey-handlers)
 
 ;; An empty record is an easy way to type a map.
@@ -591,8 +592,12 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
         res-nodes1 (if line (conj res-nodes line) res-nodes)
       
+        ;; prevent deadlock in animation - i.e. if ticker is running, speed will be automatically nil
+        speed 
+        (when-not (is-ticker-running) (get-speed turtle))
+
         duration
-        (when-let [speed (get-speed turtle)]
+        (when speed
           (let [
                 diff-x (- stop-x start-x)
                 diff-y (- stop-y start-y)
@@ -1502,21 +1507,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
-(defn- hello [turtle]
-  (let [n (:name @turtle)]
-    (println (format "Hello.  My name is %s.  %s the Turtle." n n))
-    nil))
-
-
-(defn tom
-  "Same as `(turtle)`, but Tom introduces himself."
-  []
-  (reset)
-  (delete-all-turtles)
-  (doto (new-turtle :name "Tom")
-        (hello)))
 
 
 (defn- turn [turtle ^double degrees]
@@ -2586,7 +2576,7 @@ See topic [Clojure](:Clojure) for more information."
     (.stop t)))
 
 
-(defn is-ticker-started
+(defn is-ticker-running
   "Returns true/false if a ticker has been set, else nil"
   []
   (when-let [t (get-ticker)]
@@ -2650,7 +2640,7 @@ See topic [Clojure](:Clojure) for more information."
     v))
 
 
-(defn assoc-onkey
+(defn set-onkey
   "Adds/replaces an onkey function.
 
   'key-combo-or-char-str' is either a vector of one or more keywords form of a KeyCode - representing a pressed combination - or a string with a single character, matching a keystroke (or combination) as returned by the operating system.
@@ -2661,23 +2651,23 @@ See topic [Clojure](:Clojure) for more information."
  
 *Examples:*
 ```
-(assoc-onkey [:UP] #(println \"Got UP\")
-(assoc-onkey [:UP :SHORTCUT] #(println \"Got CTRL-UP or CMD-UP\")
-(assoc-onkey \"a\" #(println \"Got a lower-case a\")
-(assoc-onkey \"Å\" #(println \"Got an upper-case Å\")
+(set-onkey [:UP] #(println \"Got UP\")
+(set-onkey [:UP :SHORTCUT] #(println \"Got CTRL-UP or CMD-UP\")
+(set-onkey \"a\" #(println \"Got a lower-case a\")
+(set-onkey \"Å\" #(println \"Got an upper-case Å\")
 ``  
 "
   [key-combo-or-char-str function]
   (assert-onkey-key key-combo-or-char-str)
   (assert (fn? function)
-          (format "'function' passed to assoc-onkey must be a function. Got  %s" function))
+          (format "'function' passed to set-onkey must be a function. Got  %s" function))
   (swap! onkey_ assoc (uppercase-and-makeset-keywords key-combo-or-char-str) function)
   nil)
 
 
-(defn dissoc-onkey
+(defn unset-onkey
   "Removes the specified function from the onkey-map.
-  See [`assoc-onkey`](var:assoc-onkey) for more."
+  See [`set-onkey`](var:set-onkey) for more."
   [key-combo-or-char-str]
   (assert-onkey-key key-combo-or-char-str)
   (swap! onkey_ dissoc (uppercase-and-makeset-keywords key-combo-or-char-str))
@@ -2686,11 +2676,11 @@ See topic [Clojure](:Clojure) for more information."
 
 (defn get-onkey
   "Returns the specified function from the onkey-map.
-  See [`assoc-onkey`](var:assoc-onkey) for more."
+  See [`set-onkey`](var:set-onkey) for more."
   [key-combo-or-char-str]
   (assert-onkey-key key-combo-or-char-str)
   (@onkey_ (uppercase-and-makeset-keywords key-combo-or-char-str)))
 
-;(assoc-onkey [:up] #(println "UP!"))
+;(set-onkey [:up] #(println "UP!"))
 ;(user/pprint (get-all-onkey))
 ;((get-onkey [:up]))

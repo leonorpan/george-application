@@ -38,7 +38,9 @@
           ['clojure.repl :refer :all] 
           ['clojure.pprint :refer ['pprint]]
           ['george.turtle.aux :as 'aux]
-          ['george.turtle.samples :as 'samples])) 
+          ['george.turtle.tom :as 'tom]
+          ['george.turtle.samples :as 'samples]
+          ['george.turtle.adhoc.jf4k :as 'jf4k]))
       (list 
         (list :import 
               ['javafx.scene.paint 'Color])) 
@@ -69,7 +71,9 @@
       (require '[clojure.repl :refer :all])
       (require '[clojure.pprint :refer [pprint]])
       (require '[george.turtle.aux :as aux])
+      (require '[george.turtle.tom :as tom])
       (require '[george.turtle.samples :as samples])
+      (require '[george.turtle.adhoc.jf4k :as jf4k])
       (import '[javafx.scene.paint Color])
       (in-ns (ns-name this-ns)))  ;; return to the current namespace
     (find-ns sym)))  ;; test and return the newly created namespace

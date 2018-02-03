@@ -18,6 +18,7 @@
 (import-vars [clojure.pprint pprint])
 (import-macro clojure.repl/doc)
 (import-macro clojure.repl/dir)
+(import-macro clojure.repl/source)
 
 
 (defn help
