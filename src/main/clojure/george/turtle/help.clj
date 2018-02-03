@@ -307,9 +307,9 @@ You can get a list containing all registered turtles with the command [``]
    #'set-ticker
    #'start-ticker
    #'stop-ticker
-   #'is-ticker-started
-   #'assoc-onkey
-   #'dissoc-onkey
+   #'is-ticker-running
+   #'set-onkey
+   #'unset-onkey
    #'get-onkey
    #'get-all-onkey
    #'reset-onkey
