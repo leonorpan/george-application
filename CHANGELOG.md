@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
+## [2018.4.1] - 2018-02-03
+
+### Turtle API
+- Prevented a deadlock-issue between move-to and ticker. 
+- Renamed assoc-/dissoc-onkey to set-/unset-onkey.
+- Added namespaces "george.turtle.tom" and "george.turtle.adhoc.jf4k".
+
+
 ## [2018.4] - 2018-01-31
 
 ### Turtle API
