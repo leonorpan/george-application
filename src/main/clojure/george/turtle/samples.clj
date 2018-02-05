@@ -63,7 +63,7 @@
   (pen-up) 
   (forward (- (* 2 (double (or len 50))))) 
   (pen-down)
-  (set-speed 1)
+  (set-speed nil)
   (tree (turtle) (or len 50)))
 
 
@@ -363,3 +363,87 @@
 ;; Missing: The full arcade experience: "New game", High score, etc.
 
 ;(asteroids)
+
+
+;;;;
+
+
+(defn- jump [d]
+  (let [down? (is-down)]
+    (pen-up)
+    (forward d)
+    (set-down down?)))
+
+(defn- jump-to
+  "Same as 'jump', but with a position arg in stead of a distance."
+  [pos]
+  (let [down? (is-down)
+        orig-heading (get-heading)]
+    (pen-up)
+    (turn-to pos)
+    (move-to pos)
+    (set-down down?)
+    (set-heading orig-heading)))
+
+
+(defn- jump-home []
+  (pen-up) (home) (pen-down))
+
+(defn- center* [w c]
+  (set-width w) (set-color c) (forward 0.1) (home))
+
+(defn- center []
+  (doseq [r [100 85 70 55 40]]
+    (center* r (if (even? r) :black :white))
+    (sleep 300)))
+
+
+(defn- pedals* [w c d]
+  (set-width w) (set-color c)
+  (dotimes [i 8]
+    (left (* i 45)) (jump d) (forward 1) (jump-home)))
+
+
+(defn- pedals []
+  (home)
+  (set-speed 1)
+  (pedals* 60 :pink 56)
+  (pedals* 50 :hotpink 53)
+  (pedals* 40 :deeppink 50))
+
+
+(defn- grass []
+  (set-color :green)
+  (jump-to [-280 -200])
+  (set-speed 10)
+  (rep 90
+       (let [len (+ 50 (rand-int 80))]
+         (set-heading 88)
+         (forward len)
+         (set-heading 92)
+         (backward len)))
+  (set-speed 1))
+;(grass)
+
+
+(defn- stem []
+  (set-color :green)
+  (set-width 10)
+  (jump-to [0 -200])
+  (move-to [0 0]))
+;(stem)
+
+
+(defn flower 
+  "A pretty flower taken from a childrens' picture book.
+  Do: `(samples/flower)`"
+
+  []
+  (reset)
+  (set-round true)
+  (grass)
+  (stem)
+  (pedals)
+  (center))
+;(flower)
+

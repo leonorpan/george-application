@@ -544,7 +544,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 
 (defn- move-to-impl 
-  "Implements move-to.  Also avoids revealing the optional parameters to the user in dicumentation."
+  "Implements move-to. This avoids revealing the optional parameters to the user in documentation."
  ([turtle [x y] & [prev-state res-nodes]]
   ;(println "/move-to-impl" [x y]) 
   (let [prev-state (or prev-state (get-state turtle))
@@ -629,7 +629,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
               (when line [(.endXProperty ^Line line) stop-x])
               (when line [(.endYProperty ^Line line) (- stop-y)]))))
         @timeline-synchronizer)  ;; we wait here til the timeline is done
-      (fx/later
+      (fx/now
         (doto node
           (.setTranslateX stop-x)
           (.setTranslateY (- stop-y)))
@@ -1225,9 +1225,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             ;; a set *is* a predicate function
             #{(:group @(turtle)) (:axis scrn)} 
             #{(:axis scrn)})]
-
-    (stop-ticker)  ;; important to do before clearing any nodes - as the ticker may continue to effect something.
-
+    
     (delete-all-turtles keep-1-turtle?)
     (fx/later
       (fx/children-set-all 
@@ -1272,10 +1270,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn set-fence
   "Sets the screen fence. The fence controls behavior for turtles at the edge of the screen. 
   
-  'type' can be one of the following keywords:
-   - `:stop` - The turtle doesn't move any further.
-   - `:wrap` - The turtle continues its movement at the opposite edge of the screen.
-   - `:none` - No fence.  The turtle just keeps going unhindered.
+'type' can be one of the following keywords:
+- `:stop` - The turtle doesn't move any further.
+- `:wrap` - The turtle continues its movement at the opposite edge of the screen.
+- `:none` - No fence.  The turtle just keeps going unhindered.
   
   `:none` is default.
   
@@ -1371,8 +1369,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   ([key function]
    (swap-prop (turtle) key function))
   ([turtle key function]
-   (swap! turtle update-in [:props key] function)))
-
+   (swap! turtle update-in [:props key] function)
+   nil))
 
 (defn set-prop
   "Sets a property on an turtle.
@@ -1381,8 +1379,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   ([key value]
    (set-prop (turtle) key value))
   ([turtle key value]
-   (swap! turtle assoc-in [:props key] value)))
-
+   (swap! turtle assoc-in [:props key] value)
+   nil))
 
 (defn get-props
   "Returns a map of all props set on a turtle.
@@ -2375,7 +2373,9 @@ There are a number of optional ways to set font:
 
 (defn home
   "Moves the turtle back to the center of the screen.
-   Sets heading to `0` (and position to `[0 0]`).
+  Sets heading to `0` (and position to `[0 0]`).
+  No line is drawn even if the pen is down.
+  (If you want a line then do `(move-to [0 0])`
 
   *Example:*
 ```
@@ -2413,7 +2413,8 @@ There are a number of optional ways to set font:
  ([]
   (reset true))
  ([keep-1-turtle?]
-  (clear keep-1-turtle?) 
+  (stop-ticker)  ;; important to do before clearing any nodes - as the ticker may continue to effect something.
+  (clear keep-1-turtle?)
   (when keep-1-turtle?
         (show) (set-speed :default) (pen-up) (home) (pen-down)
         (set-color :default) (set-fill :default) (set-font :default) (set-width :default) (set-round :default) (set-undo 0)) 

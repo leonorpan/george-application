@@ -314,12 +314,15 @@ You can get a list containing all registered turtles with the command [``]
    #'get-all-onkey
    #'reset-onkey
    #'to-front
+   #'set-fence
+   #'get-fence
    "Utilities"
    #'rep
    #'sleep
    #'distance-to
    #'heading-to
    "Samples"
+   (->Labeled "samples/flower" #'samples/flower)
    (->Labeled "samples/multi-tree" #'samples/multi-tree)
    (->Labeled "samples/asteroids" #'samples/asteroids)
    "Auxiliary"
