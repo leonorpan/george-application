@@ -5,30 +5,14 @@
 
 (ns george.turtle.adhoc.jf4k
   ^{
-    :doc "Code snippets used in JFocus4Kids in Stockholm 2018-02-04"}
-    
-  (:require
-    [george.turtle :refer :all]
-    [george.turtle.aux :as aux]))
+    :doc "Code snippets used in JFocus4Kids in Stockholm 2018-02-04"}   
+  (:require [george.turtle :refer :all]))
 
+
+;; code for starry night sky
 
 (defn jump [d]
-  (let [down? (is-down)]
-    (pen-up)
-    (forward d) 
-    (set-down down?)))
-
-
-(defn jump-to
-  "Same as 'jump', but with a position arg in stead of a distance. "
-  [pos]
-  (let [down? (is-down)
-        orig-heading (get-heading)]
-    (pen-up)
-    (turn-to pos)
-    (move-to pos)
-    (set-down down?)
-    (set-heading orig-heading)))
+    (pen-up) (forward d)  (pen-down))
 
 
 (defn star [size & [color]]
@@ -53,96 +37,43 @@
 ;(stars)
  
 
-;;; 
-
-
-(defn jump [d]
-  (pen-up) (forward d) (pen-down))
-
-(defn jump-home []
-  (pen-up) (home) (pen-down))
-
-(defn center* [w c]
-  (set-width w) (set-color c) (forward 0.1) (home))
-
-(defn center []
-  (center* 100 :black)
-  (center* 85 :white)
-  (center* 70 :black)
-  (center* 55 :white)
-  (center* 40 :black))
-
-(defn pedals* [w c d]
-  (set-width w) (set-color c)
-  (dotimes [i 8]
-    (left (* i 45)) (jump d) (forward 0.1) (jump-home)))
-
-(defn pedals []
-  (pedals* 60 :pink 56)
-  (pedals* 50 :hotpink 53)
-  (pedals* 40 :deeppink 50))
-
-
-(defn grass []
-  (set-color :green)
-  (jump-to [-280 -200])
-  (set-speed 10)
-  (rep 90
-       (let [len (+ 50 (rand-int 80))]
-         (set-heading 88)
-         (forward len)
-         (set-heading 92)
-         (backward len)))
-  (set-speed 1))
-;(grass)
-
-(defn stem []
-  (set-color :green)
-  (set-width 10)
-  (jump-to [0 -200])
-  (move-to [0 0]))  
-;(stem)
-
-(defn flower []
-  (reset)
-  (set-round true)
-  (grass)
-  (stem)
-  (set-speed 1)
-  (pedals)
-  (center))
-;(flower)
-
-
 ;;;;;
 
-(defn walk []
+(defn walk 
+  "This command is called every tick. It moves the turtle forward whatever value is in ':step'"
+  []
   (forward (get-prop :step)))
 
 (defn walker []
   (reset)
-  (to-front)
-  (set-fence :wrap)
-  (set-prop :step 0)
+  (to-front)  ;; This is to make sure the screen gets focus.
+  (set-fence :wrap)  ;; This ensures that the turtle doesn't disappear of the screen
+  (set-prop :step 0)  ;; We start with the turtle standing still
+  ;; Left or right arrows will turn the turtle a little
   (set-onkey [:LEFT]  #(left 10))
   (set-onkey [:RIGHT] #(right 10))
+  ;; Up or down arrows will speed up or slow down the turtle.
   (set-onkey [:UP]    #(swap-prop :step inc))
   (set-onkey [:DOWN]  #(swap-prop :step dec))
+  ;; If we want to do more than one thing, put your commands inside a 'do' command.
   (set-onkey [:H]     #(do (set-prop :step 0) (home)))
-  (set-onkey [:C]     #(do  (clear)))
-  (set-onkey [:U]     #(do  (pen-up)))
-  (set-onkey [:D]     #(do  (pen-down)))
-  (set-onkey [:S]     #(do  (set-prop :step 0)))
-  (set-onkey [:SHIFT :R]     #(do  (set-color :red)))
-  (set-onkey [:SHIFT :B]     #(do  (set-color :black)))
-  (set-onkey [:SHIFT :DIGIT1]     #(do  (set-width 1)))
-  (set-onkey [:SHIFT :DIGIT2]     #(do  (set-width 2)))
-  (set-onkey [:SHIFT :DIGIT3]     #(do  (set-width 4)))
-  (set-onkey [:SHIFT :DIGIT4]     #(do  (set-width 8)))
-  (set-onkey [:SHIFT :DIGIT5]     #(do  (set-width 16)))
-  (set-onkey [:SHIFT :DIGIT7]     #(do  (set-width 32)))
-  (set-onkey [:SHIFT :DIGIT8]     #(do  (set-width 64)))
-
+  ;; And here are some other ideas for commands you can add.
+  (set-onkey [:C]     #(clear))
+  (set-onkey [:U]     #(pen-up))
+  (set-onkey [:D]     #(pen-down))
+  (set-onkey [:S]     #(set-prop :step 0))
+  (set-onkey [:R]     #(set-color :red))
+  (set-onkey [:B]     #(set-color :black))
+  (set-onkey [:SHIFT :B]     #(set-color :blue))
+  (set-onkey [:DIGIT1]     #(set-width 1))
+  (set-onkey [:DIGIT2]     #(set-width 2))
+  (set-onkey [:DIGIT3]     #(set-width 4))
+  (set-onkey [:DIGIT4]     #(set-width 8))
+  (set-onkey [:DIGIT5]     #(set-width 16))
+  (set-onkey [:DIGIT7]     #(set-width 32))
+  (set-onkey [:DIGIT8]     #(set-width 64))
+  ;; Now set the thicker so that 'walk' will be called every tick.
   (set-ticker walk)
+  ;; finally, start the ticker. 
   (start-ticker))
 ;(walker)
