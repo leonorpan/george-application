@@ -157,10 +157,8 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   set-state
   register-turtle
   get-all-turtles
-  screen
   get-screen-default
   reset
-  delete-screen
   get-size
   get-fence
   allowed-fence-values
@@ -168,7 +166,16 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   is-overlapping
   reset-onkey
   is-ticker-running
-  set-onkey-handlers)
+  set-onkey-handlers
+  screen
+  get-screen
+  is-screen-visible
+  set-screen-visible
+  new-screen)
+  
+;; Is re-declared later
+(def ^:dynamic *screen*)
+
 
 ;; An empty record is an easy way to type a map.
 (defrecord Turtle [])
@@ -220,8 +227,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 (defn get-root
   "Returns the top-level parent for all turtle rendering."
   []
-  ;(println "/get-root" screen)
-  (:root (screen)))
+  (:root @(get-screen)))
 
 
 (defn turtle?
@@ -878,12 +884,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     (apply new-turtle (reduce concat (seq new-state1)))))
 
 
-;;;;;;;
-
-
-(def ^:private turtles_ (atom (ordered-map)))
-
-
 (defn get-all-turtles
   "Returns a global list of all turtles.  
 
@@ -892,21 +892,21 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   The same turtle won't appear twice in the list.  
   The list is ordered based on creation order."
   []
-  (vals @turtles_))
+  (-> @(get-screen) :turtles vals))
 
 
 (defn- register-turtle
   "Appends turtle to the global registry if it is not already registered."
   [turtle]
   ;(println "register-turtle turtle-count (approx):" (count @turtles_))
-  (swap! turtles_ assoc turtle turtle)
+  (swap! (get-screen) assoc-in [:turtles turtle] turtle)
   turtle)
 
 
 (defn- unregister-turtle
   "Remove the turtle from the global list."
   [turtle]
-  (swap! turtles_ dissoc turtle)
+  (swap! (get-screen) update-in [:turtles] dissoc turtle)
   nil)
 
 
@@ -948,7 +948,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     
     (doseq [turtle turtles]
       (delete-turtle turtle)))
-  nil))    
+  nil))
 
 
 (def ^:dynamic *turtle* nil)
@@ -974,9 +974,10 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   If you want to control another turtle than the latest one,
   then use the command [`with-turtle`](var:with-turtle) "
   []
+  (screen)  ;; Ensure visible screen
   (if-let [turt *turtle*]
     turt
-    (if-let [turt (last (get-all-turtles))]
+    (if-let [turt (last (get-all-turtles))] 
       turt
       (new-turtle :name "Tom"))))
 
@@ -1009,195 +1010,43 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ;(with-turtle (make-turtle) (forward 100))
 
 
-;;;;;;;;;;;;;;;;;
-
-
-(defn- create-screen 
-  "Returns map containing 'pane', 'root', and a few other elements.
-  The root group is the actual parent for all items. 
-  The pane is the root for a stage scene (or could be framed in a layout.)"
-  [size]
-  (let [size1
-        (or size (get-screen-default :size))
-
-        background 
-        (get-screen-default :background)
-        
-        ;; TODO: Set the border directly on the pane in stead?
-        border
-        (doto
-          (fx/rectangle :arc 4 :fill Color/TRANSPARENT)
-          (fx/set-stroke Color/CORNFLOWERBLUE 2)
-          (fx/set-translate-XY [2 2])
-          (.setVisible false))
-
-        axis
-        (doto ^Group
-          (fx/group
-            (fx/line :x1 -100 :x2 100 :color Color/CORNFLOWERBLUE :width 2)
-            (fx/line :y1 -100 :y2 100 :color Color/CORNFLOWERBLUE :width 2))
-          (.setVisible false))
-
-        root
-        (fx/group axis)
-
-        pane 
-        (doto
-          (fx/pane border root)
-          (fx/set-background (aux/to-color background)))
-        
-        scene
-        (doto
-          (fx/scene pane :size size1)
-          (set-onkey-handlers))
-        
-        stage
-        (fx/now
-          (fx/stage
-            :scene scene
-            :title "Turtle Screen"
-            :resizable true
-            :sizetoscene true
-            :tofront true
-            :alwaysontop true
-            :oncloserequest
-            #(do
-               (stop-ticker)
-               (output/interrupt-all-sessions true)
-               (delete-all-turtles false))
-            :onhidden
-            #(delete-screen)))]
-
-    (doto ^Rectangle border
-      (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
-      (-> .heightProperty (.bind (-> scene .heightProperty (.subtract 4)))))
-
-    (doto ^Group root
-      (-> .layoutXProperty (.bind (-> scene .widthProperty (.divide 2))))
-      (-> .layoutYProperty (.bind (-> scene .heightProperty (.divide 2)))))
-
-    (map->Screen
-      {:stage stage
-       :scene scene
-       :pane pane  ;; This is the part that is root on scene.
-       :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
-       :axis axis
-       :border border
-       :size size1
-       :background background})))    
-
-
 (defn- de-iconify-maybe 
-  "If stage is new, it won't be iconfied.
+  "If stage is new, it won't be iconified.
     If the stage is open, then the user is aware of it, and it doesn't need any focus either.
-    Only if the stage is iconified, should it be brought to the user's awarness."
+    Only if the stage is iconified, should it be brought to the user's awareness."
   [^Stage stage]
-  (when (.isIconified stage)
+  (when (and stage (.isIconified stage))
     (fx/later
       (doto stage
         (.setIconified false)
         (.toFront)))))
 
 
-(defn- get-new-size [scrn size]
-  (if (nil? size)
-    (if scrn (:size scrn) (get-screen-default :size))
-    size))
-
-
-(defn- resize [scrn size]
-  (let [size1 (get-new-size scrn size)
-        stage ^Stage (:stage scrn)
-        scene ^Scene (:scene scrn)
-        ;; figure out the diffs for the chrome
-        diff-w (- (.getWidth stage) (.getWidth scene))
-        diff-h (- (.getHeight stage) (.getHeight scene))
-        [^double w ^double h] size1]
-    (fx/set-WH stage [(+ w diff-w) (+ h diff-h)])
-    size1))
-
-
 (defn to-front
   "Has the turtle window move to the front - e.g. ensures that the turtle window gets \"focus\".
    Useful so it can receive onkey-events immediately."
-  []
-  (fx/later (.toFront ^Stage (:stage (screen)))))
-
-
-(def screen-agent (agent {:screen nil}))
-
-
-(defn- create-screen-action [size {:keys [screen] :as curr}]
-  ;(println "/create-screen-action")
-  (let [scrn
-        (if screen
-            (do ;(println "CREATE: screen existed")
-              curr)
-            (do ;(println "CREATE: creating screen")
-                (let [scrn (create-screen size)]
-                  ;(println (str "scrn-: " scrn))
-                  {:screen scrn})))]
-    scrn))
-
-
-(defn- delete-screen-action [{:keys [screen] :as curr}]
-  (if screen
-    (do ;(println "DELETE: deleting screen")
-        (delete-all-turtles)
-        (fx/later (.close ^Stage (:stage screen)))
-        {:screen nil})
-    (do ;(println "DELETE: no screen found")
-        curr)))
-
-
-(defn- get-screen [size]
-  (when-let [err ^Exception (agent-error screen-agent)]
-    ;(.printStackTrace err)
-    (output/oprintln :system-em (.getMessage err))
-    (output/oprintln :system "Restarting agent ...")
-    (restart-agent screen-agent {:screen nil}))
-  (send screen-agent #(create-screen-action size %))
-  (await screen-agent)
-  (:screen @screen-agent))
-
-
-(defn screen
-  "Returns a screen object, creating and showing one, and creating and adding a turtle on it.
-  It (re-)sized to size.  If no size, then sizes to default, which is [600 450].
-
-  Screen will not automatically create a turtle.  If you want a screen with a turtle on it, then call `turtle` or any other turtle command in stead."
-
  ([]
-  (screen nil))
- ([[x y :as size]]
-  (when (some? size)
-    (assert (and (pos-number? x) (pos-number? y))
-            "'x' and 'y' must both be positive numbers."))   
-  (let [scrn (get-screen size)]
-    (de-iconify-maybe (:stage scrn))
-    (if (and (some? size) (not= size (:size scrn)))
-      (let [size1 (resize scrn size)]
-        (send screen-agent assoc-in [:screen :size] size1)
-        ;; Don't need to wait for agent. Just return an updated model.
-        ;; TODO: Maybe we should 'await' and return agent content?
-        (assoc-in scrn [:screen :size] size1)) 
-      scrn))))
+  (to-front (get-screen)))
+ ([screen]
+  (when (is-screen-visible screen)
+    (fx/later (.toFront ^Stage (:stage @screen))))))
 
 
-(defn delete-screen []
-  @(send screen-agent delete-screen-action)
-  nil)
+(defn- relayout-stage [stage]
+  (when stage
+    (let [
+          [^double w ^double h] (fx/WH stage)]
+      (doto stage
+       (.setWidth (inc w))
+       (.setHeight (inc h))
+       (.setWidth w)
+       (.setHeight h)))))
 
 
-
-;;;;;;;;;;;;;;;;;
-
-
-;; Should this behave differently - not clear away (all) turtles?
+  ;; Should this behave differently - not clear away (all) turtles?
 (defn clear
   "Removes all graphics from screen.
   The optional argument indicates whether or not to leave a single turtle on the screen. 'true' is default.
-  
   
   **Warning:** This also clears away all but the last turtle (or all the turtles)!
 
@@ -1209,28 +1058,22 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
  ([]
   (clear true))
  ([keep-1-turtle?]
-  (let [scrn (screen)
-        stg ^Stage (:stage scrn)
-        ;; A hack to force the scene to re-render/refresh everything.
-        [^double w ^double h] (fx/WH stg)
-        _ (.setWidth stg (inc w))
-        _ (.setHeight stg (inc h))
-        _ (.setWidth stg  w)
-        _ (.setHeight stg h)
-
-        root (:root scrn)
+  (let [{:keys [stage root axis]} @(get-screen)
         
         nodes-to-keep-pred  
         (if keep-1-turtle?
             ;; a set *is* a predicate function
-            #{(:group @(turtle)) (:axis scrn)} 
-            #{(:axis scrn)})]
+            #{(:group @(turtle)) axis} 
+            #{axis})]
     
     (delete-all-turtles keep-1-turtle?)
+
     (fx/later
       (fx/children-set-all 
         root 
-        (filter nodes-to-keep-pred (fx/children root)))))
+        (filter nodes-to-keep-pred (fx/children root)))
+      (relayout-stage stage)))
+
   nil))
 
 
@@ -1242,16 +1085,14 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   (let [c (if (#{:background :default} color)
             (get-screen-default :background)
             color)]
-    (-> (screen) :pane (fx/set-background (aux/to-color c)))
-    (send screen-agent assoc-in [:screen :background] c)
-    (await screen-agent)
+    (-> @(get-screen) :pane (fx/set-background (aux/to-color c)))
     nil))
 
 
 (defn get-background
   "Returns the screen's background color in the form it was set."
   []
-  (-> (screen) :background))
+  (-> @(get-screen) :background))
 
 
 (defn get-size
@@ -1260,8 +1101,9 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
   Otherwise what it was set to programmatically. "
   [& [actual?]]
   (if actual?
-    (-> (screen) :scene fx/WH)
-    (-> (screen) :size)))
+    (when-let [scene (:scene @(get-screen))]
+      (-> scene fx/WH))
+    (-> @(get-screen) :size)))
 
 
 (def allowed-fence-values #{:stop :wrap :none})
@@ -1303,24 +1145,19 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
             :onfence (fn [turtle fence] (when (= fence :stop) (delete-turtle turtle)))})
 ```"
   
-  [type]
-  (assert (or (map? type) (#{:stop :wrap :none :default :fence} type))
+  [fence]
+  (assert (or (map? fence) (#{:stop :wrap :none :default :fence} fence))
           "'type' must be a function or one of the specified keywords.")
   ;; TODO: assert the return value when calling the function!
   ;; TODO: also maybe ':slide' (continue sideways along the fence) , ':bounce' (like a ball), ':reverse' (do a 180 and continue).
-  
-  (send screen-agent assoc-in [:screen :fence] 
-                              (if (#{:default :fence} type) 
-                                  (get-screen-default :fence) 
-                                  type))
-  (await screen-agent)
+  (swap! (get-screen) assoc :fence fence)
   nil)
 
 
 (defn get-fence
   "Returns the screen's fence type."
   []
-  (-> (screen) :fence))
+  (-> @(get-screen) :fence))
 
 
 (defn set-axis-visible 
@@ -1332,13 +1169,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 "
   [bool]
-  (-> (screen) :axis (#(.setVisible ^Group % bool))))
+  (-> @(get-screen) :axis (#(.setVisible ^Group % bool))))
 
 
 (defn is-axis-visible 
   "Returns `true` if axis is visible, else `false`."
   []
-  (-> (screen) :axis (#(.isVisible ^Group %))))
+  (-> @(get-screen) :axis (#(.isVisible ^Group %))))
 
 
 (defn set-border-visible 
@@ -1350,16 +1187,13 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 ```
 "  
   [bool]
-  (-> (screen) :border (#(.setVisible ^Rectangle % bool))))
+  (-> @(get-screen) :border (#(.setVisible ^Rectangle % bool))))
 
 
 (defn is-border-visible
   "Returns `true` if border is visible, else `false`."
   []
-  (-> (screen) :border (#(.isVisible ^Rectangle %))))
-
-
-;;;;;;;;;;;;;;;;;;;;
+  (-> @(get-screen) :border (#(.isVisible ^Rectangle %))))
 
 
 (defn swap-prop
@@ -1500,11 +1334,6 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
 
 (defn get-screen-default [k]
   ((get-screen-defaults) k))
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 
 (defn- turn [turtle ^double degrees]
@@ -2397,22 +2226,18 @@ There are a number of optional ways to set font:
   Clears the screen, and center the current turtle, leaving only one turtle.
   The optional argument indicates whether or not to leave a single turtle on the screen. 'true' is default. 
 
-  Same as calling:   
-```
-(clear) (show) (set-speed :default) (pen-up) (home) (pen-down)
-(set-color :default) (set-width :default) (set-fill :default) (set-background :default) (set-round :default) 
-(set-undo 0) (clear-onkey)
-```
   **Warning:** `(clear)` also clears away all but the last turtle (or all if optional argument is false-y).
   
   *Example:* 
 ```
 (reset)        ;; leaves one turtle on the screen.
 (reset false)  ;; leaves the screen blank
-```"
+```
+"
  ([]
   (reset true))
  ([keep-1-turtle?]
+  (screen)
   (stop-ticker)  ;; important to do before clearing any nodes - as the ticker may continue to effect something.
   (clear keep-1-turtle?)
   (when keep-1-turtle?
@@ -2476,52 +2301,6 @@ See topic [Clojure](:Clojure) for more information."
 ;(eval frm)
 
 
-(defn run-sample
-  "A simple test program which uses many of the available turtle commands."
-  []
-  (reset)
-  (println "heading:" (get-heading))
-  (left 60)
-  (right 30)
-  (left 45)
-  (println "heading:" (get-heading))
-  (set-heading 120)
-  (println "heading:" (get-heading))
-  (forward 30)
-  (pen-up)
-  (right 60)
-  (forward 30)
-  (pen-down)
-  (Thread/sleep 1000)
-  (set-color "red")
-  (println "pen color:" (get-color))
-  (forward 30)
-
-  (sleep 2000)
-
-  (reset)
-
-  ;(pen-up)
-  (set-position [-75 -120])
-  (left 90)
-  ;(pen-down)
-  (set-color Color/CORNFLOWERBLUE)
-  (rep 6
-       (dotimes [_ 4]
-         (forward 50) (left 90))
-       (pen-up)
-       (right 45)
-       (forward 20)
-       (left 45)
-       (pen-down))
-
-  (hide)
-  nil)
-
-  
-;;;;;;;;;
-
-
 (defn- new-ticker
   ([f]
    (new-ticker (/ 1000. 30) f))
@@ -2531,33 +2310,32 @@ See topic [Clojure](:Clojure) for more information."
      (.setCycleCount Animation/INDEFINITE))))
 
 
-(defonce ^:private ticker_ (atom nil))
-
-
 (defn ^Timeline get-ticker
   "returns the current ticker, if one has been set"
   []
-  @ticker_)
+  (:ticker @(get-screen)))
 
 
 (defn set-ticker
   "A single ticker set on the screen. It takes a no-args function and an optional time (in milliseconds).
   This is useful in games and in animations.
-  'f' is the no-args function that will be called at every tick.
-  'millis' is the time between each tick. Default is 30 ticks per second.
+  'function' is the no-args function that will be called at every tick.
+  'interval-in-milliseconds' is the time between each tick. Default is 30 ticks per second.
 
   The ticker is not automatically started or stopped, but is stopped if the Turtle window is closed, or if a new function is set on st-ticker.  
   
   **Warning!** Preferable set the turtles 'speed' to nil, to avoid running lots of animations at every tick, unless perhaps the ticks are very slow.
   Combining ticks and animations in turtles is unpredictable!
 "  
-  ([f]
-   (set-ticker (/ 1000. 30) f))
-  ([millis f]
+  ([function]
+   (set-ticker (/ 1000. 30) function))
+  ([interval-in-milliseconds function]
    (when-let [t (get-ticker)]
+     (println "/set-ticker - stopping ticker")
      (.stop t))  ;; to avoid memory leak!
-   (let [t (new-ticker millis f)]
-     (reset! ticker_ t)
+   (let [screen_ (get-screen)
+         t (new-ticker interval-in-milliseconds #(binding [*screen* screen_] (function)))]
+     (swap! screen_ assoc  :ticker t)
      nil)))
 
 
@@ -2566,15 +2344,18 @@ See topic [Clojure](:Clojure) for more information."
   See [`set-ticker`](var:set-ticker) for more."
   []
   (when-let [t (get-ticker)]
-    (.play t)))
+    (fx/later (.play t))))
 
 
 (defn stop-ticker
   "Stops the ticker. 
   See [`set-ticker`](var:set-ticker) for more."
-  []
-  (when-let [t (get-ticker)]
-    (.stop t)))
+  [& verbose?]
+  (when (is-ticker-running)
+    (let [t (get-ticker)]
+      (fx/later (.stop t))
+      (when verbose?
+        (println "ticker stopped")))))
 
 
 (defn is-ticker-running
@@ -2598,33 +2379,29 @@ See topic [Clojure](:Clojure) for more information."
 ;(stop-ticker)
 
 
-;;;;;
-
-
-(def ^{:private true 
-       :doc "Holds all onkey mappings - both for keypressed and keytyped.
-       Is dynamically queried at every key-event"}
-      onkey_ (atom {}))
+(defn get-all-onkey_
+  []
+  (:onkey @(get-screen)))
 
 
 (defn get-all-onkey
   "Returns a map of all onkey function pair set on the screen."
   []
-  @onkey_)
+  @(get-all-onkey_))
 
 
 (defn reset-onkey 
   "Removes all onkey handlers from the screen."
   []
-  (reset! onkey_ {}))
+  (reset! (get-all-onkey_) {}))
 
 
 (defn- set-onkey-handlers 
-  "Is called on screen load to set onkey-handlers on stage"  
+  "Is called on screen becoming visible to set onkey-handlers on stage."  
   [^Scene scene]
   (doto  scene
-    (.setOnKeyTyped (fx/char-typed-handler onkey_))
-    (.setOnKeyPressed (fx/key-pressed-handler onkey_))))
+    (.setOnKeyTyped (fx/char-typed-handler (get-all-onkey_)))
+    (.setOnKeyPressed (fx/key-pressed-handler (get-all-onkey_)))))
 
 
 (defn- assert-onkey-key [k]
@@ -2662,8 +2439,11 @@ See topic [Clojure](:Clojure) for more information."
   (assert-onkey-key key-combo-or-char-str)
   (assert (fn? function)
           (format "'function' passed to set-onkey must be a function. Got  %s" function))
-  (swap! onkey_ assoc (uppercase-and-makeset-keywords key-combo-or-char-str) function)
-  nil)
+  (let [screen_ (get-screen)]
+    (swap! (get-all-onkey_) 
+           assoc 
+           (uppercase-and-makeset-keywords key-combo-or-char-str) #(binding [*screen* screen_] (function)))
+    nil))
 
 
 (defn unset-onkey
@@ -2671,7 +2451,7 @@ See topic [Clojure](:Clojure) for more information."
   See [`set-onkey`](var:set-onkey) for more."
   [key-combo-or-char-str]
   (assert-onkey-key key-combo-or-char-str)
-  (swap! onkey_ dissoc (uppercase-and-makeset-keywords key-combo-or-char-str))
+  (swap! (get-all-onkey_) dissoc (uppercase-and-makeset-keywords key-combo-or-char-str))
   nil)
 
 
@@ -2680,8 +2460,234 @@ See topic [Clojure](:Clojure) for more information."
   See [`set-onkey`](var:set-onkey) for more."
   [key-combo-or-char-str]
   (assert-onkey-key key-combo-or-char-str)
-  (@onkey_ (uppercase-and-makeset-keywords key-combo-or-char-str)))
+  ((get-all-onkey) (uppercase-and-makeset-keywords key-combo-or-char-str)))
 
 ;(set-onkey [:up] #(println "UP!"))
 ;(user/pprint (get-all-onkey))
 ;((get-onkey [:up]))
+
+
+(defn new-screen
+  ;; TODO: Implement support for mounting screen in alternative layout.
+  "Returns a new screen object.
+  The screen is not visible. (It is not mounted in a window (stage).
+  You will need to make it visible (or not) with a separate call to `set-screen-visible`.  
+  If simply want a visible default screen, use `screen`.
+  
+  If no 'size'  parameter is passed, the screen will use a default size.
+  The size is simply stored, and applied whenever the the screen is made visible.
+*examples:*
+```
+(get-screen)
+(get-screen [400 300])  ;; [w h]
+```
+"
+ ([]
+  (new-screen (get-screen-default :size)))
+ ([[w h :as size]]
+  (let [
+        fence
+        (get-screen-default :fence)
+        
+        background
+        (get-screen-default :background)
+
+        ;; TODO: Set the border directly on the pane in stead?
+        border
+        (doto
+          (fx/rectangle :arc 4 :fill Color/TRANSPARENT)
+          (fx/set-stroke Color/CORNFLOWERBLUE 2)
+          (fx/set-translate-XY [2 2])
+          (.setVisible false))
+
+        axis
+        (doto ^Group
+              (fx/group
+                (fx/line :x1 -100 :x2 100 :color Color/CORNFLOWERBLUE :width 2)
+                (fx/line :y1 -100 :y2 100 :color Color/CORNFLOWERBLUE :width 2))
+          (.setVisible false))
+
+        root
+        (fx/group axis)
+
+        pane
+        (doto
+          (fx/pane border root)
+          (fx/set-background (aux/to-color background)))]
+
+    (atom
+      (map->Screen
+        {:stage nil
+         :scene nil
+         :pane pane  ;; This is the part that is root on scene.
+         :root root   ;; This is the root of all turtle artifacts. It is scentered on the scene.
+         :axis axis
+         :border border
+         :size size
+         :background background
+         :fence fence
+         :turtles (ordered-map)
+         :ticker nil
+         ;; onkey is an atom as key-handlers can read from an atom directly
+         :onkey (atom {})})))))
+
+
+
+(defonce ^:dynamic *screen* (new-screen))
+
+
+(defmacro with-screen
+  "Used for overriding the default screen.
+  Intended used for tooling.
+  
+  Equal to doing:
+  ```
+  (binding [*screen* screen]
+   ;; body
+   )
+  ```"
+  [screen & body]
+  `(do
+     (binding [*screen* ~screen]
+       ~@body)))
+
+
+(defn get-screen 
+  "Simply returns which ever screen is bound to *screen* 
+  - either via `with-screen` or directly in code."
+  []
+  *screen*)
+
+
+(defn- resize-screen [screen]
+  (let [{:keys [size scene stage]} @screen
+        ;; figure out the diffs for the chrome
+        diff-w (- (.getWidth stage) (.getWidth scene))
+        diff-h (- (.getHeight stage) (.getHeight scene))
+        [^double w ^double h] size]
+    (fx/set-WH stage [(+ w diff-w) (+ h diff-h)])
+    nil))
+
+
+(defn is-screen-visible
+  "Returns `true` or `false` for whether the screen is visible ornot."
+ ([]
+  (is-screen-visible (get-screen)))
+
+ ([screen]
+  (boolean (and (:scene @screen) (:stage @screen)))))
+
+
+(defn- make-hidden [screen]
+  (let [{:keys [stage scene border root]} @screen]
+
+    (binding [*screen* screen]
+      (stop-ticker true))
+    ;(output/interrupt-all-sessions true))
+
+    (when scene
+      ;; a dummy pane, so as to release the screen's pane from the scene for later re-attaching to new scene
+      (.setRoot scene (fx/pane)))
+    
+    (when (.isShowing stage)
+      (fx/now (.close stage)))
+
+    (doto ^Rectangle border
+      (-> .widthProperty .unbind)
+      (-> .heightProperty .unbind))
+
+    (doto ^Group root
+      (-> .layoutXProperty .unbind)
+      (-> .layoutYProperty .unbind))
+
+    (swap! screen dissoc :stage :scene)    
+    nil))
+
+
+(defn- make-visible [screen]
+  (let [{:keys [pane size border root]} @screen
+        scene
+        (doto
+          (fx/scene pane :size size)
+          (set-onkey-handlers))
+
+        stage
+        (fx/now
+          (fx/stage
+            :scene scene
+            :title "Turtle Screen"
+            :resizable true
+            :sizetoscene true
+            :tofront true
+            :alwaysontop true
+            :onhidden #(set-screen-visible screen false)))]
+
+       (doto ^Rectangle border
+         (-> .widthProperty (.bind (-> scene .widthProperty (.subtract 4))))
+         (-> .heightProperty (.bind (-> scene .heightProperty (.subtract 4)))))
+       
+       (doto ^Group root
+         (-> .layoutXProperty (.bind (-> scene .widthProperty (.divide 2))))
+         (-> .layoutYProperty (.bind (-> scene .heightProperty (.divide 2)))))
+
+       (swap! screen assoc :scene scene :stage stage)
+       nil))
+
+
+(defn set-screen-visible
+  "Sets the screen's visibility."
+  ([visible?]
+   (set-screen-visible (get-screen) visible?))
+  ([screen visible?]
+   (cond 
+     (and visible? (not (is-screen-visible screen)))  
+     (make-visible screen)
+     
+     (and (not visible?) (is-screen-visible screen))        
+     (make-hidden screen))  
+   nil))
+
+
+(defn set-screen-size 
+  "Sets the screen size 
+  - whether screen is visible or not."
+ ([[w h :as size]]
+  (set-screen-size (get-screen) size))  
+ ([screen [w h :as size]]
+  (swap! screen assoc :size (or size (get-screen-default :size)))
+  (when (is-screen-visible screen)
+        (resize-screen screen))))
+
+
+(defn get-screen-size
+  "Returns the current screens size as a vector [w h] 
+  - whether screen is visible or not."
+ ([]
+  (get-screen-size (get-screen)))
+ ([screen]
+  (:size @screen)))
+
+
+(defn screen 
+  "Makes the screen visible, and possibly resizes it;
+   either the default screen or one bound to *screen* using `with-screen` (advanced) or explicitly.
+  There is always a default screen.  
+  
+  The screen is made visible and (re-)sized to 'size'.  
+  
+  If the screen is already visible, but \"minimized\", it will be \"un-minimized\" and brought to the front.
+
+*Examples:*  
+```
+(screen)
+(screen [400 300])
+```  
+  "
+ ([]
+  (screen nil))
+ ([[w h :as size]]
+  (let [screen (get-screen)]
+    (when size (set-screen-size screen size))
+    (set-screen-visible screen true)
+    (de-iconify-maybe (:stage @screen))
+    nil)))
