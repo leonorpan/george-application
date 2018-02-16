@@ -270,6 +270,10 @@ You can get a list containing all registered turtles with the command [``]
    #'get-font
    "Screen (more)"
    #'screen
+   #'set-screen-size
+   #'get-screen-size
+   #'set-screen-visible
+   #'is-screen-visible
    #'set-background
    #'get-background
    #'set-axis-visible
@@ -368,8 +372,12 @@ You can get a list containing all registered turtles with the command [``]
                       (click-handler detail-fn)))
 
 
+(defn- var-meta [var]
+  (if (labeled? var) (-> var :value meta) (meta var)))
+
+
 (defn- var->aritylisting [var]
-  (let [m (if (labeled? var) (-> var :value meta) (meta var))
+  (let [m (var-meta var)
         n (if (labeled? var) (:label var) (str (:name m)))
         argls (:arglists m)
         arrity0f "(%s)"
@@ -394,9 +402,11 @@ You can get a list containing all registered turtles with the command [``]
   [vr detail-fn]
   (let [n (if (labeled? vr) (:label vr) (var->name vr))
         a (var->aritylisting vr)
+        macro? (:macro (var-meta vr))
+        special (if macro? "\n*Macro*" "")
         d (var->doc (if (labeled? vr) (:value vr) vr))
-                            
-        md (format "# %s  \n```\n%s\n```  \n***\n\n%s" n a d)]
+        
+        md (format "# %s  \n```\n%s\n```  %s\n***\n\n%s" n a special d)]
     (rendered-detail md detail-fn)))
 
 
