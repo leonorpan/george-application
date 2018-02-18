@@ -57,18 +57,22 @@ Copyright 2015-2018 Terje Dahl.
 Powered by open source software.")
 
 
+(defn george-version []
+  (slurp (cio/resource "george-version.txt")))
+
 (defn- about-stage-create []
   (let [version-info
         (doto
           (fx/new-label
             (format versionf
-               (slurp (cio/resource "george-version.txt"))
+               (george-version)
                (clojure-version)
                (env :java-version))
-            :font (fx/new-font "Roboto Mono")))
+            :font (fx/new-font "Roboto Mono" 12)))
 
         copyright-info
-        (fx/new-label copyright)
+        (fx/new-label copyright 
+                      :size 12)
 
         link
         (styled/new-link "www.george.andante.no" #(browse-url "http://www.george.andante.no"))
@@ -149,7 +153,7 @@ Powered by open source software.")
                               (doto (MenuItem. (format "Dispose of (quit) '%s'" (label)))
                                     (fx/set-onaction dispose-fn))))))
           (doto (fx/new-label (label)
-                              :style (format "-fx-font-size: %s;" label-font-size))
+                              :size label-font-size)
                 (.setMaxWidth tile-width)
                 (.setWrapText true)
                 (.setTextAlignment TextAlignment/CENTER))
@@ -179,9 +183,9 @@ Powered by open source software.")
            :mouseclicked  #(detail-setter (styled/new-heading "George" :size 24)))
 
         about-label
-        (fx/new-label "About"
-          :style "-fx-font-size: 10px;"
-          :mouseclicked about-stage)
+        (fx/new-label "About" 
+                      :size 11
+                      :mouseclicked about-stage)
 
         applet-infos
         (applet/load-applets)

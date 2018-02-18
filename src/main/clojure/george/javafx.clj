@@ -744,7 +744,8 @@ It must return a string (which may be wrapped to fit the width of the list."
 
 
 (defn ^Label new-label
-  [s & {:keys [graphic font size color mouseclicked tooltip style]  :or {size 12}}]
+  [s & {:keys [graphic font size color mouseclicked tooltip style]  
+          :or {size 12}}]
   (let [label (doto  (Label. s graphic)
                 (set-font (or font (new-font size))))]
     (when color (.setTextFill label color))

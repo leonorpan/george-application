@@ -177,7 +177,7 @@
 
 (defn- eval-one [rd ns eval-id R C file-name update-ns-fn silent?]
   (repl/def-eval
-    {:code (str rd)
+    {:code (binding [*print-meta* true] (pr-str rd))
      :ns ns
      :session (repl/session-ensure! true)
      :id eval-id
