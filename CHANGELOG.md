@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file. This change
 - Renamed assoc-/dissoc-onkey to set-/unset-onkey.
 - Added namespaces "george.turtle.tom" and "george.turtle.adhoc.jf4k".
 
+## [2018.5] - 2018-02-18
+
+## Added
+- A basic DnD filetree, though not activated.
+
+## Fixed
+- Metadata was being stripped before evaluation.
+
+### Turtle API
+- Reworked and extended "screen" implementation.
+- New commands: set/get-screen-size, set/is-screen-visible, with-screen, get-screen, new-screen
+
+
+## [2018.4.1] - 2018-02-04
+
+### Turtle API
+- Fixed a deadlock-issue between move-to and ticker.
+- Renamed assoc-/dissoc-onkey to set-/unset-onkey.
+- Added namespaces 'george.turtle.tom' and 'george.turtle.adhoc.jf4k'
+
 
 ## [2018.4] - 2018-01-31
 
