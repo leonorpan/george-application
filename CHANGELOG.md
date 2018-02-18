@@ -3,13 +3,6 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 
-## [2018.4.1] - 2018-02-03
-
-### Turtle API
-- Prevented a deadlock-issue between move-to and ticker. 
-- Renamed assoc-/dissoc-onkey to set-/unset-onkey.
-- Added namespaces "george.turtle.tom" and "george.turtle.adhoc.jf4k".
-
 ## [2018.5] - 2018-02-18
 
 ## Added
@@ -23,7 +16,7 @@ All notable changes to this project will be documented in this file. This change
 - New commands: set/get-screen-size, set/is-screen-visible, with-screen, get-screen, new-screen
 
 
-## [2018.4.1] - 2018-02-04
+## [2018.4.1] - 2018-02-03
 
 ### Turtle API
 - Fixed a deadlock-issue between move-to and ticker.
