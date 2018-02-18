@@ -1015,7 +1015,7 @@ delete <key> <not-found>  ;; returns <not-found> if didn't exist
     If the stage is open, then the user is aware of it, and it doesn't need any focus either.
     Only if the stage is iconified, should it be brought to the user's awareness."
   [^Stage stage]
-  (when (and stage (.isIconified stage))
+  (when (.isIconified stage)
     (fx/later
       (doto stage
         (.setIconified false)
